@@ -11,12 +11,12 @@ import java.util.Base64;
 /**
  * Generates RSA JWT key pair if it doesn't exist.
  *
- * Invoked during Maven's process-test-classes phase to ensure JWT signing/verification
- * keys exist before tests run. Uses only JDK built-ins (KeyPairGenerator).
+ * <p>Invoked during Maven's process-test-classes phase to ensure JWT signing/verification keys
+ * exist before tests run. Uses only JDK built-ins (KeyPairGenerator).
  *
- * Keys are generated in PKCS#8 (private) and X.509 (public) PEM formats.
- * This ensures tests always have valid credentials, and keys are NEVER committed to repo.
- * Production keys are generated separately via CI/deployment scripts.
+ * <p>Keys are generated in PKCS#8 (private) and X.509 (public) PEM formats. This ensures tests
+ * always have valid credentials, and keys are NEVER committed to repo. Production keys are
+ * generated separately via CI/deployment scripts.
  */
 public class JwtKeyGenerator {
 
@@ -24,8 +24,7 @@ public class JwtKeyGenerator {
   private static final String PUBLIC_KEY_PATH = "src/main/resources/jwt/publicKey.pem";
 
   public static void main(String[] args) throws Exception {
-    if (Files.exists(Paths.get(PRIVATE_KEY_PATH))
-        && Files.exists(Paths.get(PUBLIC_KEY_PATH))) {
+    if (Files.exists(Paths.get(PRIVATE_KEY_PATH)) && Files.exists(Paths.get(PUBLIC_KEY_PATH))) {
       System.out.println("[JWT] Keys already exist at src/main/resources/jwt/");
       return;
     }

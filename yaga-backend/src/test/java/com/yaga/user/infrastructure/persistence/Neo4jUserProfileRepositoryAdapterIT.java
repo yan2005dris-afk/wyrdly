@@ -22,8 +22,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.neo4j.Neo4jContainer;
 
 /**
- * Real integration test against an ephemeral Neo4j 5.26 container (same image the project uses
- * in compose.yaml / CI). Exercises the actual Cypher in {@link Neo4jUserProfileRepositoryAdapter}
+ * Real integration test against an ephemeral Neo4j 5.26 container (same image the project uses in
+ * compose.yaml / CI). Exercises the actual Cypher in {@link Neo4jUserProfileRepositoryAdapter}
  * (COUNT{}/EXISTS{}/coalesce subqueries) end-to-end — this is deliberately NOT mocked, since the
  * mocked unit/component tests never verify that the Cypher itself is correct.
  */
@@ -113,8 +113,7 @@ class Neo4jUserProfileRepositoryAdapterIT {
     seedUser("usr_bob", "bob", "Bob", "", "");
     follow("usr_bob", "usr_alice");
 
-    Optional<UserProfile> updated =
-        adapter.updateProfile("usr_alice", "Alice Updated", null, null);
+    Optional<UserProfile> updated = adapter.updateProfile("usr_alice", "Alice Updated", null, null);
 
     assertTrue(updated.isPresent());
     assertEquals("Alice Updated", updated.get().fullName());
@@ -133,8 +132,7 @@ class Neo4jUserProfileRepositoryAdapterIT {
     assertTrue(updated.isEmpty());
   }
 
-  private void seedUser(
-      String id, String username, String fullName, String bio, String avatarUrl) {
+  private void seedUser(String id, String username, String fullName, String bio, String avatarUrl) {
     try (Session session = driver.session()) {
       session.run(
           "CREATE (u:Usuario {id: $id, username: $username, fullName: $fullName, "

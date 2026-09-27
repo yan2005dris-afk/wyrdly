@@ -28,9 +28,7 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
         userProfileRepository
             .findProfileByUsername(username, viewerId)
             .orElseThrow(
-                () ->
-                    new UserProfileNotFoundException(
-                        "El usuario '" + username + "' no existe."));
+                () -> new UserProfileNotFoundException("El usuario '" + username + "' no existe."));
     return UserProfileResponse.fromDomain(profile);
   }
 

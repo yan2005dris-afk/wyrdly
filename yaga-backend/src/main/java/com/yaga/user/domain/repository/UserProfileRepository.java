@@ -7,6 +7,5 @@ public interface UserProfileRepository {
 
   Optional<UserProfile> findProfileByUsername(String username, String viewerId);
 
-  Optional<UserProfile> updateProfile(
-      String userId, String fullName, String bio, String avatarUrl);
+  Optional<UserProfile> updateProfile(String userId, String fullName, String bio, String avatarUrl);
 }

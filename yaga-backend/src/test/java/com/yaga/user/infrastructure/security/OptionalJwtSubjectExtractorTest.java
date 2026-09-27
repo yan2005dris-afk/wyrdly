@@ -43,8 +43,7 @@ class OptionalJwtSubjectExtractorTest {
 
   @Test
   void extractSubject_ReturnsNull_WhenTokenParsingFails() throws ParseException {
-    when(jwtParser.parse("expired.token.value"))
-        .thenThrow(new ParseException("Token expired"));
+    when(jwtParser.parse("expired.token.value")).thenThrow(new ParseException("Token expired"));
 
     assertNull(extractor.extractSubject("Bearer expired.token.value"));
   }

@@ -91,8 +91,7 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
     String username = record.get("username").asString();
     String fullName = record.get("fullName").asString("");
     String bio = record.get("bio").isNull() ? "" : record.get("bio").asString("");
-    String avatarUrl =
-        record.get("avatarUrl").isNull() ? "" : record.get("avatarUrl").asString("");
+    String avatarUrl = record.get("avatarUrl").isNull() ? "" : record.get("avatarUrl").asString("");
     long followersCount = record.get("followersCount").asLong(0);
     long followingCount = record.get("followingCount").asLong(0);
     boolean isFollowing = includeIsFollowing && record.get("isFollowing").asBoolean(false);
@@ -114,7 +113,14 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
     }
 
     return new UserProfile(
-        id, username, fullName, bio, avatarUrl, followersCount, followingCount, isFollowing,
+        id,
+        username,
+        fullName,
+        bio,
+        avatarUrl,
+        followersCount,
+        followingCount,
+        isFollowing,
         createdAt);
   }
 }
