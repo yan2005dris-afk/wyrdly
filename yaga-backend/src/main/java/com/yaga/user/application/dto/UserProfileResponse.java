@@ -27,3 +27,4 @@ public record UserProfileResponse(
         profile.createdAt());
   }
 }
+
