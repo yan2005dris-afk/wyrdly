@@ -48,7 +48,7 @@ const INITIAL_NOTIFICATIONS: readonly SocialNotification[] = [
 ];
 
 export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,6 +103,7 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
             onMarkAllAsRead={handleMarkAllRead}
           />
         }
+        onLogout={logout}
       />
 
       {/* Grid Container with Persistent Sidebar & Outlet */}
@@ -113,6 +114,7 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
           <SidebarNav
             unreadMessagesCount={3}
             unreadAlertsCount={unreadAlertsCount}
+            onLogout={logout}
             onNewPostClick={() => {
               navigate("/feed");
               window.scrollTo({ top: 0, behavior: "smooth" });

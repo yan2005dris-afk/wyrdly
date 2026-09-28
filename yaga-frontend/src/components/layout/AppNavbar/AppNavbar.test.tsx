@@ -94,4 +94,67 @@ describe("AppNavbar Component", () => {
 
     expect(screen.getByTestId("test-popover")).toBeInTheDocument();
   });
+
+  it("opens the profile menu with both items when the trigger is clicked", () => {
+    renderWithRouter(<AppNavbar currentUser={MOCK_USER} onLogout={vi.fn()} />);
+
+    expect(screen.queryByTestId("navbar-profile-menu")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("navbar-profile-menu-btn"));
+
+    expect(screen.getByTestId("navbar-profile-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("navbar-profile-link-menu")).toHaveAttribute(
+      "href",
+      "/profile/maya",
+    );
+    expect(screen.getByText("View profile")).toBeInTheDocument();
+    expect(screen.getByTestId("navbar-logout-btn")).toHaveTextContent(
+      "Log out",
+    );
+  });
+
+  it("calls onLogout and closes the menu when Log out is clicked", () => {
+    const handleLogout = vi.fn();
+    renderWithRouter(
+      <AppNavbar currentUser={MOCK_USER} onLogout={handleLogout} />,
+    );
+
+    fireEvent.click(screen.getByTestId("navbar-profile-menu-btn"));
+    fireEvent.click(screen.getByTestId("navbar-logout-btn"));
+
+    expect(handleLogout).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("navbar-profile-menu")).not.toBeInTheDocument();
+  });
+
+  it("closes the profile menu on Escape", () => {
+    renderWithRouter(<AppNavbar currentUser={MOCK_USER} onLogout={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("navbar-profile-menu-btn"));
+    expect(screen.getByTestId("navbar-profile-menu")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByTestId("navbar-profile-menu")).not.toBeInTheDocument();
+  });
+
+  it("closes the profile menu on outside mousedown", () => {
+    renderWithRouter(<AppNavbar currentUser={MOCK_USER} onLogout={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("navbar-profile-menu-btn"));
+    expect(screen.getByTestId("navbar-profile-menu")).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByTestId("navbar-profile-menu")).not.toBeInTheDocument();
+  });
+
+  it("does not render the profile menu trigger when onLogout is omitted", () => {
+    renderWithRouter(<AppNavbar currentUser={MOCK_USER} />);
+
+    expect(
+      screen.queryByTestId("navbar-profile-menu-btn"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("navbar-profile-menu")).not.toBeInTheDocument();
+    expect(screen.getByTestId("navbar-profile-link")).toBeInTheDocument();
+  });
 });

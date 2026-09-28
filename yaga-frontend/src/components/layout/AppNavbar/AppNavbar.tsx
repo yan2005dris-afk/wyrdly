@@ -1,6 +1,6 @@
-import type { FC, FormEvent } from "react";
+import { useEffect, useRef, useState, type FC, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Share2, Search, Bell, ArrowLeft } from "lucide-react";
+import { Share2, Search, Bell, ArrowLeft, ChevronDown } from "lucide-react";
 import type { AppNavbarProps } from "./AppNavbar.types";
 import { Avatar } from "../../ui/Avatar";
 import { Badge } from "../../ui/Badge";
@@ -23,8 +23,50 @@ export const AppNavbar: FC<AppNavbarProps> = ({
   backTo,
   backLabel = "Back",
   actions,
+  onLogout,
   className = "",
 }) => {
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    const handleMouseDown = (event: MouseEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleMouseDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, [isProfileMenuOpen]);
+
+  const closeProfileMenu = () => {
+    setIsProfileMenuOpen(false);
+  };
+
+  const handleLogoutClick = () => {
+    closeProfileMenu();
+    onLogout?.();
+  };
+
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (onSearchSubmit) {
@@ -126,18 +168,62 @@ export const AppNavbar: FC<AppNavbarProps> = ({
             )}
           </div>
 
-          <Link
-            to={currentUser ? `/profile/${currentUser.username}` : "/login"}
-            data-testid="navbar-profile-link"
-          >
-            <Avatar
-              src={currentUser?.avatarUrl}
-              alt={currentUser?.fullName || currentUser?.username || "Guest"}
-              size="sm"
-              showRing={true}
-              ringColor="indigo"
-            />
-          </Link>
+          <div className={styles.profileMenuContainer} ref={profileMenuRef}>
+            <Link
+              to={currentUser ? `/profile/${currentUser.username}` : "/login"}
+              data-testid="navbar-profile-link"
+            >
+              <Avatar
+                src={currentUser?.avatarUrl}
+                alt={currentUser?.fullName || currentUser?.username || "Guest"}
+                size="sm"
+                showRing={true}
+                ringColor="indigo"
+              />
+            </Link>
+
+            {onLogout && currentUser && (
+              <>
+                <IconButton
+                  icon={<ChevronDown className="w-4 h-4" />}
+                  ariaLabel="Open account menu"
+                  variant="ghost"
+                  size="sm"
+                  aria-haspopup="menu"
+                  aria-expanded={isProfileMenuOpen}
+                  data-testid="navbar-profile-menu-btn"
+                  onClick={() => setIsProfileMenuOpen((open) => !open)}
+                />
+
+                {isProfileMenuOpen && (
+                  <div
+                    className={styles.profileMenuDropdown}
+                    role="menu"
+                    data-testid="navbar-profile-menu"
+                  >
+                    <Link
+                      to={`/profile/${currentUser.username}`}
+                      role="menuitem"
+                      className={styles.menuItem}
+                      data-testid="navbar-profile-link-menu"
+                      onClick={closeProfileMenu}
+                    >
+                      View profile
+                    </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={`${styles.menuItem} ${styles.logoutItem}`}
+                      data-testid="navbar-logout-btn"
+                      onClick={handleLogoutClick}
+                    >
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>
