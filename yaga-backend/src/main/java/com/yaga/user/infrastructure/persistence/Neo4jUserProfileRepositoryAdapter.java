@@ -1,5 +1,6 @@
 package com.yaga.user.infrastructure.persistence;
 
+import com.yaga.user.domain.exception.UserProfileNotFoundException;
 import com.yaga.user.domain.model.UserProfile;
 import com.yaga.user.domain.repository.UserProfileRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -7,6 +8,7 @@ import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
@@ -27,7 +29,7 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
 
   @Inject
   public Neo4jUserProfileRepositoryAdapter(Driver driver) {
-    this.driver = driver;
+    this.driver = Objects.requireNonNull(driver, "driver must not be null");
   }
 
   @Override
@@ -83,6 +85,88 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
             }
             return Optional.empty();
           });
+    }
+  }
+
+  @Override
+  public void followUser(String followerId, String followingId) {
+    String cypher =
+        "MATCH (follower:Usuario {id: $followerId}), (following:Usuario {id: $followingId}) "
+            + "MERGE (follower)-[r:SIGUE {fecha: datetime()}]->(following)";
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("followerId", followerId);
+    params.put("followingId", followingId);
+
+    try (Session session = driver.session()) {
+      session.executeWrite(tx -> {
+        tx.run(cypher, params).consume();
+        return null;
+      });
+    }
+  }
+
+  @Override
+  public void unfollowUser(String followerId, String followingId) {
+    String cypher =
+        "MATCH (follower:Usuario {id: $followerId})-[r:SIGUE]->(following:Usuario {id: $followingId}) "
+            + "DELETE r";
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("followerId", followerId);
+    params.put("followingId", followingId);
+
+    try (Session session = driver.session()) {
+      session.executeWrite(tx -> {
+        tx.run(cypher, params).consume();
+        return null;
+      });
+    }
+  }
+
+  @Override
+  public boolean isFollowing(String followerId, String followingId) {
+    String cypher =
+        "MATCH (follower:Usuario {id: $followerId}), (following:Usuario {id: $followingId}) "
+            + "RETURN EXISTS { (follower)-[r:SIGUE]->(following) } AS following";
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("followerId", followerId);
+    params.put("followingId", followingId);
+
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx -> {
+            Result result = tx.run(cypher, params);
+            if (result.hasNext()) {
+              return result.next().get("following").asBoolean(false);
+            }
+            return false;
+          });
+    }
+  }
+
+  @Override
+  public void validateUserExists(String userId) {
+    String cypher = "MATCH (u:Usuario {id: $userId}) RETURN COUNT(u) > 0 AS exists";
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("userId", userId);
+
+    try (Session session = driver.session()) {
+      boolean exists =
+          session.executeRead(
+              tx -> {
+                Result result = tx.run(cypher, params);
+                if (result.hasNext()) {
+                  return result.next().get("exists").asBoolean(false);
+                }
+                return false;
+              });
+
+      if (!exists) {
+        throw new UserProfileNotFoundException("El usuario '" + userId + "' no existe.");
+      }
     }
   }
 
