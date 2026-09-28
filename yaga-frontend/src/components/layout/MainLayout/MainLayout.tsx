@@ -4,6 +4,7 @@ import type { MainLayoutProps } from "./MainLayout.types";
 import type { UserProfileSummary } from "../../../types/domain";
 import type { SocialNotification } from "../../../types/notifications";
 import { useAuth } from "../../../hooks/useAuth";
+import { useUserProfile } from "../../../hooks/useUserProfile";
 import { AppNavbar } from "../AppNavbar";
 import { SidebarNav } from "../SidebarNav";
 import { UserSummaryCard } from "../../social/UserSummaryCard";
@@ -57,20 +58,20 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
     readonly SocialNotification[]
   >(INITIAL_NOTIFICATIONS);
 
-  const currentUserSummary: UserProfileSummary = {
+  const { profile: apiProfile } = useUserProfile(user?.username);
+
+  const currentUserSummary: UserProfileSummary = apiProfile ?? {
     id: user?.id || "usr-current",
     username: user?.username || "user",
     fullName: user?.fullName || "User",
-    avatarUrl:
-      user?.avatarUrl ||
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
-    bio: user?.bio || "Decentralized mesh enthusiast",
+    avatarUrl: user?.avatarUrl,
+    bio: user?.bio,
     instanceUrl: "relaymesh.io",
-    isVerified: true,
+    isVerified: false,
     stats: {
-      postsCount: 12,
-      followersCount: 148,
-      followingCount: 92,
+      postsCount: 0,
+      followersCount: 0,
+      followingCount: 0,
     },
   };
 
