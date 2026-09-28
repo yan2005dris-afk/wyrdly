@@ -1,4 +1,4 @@
-import { useState, useEffect, type FC, type FormEvent } from "react";
+import { useState, type FC, type FormEvent } from "react";
 import { X } from "lucide-react";
 import type { EditProfileModalProps } from "./EditProfileModal.types";
 import { Input } from "../../ui/Input";
@@ -17,14 +17,6 @@ export const EditProfileModal: FC<EditProfileModalProps> = ({
   const [fullName, setFullName] = useState(profile.fullName);
   const [bio, setBio] = useState(profile.bio ?? "");
   const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? "");
-
-  useEffect(() => {
-    if (isOpen) {
-      setFullName(profile.fullName);
-      setBio(profile.bio ?? "");
-      setAvatarUrl(profile.avatarUrl ?? "");
-    }
-  }, [isOpen, profile]);
 
   if (!isOpen) return null;
 

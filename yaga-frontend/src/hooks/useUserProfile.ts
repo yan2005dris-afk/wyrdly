@@ -38,13 +38,19 @@ function mapApiResponseToSummary(
   };
 }
 
-export function useUserProfile(username: string | undefined): UseUserProfileReturn {
+export function useUserProfile(
+  username: string | undefined,
+): UseUserProfileReturn {
   const [profile, setProfile] = useState<UserProfileSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(Boolean(username));
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
-    if (!username) return;
+    if (!username) {
+      setProfile(null);
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -63,24 +69,52 @@ export function useUserProfile(username: string | undefined): UseUserProfileRetu
   }, [username]);
 
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    let isCancelled = false;
 
-  const updateProfile = useCallback(
-    async (payload: UpdateProfilePayload) => {
-      setError(null);
+    if (!username) {
+      return;
+    }
+
+    const load = async () => {
       try {
-        const data = await usersApi.updateProfile(payload);
-        setProfile(mapApiResponseToSummary(data));
+        const data = await usersApi.getProfile(username);
+        if (!isCancelled) {
+          setProfile(mapApiResponseToSummary(data));
+          setError(null);
+        }
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to update profile";
-        setError(message);
-        throw err;
+        if (!isCancelled) {
+          const message =
+            err instanceof Error ? err.message : "Failed to load profile";
+          setError(message);
+          setProfile(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
       }
-    },
-    [],
-  );
+    };
+
+    void load();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [username]);
+
+  const updateProfile = useCallback(async (payload: UpdateProfilePayload) => {
+    setError(null);
+    try {
+      const data = await usersApi.updateProfile(payload);
+      setProfile(mapApiResponseToSummary(data));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update profile";
+      setError(message);
+      throw err;
+    }
+  }, []);
 
   return { profile, isLoading, error, updateProfile, refetch: fetchProfile };
 }

@@ -76,8 +76,7 @@ export const ProfilePage: FC = () => {
   const [suggestions, setSuggestions] =
     useState<readonly GraphSuggestionUser[]>(SUGGESTIONS);
 
-  const isCurrentUser =
-    !!authUser && profile?.username === authUser.username;
+  const isCurrentUser = !!authUser && profile?.username === authUser.username;
 
   const handleFollowToggle = (userId: string) => {
     setSuggestions((prev) =>
@@ -118,9 +117,7 @@ export const ProfilePage: FC = () => {
         data-testid="profile-error"
       >
         <AlertCircle className="w-10 h-10 text-red-400" />
-        <p className="text-sm text-slate-600">
-          {error || "Profile not found"}
-        </p>
+        <p className="text-sm text-slate-600">{error || "Profile not found"}</p>
         <Button variant="secondary" size="sm" onClick={refetch}>
           Try again
         </Button>
@@ -213,13 +210,15 @@ export const ProfilePage: FC = () => {
       </div>
 
       {/* Edit Profile Modal */}
-      <EditProfileModal
-        isOpen={isEditOpen}
-        profile={profile}
-        isSaving={isSaving}
-        onSave={handleSaveProfile}
-        onClose={() => setIsEditOpen(false)}
-      />
+      {isEditOpen && (
+        <EditProfileModal
+          isOpen={isEditOpen}
+          profile={profile}
+          isSaving={isSaving}
+          onSave={handleSaveProfile}
+          onClose={() => setIsEditOpen(false)}
+        />
+      )}
     </>
   );
 };
