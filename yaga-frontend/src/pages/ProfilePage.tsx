@@ -1,9 +1,10 @@
 import { useState, type FC } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Share2, Edit3 } from "lucide-react";
-import type { UserProfileSummary, GraphSuggestionUser } from "../types/domain";
+import { ArrowLeft, Share2, Edit3, Loader2, AlertCircle } from "lucide-react";
+import type { GraphSuggestionUser } from "../types/domain";
 import type { ProfileTabId } from "../components/profile/ProfileHeaderCard";
 import { useAuth } from "../hooks/useAuth";
+import { useUserProfile } from "../hooks/useUserProfile";
 import { GraphSuggestionsCard } from "../components/social";
 import { ProfileHeaderCard, PostGridItem } from "../components/profile";
 import { Button } from "../components/ui/Button";
@@ -59,36 +60,14 @@ export const ProfilePage: FC = () => {
   const { username } = useParams<{ username: string }>();
   const { user: authUser } = useAuth();
 
+  const profileUsername = username || authUser?.username;
+  const { profile, isLoading, error, refetch } =
+    useUserProfile(profileUsername);
+
   const [activeTab, setActiveTab] = useState<ProfileTabId>("posts");
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [suggestions, setSuggestions] =
     useState<readonly GraphSuggestionUser[]>(SUGGESTIONS);
-
-  const profileUsername = username || authUser?.username || "maya";
-
-  const profileUser: UserProfileSummary = {
-    id: authUser?.id || "user-maya",
-    username: profileUsername,
-    fullName:
-      profileUsername === authUser?.username
-        ? authUser?.fullName || "Maya Krishnan"
-        : "Maya Krishnan",
-    avatarUrl:
-      authUser?.avatarUrl ||
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
-    bio:
-      authUser?.bio ||
-      "Senior Distributed Systems Engineer. Exploring libp2p, Neo4j graph traversal and rustfs storage.",
-    instanceUrl: "relaymesh.io",
-    isVerified: true,
-    website: "https://maya.dev",
-    joinedDate: "Joined Aug 2024",
-    stats: {
-      postsCount: 128,
-      followersCount: 1420,
-      followingCount: 380,
-    },
-  };
 
   const handleFollowToggle = (userId: string) => {
     setSuggestions((prev) =>
@@ -97,6 +76,35 @@ export const ProfilePage: FC = () => {
       ),
     );
   };
+
+  if (isLoading) {
+    return (
+      <div
+        className="flex items-center justify-center py-20"
+        data-testid="profile-loading"
+      >
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        <span className="ml-3 text-sm text-slate-500">Loading profile…</span>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center py-20 gap-4"
+        data-testid="profile-error"
+      >
+        <AlertCircle className="w-10 h-10 text-red-400" />
+        <p className="text-sm text-slate-600">
+          {error || "Profile not found"}
+        </p>
+        <Button variant="secondary" size="sm" onClick={refetch}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -133,7 +141,7 @@ export const ProfilePage: FC = () => {
         </div>
 
         <ProfileHeaderCard
-          user={profileUser}
+          user={profile}
           coverUrl="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1000&auto=format&fit=crop&q=80"
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -161,7 +169,7 @@ export const ProfilePage: FC = () => {
 
         {activeTab !== "posts" && (
           <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500">
-            Showing {activeTab} for @{profileUser.username}
+            Showing {activeTab} for @{profile.username}
           </div>
         )}
       </div>
