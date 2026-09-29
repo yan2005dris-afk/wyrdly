@@ -86,8 +86,7 @@ public class Neo4jSuggestionRepositoryAdapter implements SuggestionRepository {
     String id = record.get("id").asString();
     String username = record.get("username").asString();
     String fullName = record.get("fullName").asString("");
-    String avatarUrl =
-        record.get("avatarUrl").isNull() ? "" : record.get("avatarUrl").asString("");
+    String avatarUrl = record.get("avatarUrl").isNull() ? "" : record.get("avatarUrl").asString("");
     long mutualConnectionsCount = record.get("mutualConnectionsCount").asLong(0);
     boolean isFollowing = record.get("isFollowing").asBoolean(false);
 

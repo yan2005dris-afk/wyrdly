@@ -2,8 +2,7 @@ package com.yaga.user.application.dto;
 
 import java.util.List;
 
-public record GraphSuggestionsResponse(
-    List<GraphSuggestionUserDto> data, PaginationMeta meta) {
+public record GraphSuggestionsResponse(List<GraphSuggestionUserDto> data, PaginationMeta meta) {
 
   public record PaginationMeta(int page, int pageSize, long totalCount) {}
 
