@@ -26,7 +26,6 @@ public class FollowUserUseCaseImpl implements FollowUserUseCase {
     repository.validateUserExists(targetUserId);
     repository.followUser(userId, targetUserId);
 
-    return new FollowActionResponse(
-        "Usuario seguido exitosamente.", targetUserId, true);
+    return new FollowActionResponse("Usuario seguido exitosamente.", targetUserId, true);
   }
 }

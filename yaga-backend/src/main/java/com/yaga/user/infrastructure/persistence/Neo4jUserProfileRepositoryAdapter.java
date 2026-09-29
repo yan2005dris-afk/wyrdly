@@ -99,10 +99,11 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
     params.put("followingId", followingId);
 
     try (Session session = driver.session()) {
-      session.executeWrite(tx -> {
-        tx.run(cypher, params).consume();
-        return null;
-      });
+      session.executeWrite(
+          tx -> {
+            tx.run(cypher, params).consume();
+            return null;
+          });
     }
   }
 
@@ -117,10 +118,11 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
     params.put("followingId", followingId);
 
     try (Session session = driver.session()) {
-      session.executeWrite(tx -> {
-        tx.run(cypher, params).consume();
-        return null;
-      });
+      session.executeWrite(
+          tx -> {
+            tx.run(cypher, params).consume();
+            return null;
+          });
     }
   }
 

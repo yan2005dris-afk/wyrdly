@@ -171,11 +171,7 @@ class UserResourceTest {
 
   @Test
   void followUser_Returns401_WhenNoTokenProvided() {
-    given()
-        .when()
-        .post("/api/users/usr_456/follow")
-        .then()
-        .statusCode(401);
+    given().when().post("/api/users/usr_456/follow").then().statusCode(401);
   }
 
   @Test
@@ -233,11 +229,7 @@ class UserResourceTest {
 
   @Test
   void unfollowUser_Returns401_WhenNoTokenProvided() {
-    given()
-        .when()
-        .delete("/api/users/usr_456/follow")
-        .then()
-        .statusCode(401);
+    given().when().delete("/api/users/usr_456/follow").then().statusCode(401);
   }
 
   @Test

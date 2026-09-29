@@ -209,8 +209,7 @@ class Neo4jUserProfileRepositoryAdapterIT {
   void validateUserExists_ThrowsUserProfileNotFoundException_WhenUserDoesNotExist() {
     UserProfileNotFoundException exception =
         assertThrows(
-            UserProfileNotFoundException.class,
-            () -> adapter.validateUserExists("usr_ghost"));
+            UserProfileNotFoundException.class, () -> adapter.validateUserExists("usr_ghost"));
 
     assertTrue(exception.getMessage().contains("no existe"));
   }

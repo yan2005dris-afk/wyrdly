@@ -21,7 +21,6 @@ public class UnfollowUserUseCaseImpl implements UnfollowUserUseCase {
     repository.validateUserExists(targetUserId);
     repository.unfollowUser(userId, targetUserId);
 
-    return new FollowActionResponse(
-        "Se dejó de seguir al usuario.", targetUserId, false);
+    return new FollowActionResponse("Se dejó de seguir al usuario.", targetUserId, false);
   }
 }

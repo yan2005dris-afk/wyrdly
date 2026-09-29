@@ -58,8 +58,7 @@ class FollowUserUseCaseImplTest {
         .validateUserExists(targetUserId);
 
     assertThrows(
-        UserProfileNotFoundException.class,
-        () -> followUserUseCase.follow(userId, targetUserId));
+        UserProfileNotFoundException.class, () -> followUserUseCase.follow(userId, targetUserId));
 
     verify(userProfileRepository).validateUserExists(targetUserId);
   }
