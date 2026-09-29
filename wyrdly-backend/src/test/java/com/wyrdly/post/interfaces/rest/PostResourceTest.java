@@ -21,7 +21,6 @@ import io.quarkus.test.security.jwt.Claim;
 import io.quarkus.test.security.jwt.JwtSecurity;
 import io.restassured.http.ContentType;
 import java.time.Instant;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
@@ -53,9 +52,7 @@ class PostResourceTest {
             "This is a test post",
             null,
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_123", "testuser", "Test User", "http://avatar.jpg"),
-            Map.of("LIKE", 0),
-            null);
+            new AuthorDto("usr_123", "testuser", "Test User", "http://avatar.jpg"));
 
     when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
         .thenReturn(response);
@@ -70,8 +67,7 @@ class PostResourceTest {
         .body("id", equalTo("pst_abc123"))
         .body("content", equalTo("This is a test post"))
         .body("author.username", equalTo("testuser"))
-        .body("author.fullName", equalTo("Test User"))
-        .body("reactionCounts.LIKE", equalTo(0));
+        .body("author.fullName", equalTo("Test User"));
 
     verify(createPostUseCase).createPost(eq("usr_123"), any(CreatePostRequest.class));
   }
@@ -88,9 +84,7 @@ class PostResourceTest {
             "Post with media",
             "https://example.com/image.jpg",
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_123", "testuser", "Test User", ""),
-            Map.of("LIKE", 0),
-            null);
+            new AuthorDto("usr_123", "testuser", "Test User", ""));
 
     when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
         .thenReturn(response);
@@ -252,9 +246,7 @@ class PostResourceTest {
             "Test post",
             "https://example.com/img.jpg",
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_123", "testuser", "Test User", "http://avatar.jpg"),
-            Map.of("LIKE", 0),
-            null);
+            new AuthorDto("usr_123", "testuser", "Test User", "http://avatar.jpg"));
 
     when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
         .thenReturn(response);
@@ -273,8 +265,7 @@ class PostResourceTest {
         .body("author", notNullValue())
         .body("author.id", notNullValue())
         .body("author.username", notNullValue())
-        .body("author.fullName", notNullValue())
-        .body("reactionCounts", notNullValue());
+        .body("author.fullName", notNullValue());
   }
 
   @Test
@@ -288,9 +279,7 @@ class PostResourceTest {
             "Test post",
             null,
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_123", "testuser", "Test User", ""),
-            Map.of("LIKE", 0),
-            null);
+            new AuthorDto("usr_123", "testuser", "Test User", ""));
 
     when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
         .thenReturn(response);
@@ -317,9 +306,7 @@ class PostResourceTest {
             "Another user post",
             null,
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_456", "anotheruser", "Another User", ""),
-            Map.of("LIKE", 0),
-            null);
+            new AuthorDto("usr_456", "anotheruser", "Another User", ""));
 
     when(createPostUseCase.createPost(eq("usr_456"), any(CreatePostRequest.class)))
         .thenReturn(response);

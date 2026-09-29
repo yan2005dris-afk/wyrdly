@@ -1,6 +1,6 @@
 package com.wyrdly.post.infrastructure.persistence;
 
-import com.wyrdly.post.domain.exception.PostValidationException;
+import com.wyrdly.post.domain.exception.PostPersistenceException;
 import com.wyrdly.post.domain.model.Post;
 import com.wyrdly.post.domain.repository.PostRepository;
 import io.quarkus.logging.Log;
@@ -22,6 +22,14 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     this.driver = driver;
   }
 
+  /**
+   * Idempotently persists a post and its {@code (:Usuario)-[:PUBLICA]->(:Post)} relationship.
+   *
+   * <p>{@code MERGE} on the post node plus the {@code post_id_unique} constraint (see {@code
+   * V001__create_constraints_and_indexes.cypher}) make repeated calls with the same id safe — the
+   * post is created once and the relationship is established once. The constraint additionally
+   * guards against races by failing any non-MERGE write that would collide.
+   */
   @Override
   public Post save(Post post) {
     try (Session session = driver.session()) {
@@ -29,8 +37,11 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           tx ->
               tx.run(
                       "MATCH (author:Usuario {id: $userId}) "
-                          + "CREATE (p:Post {id: $id, content: $content, mediaUrl: $mediaUrl, createdAt: $createdAt}) "
-                          + "CREATE (author)-[:PUBLICA {createdAt: $createdAt}]->(p)",
+                          + "MERGE (p:Post {id: $id}) "
+                          + "ON CREATE SET p.content = $content, p.mediaUrl = $mediaUrl, "
+                          + "               p.createdAt = $createdAt "
+                          + "MERGE (author)-[r:PUBLICA]->(p) "
+                          + "ON CREATE SET r.createdAt = $createdAt",
                       Values.parameters(
                           "id", post.id(),
                           "userId", post.userId(),
@@ -43,10 +54,18 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
       return post;
     } catch (Exception e) {
       Log.errorf(e, "Failed to save Post to Neo4j: id=%s", post.id());
-      throw new PostValidationException("Failed to persist post", e);
+      throw new PostPersistenceException("Failed to persist post id=" + post.id(), e);
     }
   }
 
+  /**
+   * Looks up a post by id, traversing {@code (:Usuario)-[:PUBLICA]->(:Post)} to also return the
+   * author id (previously a known bug where the query hardcoded {@code "unknown"}).
+   *
+   * <p>Returns {@link Optional#empty()} when no post matches. Throws {@link
+   * PostPersistenceException} for any infrastructure-level failure so callers can distinguish "not
+   * found" from "Neo4j unavailable".
+   */
   @Override
   public Optional<Post> findById(String id) {
     try (Session session = driver.session()) {
@@ -55,8 +74,8 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
               tx
                   .run(
                       "MATCH (author:Usuario)-[:PUBLICA]->(p:Post {id: $id}) "
-                          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, p.createdAt AS createdAt, "
-                          + "       author.id AS userId",
+                          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+                          + "       p.createdAt AS createdAt, author.id AS userId",
                       Values.parameters("id", id))
                   .list()
                   .stream()
@@ -72,8 +91,8 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                                   : record.get("mediaUrl").asString(),
                               Instant.parse(record.get("createdAt").asString()))));
     } catch (Exception e) {
-      Log.errorf(e, "Failed to find Post by id: %s", id);
-      return Optional.empty();
+      Log.errorf(e, "Failed to query Post by id: %s", id);
+      throw new PostPersistenceException("Failed to query Post by id=" + id, e);
     }
   }
 }

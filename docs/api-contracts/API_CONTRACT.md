@@ -329,13 +329,10 @@ Para todos los endpoints que retornen múltiples elementos (colecciones o consul
     "username": "juanperez",
     "fullName": "Juan Pérez",
     "avatarUrl": null
-  },
-  "reactionCounts": {
-    "LIKE": 0
-  },
-  "userReaction": null
+  }
 }
 ```
+  *Nota: `reactionCounts` y `userReaction` se agregarán en HU09 (Reacciones). Mientras esa HU no esté implementada, el response de creación los omite en lugar de devolver valores hardcodeados.*
 - **`400 Bad Request`:** El contenido está vacío y no hay media adjunta.
 
 ---

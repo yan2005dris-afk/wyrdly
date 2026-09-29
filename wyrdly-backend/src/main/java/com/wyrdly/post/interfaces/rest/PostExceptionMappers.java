@@ -1,5 +1,6 @@
 package com.wyrdly.post.interfaces.rest;
 
+import com.wyrdly.post.domain.exception.PostPersistenceException;
 import com.wyrdly.post.domain.exception.PostValidationException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.core.Response;
@@ -12,15 +13,24 @@ public class PostExceptionMappers {
 
   @ServerExceptionMapper
   public Response handlePostValidation(PostValidationException ex) {
-    return Response.status(Response.Status.BAD_REQUEST)
+    return buildResponse(Response.Status.BAD_REQUEST, ex.getMessage());
+  }
+
+  @ServerExceptionMapper
+  public Response handlePostPersistence(PostPersistenceException ex) {
+    return buildResponse(Response.Status.INTERNAL_SERVER_ERROR, ex.getMessage());
+  }
+
+  private Response buildResponse(Response.Status status, String message) {
+    return Response.status(status)
         .entity(
             Map.of(
                 "status",
-                400,
+                status.getStatusCode(),
                 "error",
-                "Bad Request",
+                status.getReasonPhrase(),
                 "message",
-                ex.getMessage() != null ? ex.getMessage() : "",
+                message != null ? message : "",
                 "timestamp",
                 Instant.now().toString()))
         .build();
