@@ -1,4 +1,4 @@
-# YAGA Social (Red Social Distribuida)
+# Wyrdly (Red Social Distribuida)
 
 [![Quarkus](https://img.shields.io/badge/Backend-Quarkus%203.x-red?logo=quarkus)](https://quarkus.io/)
 [![Neo4j](https://img.shields.io/badge/Database-Neo4j%205.x-blue?logo=neo4j)](https://neo4j.com/)
@@ -6,11 +6,13 @@
 [![RustFS](https://img.shields.io/badge/Storage-RustFS%20(S3)-DEA584?logo=rust)](https://github.com/rustfs/rustfs)
 [![Docker](https://img.shields.io/badge/Infra-Docker%20Compose-2496ED?logo=docker)](https://www.docker.com/)
 
-**YAGA Social** es una plataforma de red social distribuida de alto rendimiento construida con arquitectura orientada a grafos (**Neo4j**), servicios reactivos en **Quarkus (Java 21)**, almacenamiento de objetos compatible con S3 en **RustFS**, frontend moderno en **React (Vite + Tailwind CSS)**, mensajería instantánea bidireccional mediante **WebSockets** y notificaciones **Web Push (VAPID)**.
+**Wyrdly** es una plataforma de red social distribuida de alto rendimiento construida con arquitectura orientada a grafos (**Neo4j**), servicios reactivos en **Quarkus (Java 21)**, almacenamiento de objetos compatible con S3 en **RustFS**, frontend moderno en **React (Vite + Tailwind CSS)**, mensajería instantánea bidireccional mediante **WebSockets** y notificaciones **Web Push (VAPID)**.
+
+El nombre **Wyrd** viene del inglés antiguo y significa "el tejido del destino" — la interconexión inevitable de todas las cosas. En una red distribuida, cada usuario, cada nodo, cada mensaje es un hilo en ese tejido.
 
 ---
 
-## 👥 Equipo de Desarrollo (YAGA)
+## 👥 Equipo de Desarrollo (Wyrdly)
 
 | Integrante | Rol Principal | Responsabilidad |
 | :--- | :--- | :--- |

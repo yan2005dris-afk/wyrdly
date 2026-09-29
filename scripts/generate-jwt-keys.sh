@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Output directory for JWT keys (gitignored)
-JWT_DIR="${1:-yaga-backend/src/main/resources/jwt}"
+JWT_DIR="${1:-wyrdly-backend/src/main/resources/jwt}"
 
 mkdir -p "$JWT_DIR"
 
