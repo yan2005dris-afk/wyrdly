@@ -5,6 +5,7 @@ import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
@@ -25,6 +26,12 @@ public class BucketInitializer {
   }
 
   public void initializeOnStartup(@Observes StartupEvent event) {
+    String profile = ConfigProvider.getConfig().getValue("quarkus.profile", String.class);
+    if ("test".equals(profile)) {
+      Log.debug("Skipping bucket initialization in test profile");
+      return;
+    }
+
     try {
       HeadBucketRequest headBucketRequest = HeadBucketRequest.builder().bucket(bucketName).build();
       s3Client.headBucket(headBucketRequest);
