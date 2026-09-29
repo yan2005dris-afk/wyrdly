@@ -4,6 +4,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { FeedPage } from "./pages/FeedPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
+import { ExplorePage } from "./pages/ExplorePage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RootRedirect } from "./components/RootRedirect";
 import { MainLayout } from "./components/layout";
@@ -23,7 +24,7 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/:username" element={<ProfilePage />} />
               <Route path="/chat" element={<ChatPage />} />
-              <Route path="/explore" element={<FeedPage />} />
+              <Route path="/explore" element={<ExplorePage />} />
               <Route path="/notifications" element={<FeedPage />} />
             </Route>
           </Route>
