@@ -1,7 +1,9 @@
 import { useState, type FC } from "react";
 import type { Post, CreatePostPayload, ReactionType } from "../types/feed";
-import type { UserProfileSummary, GraphSuggestionUser } from "../types/domain";
+import type { UserProfileSummary } from "../types/domain";
 import { useAuth } from "../hooks/useAuth";
+import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
+import { useFollow } from "../hooks/useFollow";
 import {
   CreatePostCard,
   PostCard,
@@ -16,27 +18,6 @@ const FEED_FILTER_TABS: readonly TabItem<FeedFilter>[] = [
   { id: "for_you", label: "For you (Graph Feed)" },
   { id: "latest", label: "Latest" },
   { id: "relays", label: "Relays near you" },
-];
-
-const INITIAL_SUGGESTIONS: readonly GraphSuggestionUser[] = [
-  {
-    id: "user-alice",
-    username: "alice",
-    fullName: "Alice Chen",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-    mutualConnectionSnippet: "Followed by Jon and 2 others",
-    isFollowing: false,
-  },
-  {
-    id: "user-marcus",
-    username: "marcus",
-    fullName: "Marcus Cole",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-    mutualConnectionSnippet: "Followed by Priya and 5 others",
-    isFollowing: false,
-  },
 ];
 
 const INITIAL_POSTS: readonly Post[] = [
@@ -94,8 +75,19 @@ export const FeedPage: FC = () => {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>("for_you");
   const [posts, setPosts] = useState<readonly Post[]>(INITIAL_POSTS);
-  const [suggestions, setSuggestions] =
-    useState<readonly GraphSuggestionUser[]>(INITIAL_SUGGESTIONS);
+
+  const { suggestions: apiSuggestions, refetch: refetchSuggestions } =
+    useGraphSuggestions();
+  const { follow, unfollow } = useFollow();
+
+  const suggestions = apiSuggestions.map((s) => ({
+    id: s.id,
+    username: s.username,
+    fullName: s.fullName,
+    avatarUrl: s.avatarUrl ?? undefined,
+    mutualConnectionSnippet: s.mutualConnectionSnippet,
+    isFollowing: s.isFollowing,
+  }));
 
   const currentUserSummary: UserProfileSummary = {
     id: user?.id || "usr-current",
@@ -152,12 +144,18 @@ export const FeedPage: FC = () => {
     );
   };
 
-  const handleFollowToggle = (userId: string) => {
-    setSuggestions((prev) =>
-      prev.map((s) =>
-        s.id === userId ? { ...s, isFollowing: !s.isFollowing } : s,
-      ),
-    );
+  const handleFollowToggle = async (userId: string) => {
+    const suggestion = apiSuggestions.find((s) => s.id === userId);
+    try {
+      if (suggestion?.isFollowing) {
+        await unfollow(userId);
+      } else {
+        await follow(userId);
+      }
+      refetchSuggestions();
+    } catch (err) {
+      console.error("Follow toggle failed", err);
+    }
   };
 
   return (
