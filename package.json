@@ -1,0 +1,16 @@
+{
+  "name": "wyrdly-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Wyrdly — Red social distribuida (monorepo root). See wyrdly-frontend/ and wyrdly-backend/.",
+  "scripts": {
+    "ci": "bash scripts/ci-local.sh",
+    "ci:fix": "bash scripts/ci-local.sh --fix",
+    "ci:integration": "bash scripts/ci-local.sh --with-integration",
+    "ci:full": "bash scripts/ci-local.sh --with-integration --fix",
+    "ci:frontend": "bash scripts/ci-local.sh --frontend-only",
+    "ci:backend": "bash scripts/ci-local.sh --backend-only",
+    "test": "echo 'Run pnpm ci from the repo root, or pnpm test from wyrdly-frontend/, or ./mvnw test from wyrdly-backend/.'",
+    "lint": "echo 'Run pnpm ci from the repo root, or pnpm lint from wyrdly-frontend/.'"
+  }
+}
