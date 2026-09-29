@@ -1,5 +1,6 @@
 package com.yaga.user.interfaces.rest;
 
+import com.yaga.user.domain.exception.SearchValidationException;
 import com.yaga.user.domain.exception.SelfFollowNotAllowedException;
 import com.yaga.user.domain.exception.UserProfileNotFoundException;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -18,6 +19,11 @@ public class UserProfileExceptionMappers {
 
   @ServerExceptionMapper
   public Response handleSelfFollowNotAllowed(SelfFollowNotAllowedException ex) {
+    return buildResponse(Response.Status.BAD_REQUEST, ex.getMessage());
+  }
+
+  @ServerExceptionMapper
+  public Response handleSearchValidation(SearchValidationException ex) {
     return buildResponse(Response.Status.BAD_REQUEST, ex.getMessage());
   }
 

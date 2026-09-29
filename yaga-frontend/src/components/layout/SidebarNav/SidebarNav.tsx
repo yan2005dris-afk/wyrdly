@@ -1,6 +1,14 @@
 import type { FC } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, Compass, MessageSquare, User, Bell, Plus } from "lucide-react";
+import {
+  Home,
+  Compass,
+  MessageSquare,
+  User,
+  Bell,
+  Plus,
+  LogOut,
+} from "lucide-react";
 import type { SidebarNavProps, NavItemConfig } from "./SidebarNav.types";
 import { Button } from "../../ui/Button";
 import styles from "./SidebarNav.module.css";
@@ -9,6 +17,7 @@ export const SidebarNav: FC<SidebarNavProps> = ({
   unreadMessagesCount = 0,
   unreadAlertsCount = 0,
   onNewPostClick,
+  onLogout,
   connectedRelaysCount = 3,
   pingMs = 42,
   className = "",
@@ -81,6 +90,22 @@ export const SidebarNav: FC<SidebarNavProps> = ({
             )}
           </NavLink>
         ))}
+
+        {onLogout && (
+          <button
+            type="button"
+            className={styles.logoutLink}
+            data-testid="nav-logout-btn"
+            onClick={onLogout}
+          >
+            <span className={styles.linkContent}>
+              <span className={styles.linkIcon}>
+                <LogOut className="w-4 h-4" />
+              </span>
+              <span>Log out</span>
+            </span>
+          </button>
+        )}
       </nav>
 
       {/* New Post Action Button */}
