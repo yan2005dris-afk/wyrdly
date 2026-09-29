@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -41,7 +40,8 @@ class UserSearchServiceTest {
     List<UserSearchResultDto> results =
         List.of(
             new UserSearchResultDto("usr_1", "alice", "Alice Chen", null, "Bio 1", false, null),
-            new UserSearchResultDto("usr_2", "alice2", "Alice Doe", null, null, true, "3 amigos en común"));
+            new UserSearchResultDto(
+                "usr_2", "alice2", "Alice Doe", null, null, true, "3 amigos en común"));
     when(repository.findByText(eq(QUERY), eq(VIEWER_ID), eq(0), eq(20))).thenReturn(results);
     when(repository.countByText(QUERY, VIEWER_ID)).thenReturn(2);
 
@@ -69,8 +69,7 @@ class UserSearchServiceTest {
   void searchUsers_throwsSearchValidationException_whenQueryIsNull() {
     SearchValidationException ex =
         assertThrows(
-            SearchValidationException.class,
-            () -> service.searchUsers(VIEWER_ID, null, 0, 20));
+            SearchValidationException.class, () -> service.searchUsers(VIEWER_ID, null, 0, 20));
     assertTrue(ex.getMessage().contains("2 caracteres"));
     verify(repository, never()).findByText(anyString(), anyString(), anyInt(), anyInt());
   }
@@ -79,8 +78,7 @@ class UserSearchServiceTest {
   void searchUsers_throwsSearchValidationException_whenQueryIsBlank() {
     SearchValidationException ex =
         assertThrows(
-            SearchValidationException.class,
-            () -> service.searchUsers(VIEWER_ID, "   ", 0, 20));
+            SearchValidationException.class, () -> service.searchUsers(VIEWER_ID, "   ", 0, 20));
     assertTrue(ex.getMessage().contains("2 caracteres"));
   }
 
@@ -88,8 +86,7 @@ class UserSearchServiceTest {
   void searchUsers_throwsSearchValidationException_whenQueryShorterThanMinLength() {
     SearchValidationException ex =
         assertThrows(
-            SearchValidationException.class,
-            () -> service.searchUsers(VIEWER_ID, "a", 0, 20));
+            SearchValidationException.class, () -> service.searchUsers(VIEWER_ID, "a", 0, 20));
     assertTrue(ex.getMessage().contains("2 caracteres"));
   }
 
@@ -106,8 +103,7 @@ class UserSearchServiceTest {
   void searchUsers_throwsSearchValidationException_whenPageIsNegative() {
     SearchValidationException ex =
         assertThrows(
-            SearchValidationException.class,
-            () -> service.searchUsers(VIEWER_ID, QUERY, -1, 20));
+            SearchValidationException.class, () -> service.searchUsers(VIEWER_ID, QUERY, -1, 20));
     assertTrue(ex.getMessage().contains("mayor o igual a 0"));
   }
 
@@ -115,8 +111,7 @@ class UserSearchServiceTest {
   void searchUsers_throwsSearchValidationException_whenPageSizeIsTooLarge() {
     SearchValidationException ex =
         assertThrows(
-            SearchValidationException.class,
-            () -> service.searchUsers(VIEWER_ID, QUERY, 0, 51));
+            SearchValidationException.class, () -> service.searchUsers(VIEWER_ID, QUERY, 0, 51));
     assertTrue(ex.getMessage().contains("entre 1 y 50"));
   }
 
@@ -124,17 +119,14 @@ class UserSearchServiceTest {
   void searchUsers_throwsSearchValidationException_whenPageSizeIsZero() {
     SearchValidationException ex =
         assertThrows(
-            SearchValidationException.class,
-            () -> service.searchUsers(VIEWER_ID, QUERY, 0, 0));
+            SearchValidationException.class, () -> service.searchUsers(VIEWER_ID, QUERY, 0, 0));
     assertTrue(ex.getMessage().contains("entre 1 y 50"));
   }
 
   @Test
   void searchUsers_throwsSearchValidationException_whenViewerIdIsBlank() {
     SearchValidationException ex =
-        assertThrows(
-            SearchValidationException.class,
-            () -> service.searchUsers("", QUERY, 0, 20));
+        assertThrows(SearchValidationException.class, () -> service.searchUsers("", QUERY, 0, 20));
     assertTrue(ex.getMessage().contains("autenticado"));
   }
 

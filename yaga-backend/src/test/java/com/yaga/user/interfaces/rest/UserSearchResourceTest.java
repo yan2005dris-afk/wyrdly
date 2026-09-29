@@ -4,7 +4,6 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -30,11 +29,7 @@ class UserSearchResourceTest {
 
   @Test
   void searchUsers_returns401_whenNoAuthentication() {
-    given()
-        .when()
-        .get("/api/users/search?q=alice")
-        .then()
-        .statusCode(401);
+    given().when().get("/api/users/search?q=alice").then().statusCode(401);
   }
 
   @Test
@@ -77,8 +72,7 @@ class UserSearchResourceTest {
   @TestSecurity(user = "usr_123")
   @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
   void searchUsers_returns200_emptyData_whenNoResults() {
-    UserSearchResponseDto response =
-        new UserSearchResponseDto(List.of(), new Meta(0, 20, 0));
+    UserSearchResponseDto response = new UserSearchResponseDto(List.of(), new Meta(0, 20, 0));
 
     when(searchUsersUseCase.searchUsers(eq("usr_123"), eq("zzzzz"), eq(0), eq(20)))
         .thenReturn(response);
@@ -159,8 +153,7 @@ class UserSearchResourceTest {
   @TestSecurity(user = "usr_123")
   @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
   void searchUsers_passesCorrectPaginationToUseCase() {
-    UserSearchResponseDto response =
-        new UserSearchResponseDto(List.of(), new Meta(2, 10, 0));
+    UserSearchResponseDto response = new UserSearchResponseDto(List.of(), new Meta(2, 10, 0));
 
     when(searchUsersUseCase.searchUsers(eq("usr_123"), eq("alice"), eq(2), eq(10)))
         .thenReturn(response);

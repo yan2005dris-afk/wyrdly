@@ -237,12 +237,18 @@ class Neo4jUserSearchRepositoryAdapterIT {
               + "bio: $bio, avatarUrl: '', email: $email, passwordHash: 'x', "
               + "createdAt: datetime($createdAt)})",
           Map.of(
-              "id", id,
-              "username", username,
-              "fullName", fullName,
-              "bio", bio == null ? "" : bio,
-              "email", username + "@yaga.social",
-              "createdAt", Instant.parse("2026-01-01T00:00:00Z").toString()));
+              "id",
+              id,
+              "username",
+              username,
+              "fullName",
+              fullName,
+              "bio",
+              bio == null ? "" : bio,
+              "email",
+              username + "@yaga.social",
+              "createdAt",
+              Instant.parse("2026-01-01T00:00:00Z").toString()));
     }
   }
 

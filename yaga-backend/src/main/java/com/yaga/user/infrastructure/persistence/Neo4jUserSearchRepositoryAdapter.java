@@ -61,8 +61,7 @@ public class Neo4jUserSearchRepositoryAdapter implements UserSearchRepository {
     params.put("limit", pageSize);
 
     try (Session session = driver.session()) {
-      return session.executeRead(
-          tx -> tx.run(SEARCH_CYPHER, params).list(this::mapRecordToResult));
+      return session.executeRead(tx -> tx.run(SEARCH_CYPHER, params).list(this::mapRecordToResult));
     } catch (Exception e) {
       Log.errorf(e, "Failed to search users: text=%s, viewerId=%s", text, viewerId);
       throw new RuntimeException("No se pudo completar la búsqueda de usuarios.", e);
@@ -100,9 +99,7 @@ public class Neo4jUserSearchRepositoryAdapter implements UserSearchRepository {
     String snippet =
         mutualCount == 0
             ? null
-            : mutualCount == 1
-                ? "1 amigo en común"
-                : mutualCount + " amigos en común";
+            : mutualCount == 1 ? "1 amigo en común" : mutualCount + " amigos en común";
 
     return new UserSearchResultDto(
         record.get("id").asString(),
