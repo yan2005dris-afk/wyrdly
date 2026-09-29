@@ -4,12 +4,12 @@ import com.yaga.media.domain.model.MediaFile;
 import java.time.Instant;
 
 public record MediaUploadResponse(
-    String id, String fileUrl, String mimeType, long fileSizeBytes, Instant uploadedAt) {
+    String fileUrl, String storageKey, String mimeType, long fileSizeBytes, Instant uploadedAt) {
 
   public static MediaUploadResponse fromDomain(MediaFile mediaFile) {
     return new MediaUploadResponse(
-        mediaFile.id(),
         mediaFile.fileUrl(),
+        mediaFile.storageKey(),
         mediaFile.mimeType(),
         mediaFile.fileSizeBytes(),
         mediaFile.uploadedAt());

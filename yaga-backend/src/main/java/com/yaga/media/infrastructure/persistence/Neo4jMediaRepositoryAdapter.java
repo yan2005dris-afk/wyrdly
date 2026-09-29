@@ -26,22 +26,24 @@ public class Neo4jMediaRepositoryAdapter implements MediaRepository {
       session.executeWrite(
           tx ->
               tx.run(
-                  "CREATE (m:MediaFile) SET "
-                      + "m.id = $id, "
-                      + "m.userId = $userId, "
-                      + "m.storageKey = $storageKey, "
-                      + "m.fileUrl = $fileUrl, "
-                      + "m.mimeType = $mimeType, "
-                      + "m.fileSizeBytes = $fileSizeBytes, "
-                      + "m.uploadedAt = $uploadedAt",
-                  Values.parameters(
-                      "id", mediaFile.id(),
-                      "userId", mediaFile.userId(),
-                      "storageKey", mediaFile.storageKey(),
-                      "fileUrl", mediaFile.fileUrl(),
-                      "mimeType", mediaFile.mimeType(),
-                      "fileSizeBytes", mediaFile.fileSizeBytes(),
-                      "uploadedAt", mediaFile.uploadedAt().toString())));
+                      "CREATE (m:MediaFile {"
+                          + "id: $id, "
+                          + "userId: $userId, "
+                          + "storageKey: $storageKey, "
+                          + "fileUrl: $fileUrl, "
+                          + "mimeType: $mimeType, "
+                          + "fileSizeBytes: $fileSizeBytes, "
+                          + "uploadedAt: $uploadedAt"
+                          + "})",
+                      Values.parameters(
+                          "id", mediaFile.id(),
+                          "userId", mediaFile.userId(),
+                          "storageKey", mediaFile.storageKey(),
+                          "fileUrl", mediaFile.fileUrl(),
+                          "mimeType", mediaFile.mimeType(),
+                          "fileSizeBytes", mediaFile.fileSizeBytes(),
+                          "uploadedAt", mediaFile.uploadedAt().toString()))
+                  .consume());
 
       Log.infof("MediaFile saved to Neo4j: id=%s, userId=%s", mediaFile.id(), mediaFile.userId());
       return mediaFile;

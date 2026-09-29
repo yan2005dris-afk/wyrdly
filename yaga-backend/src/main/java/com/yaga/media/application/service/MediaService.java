@@ -34,12 +34,13 @@ public class MediaService implements UploadMediaUseCase {
   }
 
   @Override
-  public MediaUploadResponse upload(
-      String userId, String fileName, byte[] fileContent, String mimeType) {
-    validateMimeType(mimeType);
+  public MediaUploadResponse upload(String userId, byte[] fileContent) {
     validateFileSize(fileContent.length);
 
-    String storageKey = generateStorageKey(userId, fileName);
+    String mimeType = detectMimeType(fileContent);
+    validateMimeType(mimeType);
+
+    String storageKey = generateStorageKey();
 
     String fileUrl = s3StorageService.uploadFile(storageKey, fileContent, mimeType);
 
@@ -57,6 +58,44 @@ public class MediaService implements UploadMediaUseCase {
 
     Log.infof("Media uploaded successfully: userId=%s, id=%s", userId, saved.id());
     return MediaUploadResponse.fromDomain(saved);
+  }
+
+  private String detectMimeType(byte[] fileContent) {
+    if (fileContent.length < 4) {
+      return "application/octet-stream";
+    }
+
+    byte[] header = new byte[Math.min(12, fileContent.length)];
+    System.arraycopy(fileContent, 0, header, 0, header.length);
+
+    // JPEG
+    if (header[0] == (byte) 0xFF && header[1] == (byte) 0xD8) {
+      return "image/jpeg";
+    }
+
+    // PNG
+    if (header[0] == (byte) 0x89 && header[1] == 'P' && header[2] == 'N' && header[3] == 'G') {
+      return "image/png";
+    }
+
+    // WebP
+    if (header[0] == 'R'
+        && header[1] == 'I'
+        && header[2] == 'F'
+        && header[3] == 'F'
+        && header[8] == 'W'
+        && header[9] == 'E'
+        && header[10] == 'B'
+        && header[11] == 'P') {
+      return "image/webp";
+    }
+
+    // MP4
+    if (header[4] == 'f' && header[5] == 't' && header[6] == 'y' && header[7] == 'p') {
+      return "video/mp4";
+    }
+
+    return "application/octet-stream";
   }
 
   private void validateMimeType(String mimeType) {
@@ -81,16 +120,7 @@ public class MediaService implements UploadMediaUseCase {
     }
   }
 
-  private String generateStorageKey(String userId, String fileName) {
-    String extension = extractExtension(fileName);
-    return String.format("media/%s/%s%s", userId, UUID.randomUUID(), extension);
-  }
-
-  private String extractExtension(String fileName) {
-    int lastDot = fileName.lastIndexOf('.');
-    if (lastDot > 0) {
-      return fileName.substring(lastDot);
-    }
-    return "";
+  private String generateStorageKey() {
+    return String.format("posts/img_%s.jpg", UUID.randomUUID());
   }
 }

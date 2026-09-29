@@ -35,16 +35,12 @@ public class MediaResource {
   @Path("/upload")
   @Authenticated
   @Consumes(MediaType.MULTIPART_FORM_DATA)
-  public Response uploadMedia(
-      @RestForm("file") InputStream fileInputStream,
-      @RestForm("fileName") String fileName,
-      @RestForm("mimeType") String mimeType) {
+  public Response uploadMedia(@RestForm("file") InputStream fileInputStream) {
     try {
       String userId = jwt.getSubject();
       byte[] fileContent = fileInputStream.readAllBytes();
 
-      MediaUploadResponse response =
-          uploadMediaUseCase.upload(userId, fileName, fileContent, mimeType);
+      MediaUploadResponse response = uploadMediaUseCase.upload(userId, fileContent);
 
       return Response.status(Response.Status.CREATED).entity(response).build();
     } catch (Exception e) {
