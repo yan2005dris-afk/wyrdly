@@ -26,9 +26,7 @@ public class SuggestionsService implements GetSuggestionsUseCase {
     var total = suggestionRepository.countSuggestions(userId);
 
     var dtos =
-        suggestions.stream()
-            .map(GraphSuggestionUserDto::fromDomain)
-            .collect(Collectors.toList());
+        suggestions.stream().map(GraphSuggestionUserDto::fromDomain).collect(Collectors.toList());
 
     return new GraphSuggestionsResponse(dtos, page, pageSize, total);
   }

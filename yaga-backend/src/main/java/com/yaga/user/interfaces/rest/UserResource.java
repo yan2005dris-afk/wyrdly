@@ -96,7 +96,8 @@ public class UserResource {
       @QueryParam("page") @DefaultValue("0") int page,
       @QueryParam("pageSize") @DefaultValue("10") int pageSize) {
     String userId = jwt.getSubject();
-    GraphSuggestionsResponse response = getSuggestionsUseCase.getSuggestions(userId, page, pageSize);
+    GraphSuggestionsResponse response =
+        getSuggestionsUseCase.getSuggestions(userId, page, pageSize);
     return Response.ok(response).build();
   }
 
