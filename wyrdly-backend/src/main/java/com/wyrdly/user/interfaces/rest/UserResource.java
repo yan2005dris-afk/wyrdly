@@ -1,10 +1,12 @@
 package com.wyrdly.user.interfaces.rest;
 
 import com.wyrdly.user.application.dto.FollowActionResponse;
+import com.wyrdly.user.application.dto.GraphSuggestionsResponse;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
 import com.wyrdly.user.application.dto.UserSearchResponseDto;
 import com.wyrdly.user.application.usecase.FollowUserUseCase;
+import com.wyrdly.user.application.usecase.GetSuggestionsUseCase;
 import com.wyrdly.user.application.usecase.GetUserProfileUseCase;
 import com.wyrdly.user.application.usecase.SearchUsersUseCase;
 import com.wyrdly.user.application.usecase.UnfollowUserUseCase;
@@ -16,6 +18,7 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -36,6 +39,7 @@ public class UserResource {
 
   private final GetUserProfileUseCase getUserProfileUseCase;
   private final UpdateUserProfileUseCase updateUserProfileUseCase;
+  private final GetSuggestionsUseCase getSuggestionsUseCase;
   private final FollowUserUseCase followUserUseCase;
   private final UnfollowUserUseCase unfollowUserUseCase;
   private final SearchUsersUseCase searchUsersUseCase;
@@ -46,6 +50,7 @@ public class UserResource {
   public UserResource(
       GetUserProfileUseCase getUserProfileUseCase,
       UpdateUserProfileUseCase updateUserProfileUseCase,
+      GetSuggestionsUseCase getSuggestionsUseCase,
       FollowUserUseCase followUserUseCase,
       UnfollowUserUseCase unfollowUserUseCase,
       SearchUsersUseCase searchUsersUseCase,
@@ -56,6 +61,8 @@ public class UserResource {
     this.updateUserProfileUseCase =
         Objects.requireNonNull(
             updateUserProfileUseCase, "updateUserProfileUseCase must not be null");
+    this.getSuggestionsUseCase =
+        Objects.requireNonNull(getSuggestionsUseCase, "getSuggestionsUseCase must not be null");
     this.followUserUseCase =
         Objects.requireNonNull(followUserUseCase, "followUserUseCase must not be null");
     this.unfollowUserUseCase =
@@ -85,6 +92,18 @@ public class UserResource {
   public Response updateProfile(@Valid UpdateProfileRequest request) {
     String userId = jwt.getSubject();
     UserProfileResponse response = updateUserProfileUseCase.updateProfile(userId, request);
+    return Response.ok(response).build();
+  }
+
+  @GET
+  @Path("/suggestions")
+  @Authenticated
+  public Response getSuggestions(
+      @QueryParam("page") @DefaultValue("0") int page,
+      @QueryParam("pageSize") @DefaultValue("10") int pageSize) {
+    String userId = jwt.getSubject();
+    GraphSuggestionsResponse response =
+        getSuggestionsUseCase.getSuggestions(userId, page, pageSize);
     return Response.ok(response).build();
   }
 
