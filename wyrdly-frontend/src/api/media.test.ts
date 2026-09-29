@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("./axios", () => ({
-  apiClient: {
+vi.mock("./mediaClient", () => ({
+  mediaClient: {
     post: vi.fn(),
   },
 }));
 
-import { apiClient } from "./axios";
+import { mediaClient } from "./mediaClient";
 import { mediaApi } from "./media";
 import type { MediaUploadResponse } from "../types/media";
 
-const mockedPost = vi.mocked(apiClient.post);
+const mockedPost = vi.mocked(mediaClient.post);
 
 const successResponse: MediaUploadResponse = {
   fileUrl: "https://cdn.wyrdly.app/posts/img_abc123.jpg",
