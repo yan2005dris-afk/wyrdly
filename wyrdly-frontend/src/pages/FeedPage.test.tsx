@@ -14,6 +14,8 @@ import type {
   GraphSuggestionUser,
   GraphSuggestionsResponse,
 } from "../types/suggestions";
+import type { PostApiResponse } from "../types/feed";
+import type { MediaUploadResponse } from "../types/media";
 
 vi.mock("../hooks/useGraphSuggestions", () => ({
   useGraphSuggestions: vi.fn(),
@@ -21,6 +23,14 @@ vi.mock("../hooks/useGraphSuggestions", () => ({
 
 vi.mock("../hooks/useFollow", () => ({
   useFollow: vi.fn(),
+}));
+
+vi.mock("../hooks/useCreatePost", () => ({
+  useCreatePost: vi.fn(),
+}));
+
+vi.mock("../hooks/useMediaUpload", () => ({
+  useMediaUpload: vi.fn(),
 }));
 
 vi.mock("../api/users", async () => {
@@ -38,9 +48,14 @@ vi.mock("../api/users", async () => {
 
 import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
 import { useFollow } from "../hooks/useFollow";
+import { useCreatePost } from "../hooks/useCreatePost";
+import { useMediaUpload } from "../hooks/useMediaUpload";
 
 const mockedUseGraphSuggestions = vi.mocked(useGraphSuggestions);
 const mockedUseFollow = vi.mocked(useFollow);
+const mockedUseCreatePost = vi.mocked(useCreatePost);
+const mockedUseMediaUpload = vi.mocked(useMediaUpload);
+
 const mockedFollow = vi.mocked(usersApi.follow);
 const mockedUnfollow = vi.mocked(usersApi.unfollow);
 
@@ -67,6 +82,24 @@ const successResponse: GraphSuggestionsResponse = {
   meta: { page: 0, pageSize: 10, totalCount: 2 },
 };
 
+function buildCreatePostResponse(
+  overrides: Partial<PostApiResponse> = {},
+): PostApiResponse {
+  return {
+    id: "post-new",
+    content: "Testing post publish",
+    mediaUrl: null,
+    createdAt: "2026-01-15T10:00:00Z",
+    author: {
+      id: "usr-current",
+      username: "maya",
+      fullName: "Maya Krishnan",
+      avatarUrl: null,
+    },
+    ...overrides,
+  };
+}
+
 function renderFeedPage() {
   return render(
     <AuthProvider>
@@ -78,9 +111,14 @@ function renderFeedPage() {
 }
 
 describe("FeedPage Component", () => {
+  let createPostSpy: ReturnType<typeof vi.fn>;
+  let uploadSpy: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     mockedUseGraphSuggestions.mockReset();
     mockedUseFollow.mockReset();
+    mockedUseCreatePost.mockReset();
+    mockedUseMediaUpload.mockReset();
     mockedFollow.mockReset();
     mockedUnfollow.mockReset();
 
@@ -97,24 +135,36 @@ describe("FeedPage Component", () => {
       isMutating: false,
       error: null,
     });
+
+    createPostSpy = vi.fn();
+    uploadSpy = vi.fn();
+
+    mockedUseCreatePost.mockReturnValue({
+      createPost: createPostSpy,
+      isSubmitting: false,
+      error: null,
+    });
+
+    mockedUseMediaUpload.mockReturnValue({
+      upload: uploadSpy,
+      isUploading: false,
+      error: null,
+    });
   });
 
-  it("renders post composer and feed timeline", async () => {
+  it("renders post composer and feed timeline (empty feed until posts are published)", async () => {
     renderFeedPage();
 
     expect(screen.getByTestId("feed-page")).toBeInTheDocument();
     expect(screen.getByTestId("create-post-card")).toBeInTheDocument();
     expect(screen.getByText("For you (Graph Feed)")).toBeInTheDocument();
-    expect(screen.getByText("Jonas Weber")).toBeInTheDocument();
-    // Alice appears in both suggestions and as the author of post-2.
-    await waitFor(() => {
-      expect(screen.getAllByText("Alice Chen").length).toBeGreaterThanOrEqual(
-        1,
-      );
-    });
+    // The feed starts empty — no PostCards rendered yet.
+    expect(screen.queryAllByTestId(/^post-card-/)).toHaveLength(0);
   });
 
-  it("publishes a new post to the timeline", async () => {
+  it("publishes a new post to the timeline after a successful createPost call", async () => {
+    createPostSpy.mockResolvedValueOnce(buildCreatePostResponse());
+
     renderFeedPage();
 
     const textarea = screen.getByPlaceholderText(
@@ -126,9 +176,88 @@ describe("FeedPage Component", () => {
     fireEvent.click(publishBtn);
 
     await waitFor(() => {
+      expect(createPostSpy).toHaveBeenCalledTimes(1);
+    });
+    expect(createPostSpy).toHaveBeenCalledWith({
+      content: "Testing post publish",
+      mediaUrl: undefined,
+    });
+
+    await waitFor(() => {
       expect(
         screen.getAllByText("Testing post publish").length,
       ).toBeGreaterThanOrEqual(1);
+    });
+    expect(screen.getByTestId("post-card-post-new")).toBeInTheDocument();
+  });
+
+  it("does NOT add a post to the feed when createPost returns null (failure)", async () => {
+    createPostSpy.mockResolvedValueOnce(null);
+
+    renderFeedPage();
+
+    const textarea = screen.getByPlaceholderText(
+      "Share an update with your federated graph...",
+    );
+    fireEvent.change(textarea, { target: { value: "This should fail" } });
+
+    const publishBtn = screen.getByRole("button", { name: /publish/i });
+    fireEvent.click(publishBtn);
+
+    await waitFor(() => {
+      expect(createPostSpy).toHaveBeenCalledTimes(1);
+    });
+
+    // Give any stray state updates a chance to fire.
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(screen.queryAllByTestId(/^post-card-/)).toHaveLength(0);
+    expect(screen.queryByText("This should fail")).not.toBeInTheDocument();
+  });
+
+  it("uploads the attached file first and forwards the fileUrl as mediaUrl", async () => {
+    const uploadResponse: MediaUploadResponse = {
+      fileUrl: "https://cdn.wyrdly.app/posts/img_abc.jpg",
+      storageKey: "posts/img_abc.jpg",
+      mimeType: "image/jpeg",
+      fileSizeBytes: 2048,
+      uploadedAt: "2026-01-15T10:00:00Z",
+    };
+    uploadSpy.mockResolvedValueOnce(uploadResponse);
+    createPostSpy.mockResolvedValueOnce(
+      buildCreatePostResponse({
+        id: "post-with-media",
+        content: "with media",
+        mediaUrl: "https://cdn.wyrdly.app/posts/img_abc.jpg",
+      }),
+    );
+
+    renderFeedPage();
+
+    const file = new File(["binary"], "photo.jpg", { type: "image/jpeg" });
+    const fileInput = screen.getByTestId("file-upload-input");
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    const publishBtn = screen.getByRole("button", { name: /publish/i });
+    fireEvent.click(publishBtn);
+
+    await waitFor(() => {
+      expect(uploadSpy).toHaveBeenCalledTimes(1);
+    });
+    expect(uploadSpy).toHaveBeenCalledWith(file);
+
+    await waitFor(() => {
+      expect(createPostSpy).toHaveBeenCalledTimes(1);
+    });
+    expect(createPostSpy).toHaveBeenCalledWith({
+      content: "",
+      mediaUrl: "https://cdn.wyrdly.app/posts/img_abc.jpg",
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("post-card-post-with-media"),
+      ).toBeInTheDocument();
     });
   });
 

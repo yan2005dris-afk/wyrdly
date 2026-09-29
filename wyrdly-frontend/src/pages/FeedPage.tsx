@@ -1,9 +1,13 @@
-import { useState, type FC } from "react";
-import type { Post, CreatePostPayload, ReactionType } from "../types/feed";
+import { useCallback, useState, type FC } from "react";
+import type { CreatePostPayload, ReactionType } from "../types/feed";
+import { mapPostApiResponseToPost } from "../types/feed";
 import type { UserProfileSummary } from "../types/domain";
 import { useAuth } from "../hooks/useAuth";
 import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
 import { useFollow } from "../hooks/useFollow";
+import { useCreatePost } from "../hooks/useCreatePost";
+import { useFeed } from "../hooks/useFeed";
+import { useMediaUpload } from "../hooks/useMediaUpload";
 import {
   CreatePostCard,
   PostCard,
@@ -20,65 +24,17 @@ const FEED_FILTER_TABS: readonly TabItem<FeedFilter>[] = [
   { id: "relays", label: "Relays near you" },
 ];
 
-const INITIAL_POSTS: readonly Post[] = [
-  {
-    id: "post-1",
-    author: {
-      id: "user-jonas",
-      username: "jonas",
-      fullName: "Jonas Weber",
-      avatarUrl:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-      isVerified: true,
-      instanceUrl: "mastodon.social",
-      stats: { followersCount: 4200, followingCount: 650, postsCount: 180 },
-    },
-    content:
-      "Just shipped our relay cluster to 99.99% uptime. Decentralized social finally feels instant — no single point of failure. Full write-up + benchmarks inside.",
-    createdAt: "12m",
-    attachments: [
-      {
-        id: "att-1",
-        url: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&auto=format&fit=crop&q=80",
-        storageProvider: "RUSTFS_S3",
-        mimeType: "image/jpeg",
-        altText: "Server cluster",
-      },
-    ],
-    reactions: { LIKE: 1200, LOVE: 80, CELEBRATE: 40, RETWEET: 342 },
-    commentsCount: 89,
-    visibility: "PUBLIC",
-  },
-  {
-    id: "post-2",
-    author: {
-      id: "user-alice",
-      username: "alice",
-      fullName: "Alice Chen",
-      avatarUrl:
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-      isVerified: true,
-      instanceUrl: "wyrdly.app",
-      stats: { followersCount: 120, followingCount: 80, postsCount: 45 },
-    },
-    content:
-      "Decentralized identity via W3C DID specification: here is how we handle mutual verifiability without centralized registry bottlenecks.",
-    createdAt: "45m",
-    attachments: [],
-    reactions: { LIKE: 84, LOVE: 12, CELEBRATE: 8, RETWEET: 19 },
-    commentsCount: 14,
-    visibility: "FEDERATED",
-  },
-];
-
 export const FeedPage: FC = () => {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>("for_you");
-  const [posts, setPosts] = useState<readonly Post[]>(INITIAL_POSTS);
 
   const { suggestions: apiSuggestions, refetch: refetchSuggestions } =
     useGraphSuggestions();
   const { follow, unfollow } = useFollow();
+  const { posts, addPost, replacePost } = useFeed();
+  const { createPost } = useCreatePost();
+  const { upload: uploadMediaFile, isUploading: isUploadingMedia } =
+    useMediaUpload();
 
   // Optimistic follow state: when the user clicks Follow, mark the user as
   // followed immediately so the button flips to "Following" without waiting
@@ -113,42 +69,42 @@ export const FeedPage: FC = () => {
     },
   };
 
-  const handlePublishPost = (payload: CreatePostPayload) => {
-    const newPost: Post = {
-      id: `post-${Date.now()}`,
-      author: currentUserSummary,
-      content: payload.content,
-      createdAt: "Just now",
-      attachments: (payload.attachments || []).map((f: File, i: number) => ({
-        id: `att-${Date.now()}-${i}`,
-        url: URL.createObjectURL(f),
-        storageProvider: "RUSTFS_S3",
-        mimeType: f.type,
-      })),
-      reactions: { LIKE: 0, LOVE: 0, CELEBRATE: 0, RETWEET: 0 },
-      commentsCount: 0,
-      visibility: payload.visibility,
-    };
+  // Adapter: useMediaUpload.upload returns MediaUploadResponse | null;
+  // CreatePostCard expects (file) => Promise<string | null>.
+  const handleUploadMedia = useCallback(
+    async (file: File): Promise<string | null> => {
+      const response = await uploadMediaFile(file);
+      return response?.fileUrl ?? null;
+    },
+    [uploadMediaFile],
+  );
 
-    setPosts((prev) => [newPost, ...prev]);
+  const handlePublishPost = async (payload: CreatePostPayload) => {
+    // Mirror CreatePostCard's guard: skip only when both text and media are empty.
+    if (!payload.content.trim() && !payload.mediaUrl) return;
+    const response = await createPost({
+      content: payload.content,
+      mediaUrl: payload.mediaUrl,
+    });
+    if (!response) return; // error surfaced via useCreatePost state
+    const newPost = mapPostApiResponseToPost(response, payload.visibility);
+    addPost(newPost);
   };
 
+  // Optimistic reaction counter until HU09 wires the real API.
   const handleReaction = (postId: string, reaction: ReactionType) => {
-    setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id !== postId) return p;
-        const currentActive = p.userReaction === reaction;
-        const diff = currentActive ? -1 : 1;
-        return {
-          ...p,
-          userReaction: currentActive ? undefined : reaction,
-          reactions: {
-            ...p.reactions,
-            [reaction]: Math.max(0, p.reactions[reaction] + diff),
-          },
-        };
-      }),
-    );
+    const target = posts.find((p) => p.id === postId);
+    if (!target) return;
+    const currentActive = target.userReaction === reaction;
+    const diff = currentActive ? -1 : 1;
+    replacePost({
+      ...target,
+      userReaction: currentActive ? undefined : reaction,
+      reactions: {
+        ...target.reactions,
+        [reaction]: Math.max(0, target.reactions[reaction] + diff),
+      },
+    });
   };
 
   const handleFollowToggle = async (userId: string) => {
@@ -201,6 +157,8 @@ export const FeedPage: FC = () => {
         <CreatePostCard
           currentUser={currentUserSummary}
           onPublish={handlePublishPost}
+          uploadMedia={handleUploadMedia}
+          isUploadingMedia={isUploadingMedia}
         />
 
         <div className="py-2">
