@@ -2,20 +2,24 @@ package com.yaga.user.interfaces.rest;
 
 import com.yaga.user.application.dto.UpdateProfileRequest;
 import com.yaga.user.application.dto.UserProfileResponse;
+import com.yaga.user.application.dto.GraphSuggestionsResponse;
 import com.yaga.user.application.usecase.GetUserProfileUseCase;
 import com.yaga.user.application.usecase.UpdateUserProfileUseCase;
+import com.yaga.user.application.usecase.GetSuggestionsUseCase;
 import com.yaga.user.infrastructure.security.OptionalJwtSubjectExtractor;
 import io.quarkus.security.Authenticated;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Objects;
@@ -28,6 +32,7 @@ public class UserResource {
 
   private final GetUserProfileUseCase getUserProfileUseCase;
   private final UpdateUserProfileUseCase updateUserProfileUseCase;
+  private final GetSuggestionsUseCase getSuggestionsUseCase;
   private final OptionalJwtSubjectExtractor optionalJwtSubjectExtractor;
   private final JsonWebToken jwt;
 
@@ -35,6 +40,7 @@ public class UserResource {
   public UserResource(
       GetUserProfileUseCase getUserProfileUseCase,
       UpdateUserProfileUseCase updateUserProfileUseCase,
+      GetSuggestionsUseCase getSuggestionsUseCase,
       OptionalJwtSubjectExtractor optionalJwtSubjectExtractor,
       JsonWebToken jwt) {
     this.getUserProfileUseCase =
@@ -42,6 +48,8 @@ public class UserResource {
     this.updateUserProfileUseCase =
         Objects.requireNonNull(
             updateUserProfileUseCase, "updateUserProfileUseCase must not be null");
+    this.getSuggestionsUseCase =
+        Objects.requireNonNull(getSuggestionsUseCase, "getSuggestionsUseCase must not be null");
     this.optionalJwtSubjectExtractor =
         Objects.requireNonNull(
             optionalJwtSubjectExtractor, "optionalJwtSubjectExtractor must not be null");
@@ -65,6 +73,17 @@ public class UserResource {
   public Response updateProfile(@Valid UpdateProfileRequest request) {
     String userId = jwt.getSubject();
     UserProfileResponse response = updateUserProfileUseCase.updateProfile(userId, request);
+    return Response.ok(response).build();
+  }
+
+  @GET
+  @Path("/suggestions")
+  @Authenticated
+  public Response getSuggestions(
+      @QueryParam("page") @DefaultValue("0") int page,
+      @QueryParam("pageSize") @DefaultValue("10") int pageSize) {
+    String userId = jwt.getSubject();
+    GraphSuggestionsResponse response = getSuggestionsUseCase.getSuggestions(userId, page, pageSize);
     return Response.ok(response).build();
   }
 }

@@ -5,21 +5,21 @@
 ---
 
 ## 📌 HU01: Registro de Usuarios
-- [ ] **Tarea 1.1:** Configurar entidad/modelo de datos `:Usuario` (Java record/DTO) con validación Jakarta Bean Validation (`@NotBlank`, `@Email`, `@Size`).
-- [ ] **Tarea 1.2:** Implementar servicio de hashing de contraseñas con `BCrypt` o `Argon2`.
-- [ ] **Tarea 1.3:** Crear `UserRepository` con driver Neo4j para verificar unicidad (`username`, `email`) y persistir el nodo `:Usuario`.
-- [ ] **Tarea 1.4:** Crear endpoint `POST /api/auth/register` en `AuthResource.java` retornando `201 Created` o `409 Conflict`.
-- [ ] **Tarea 1.5:** Pruebas unitarias y de integración para registro de usuarios.
+- [x] **Tarea 1.1:** Configurar entidad/modelo de datos `:Usuario` (Java record/DTO) con validación Jakarta Bean Validation (`@NotBlank`, `@Email`, `@Size`).
+- [x] **Tarea 1.2:** Implementar servicio de hashing de contraseñas con `BCrypt` o `Argon2`.
+- [x] **Tarea 1.3:** Crear `UserRepository` con driver Neo4j para verificar unicidad (`username`, `email`) y persistir el nodo `:Usuario`.
+- [x] **Tarea 1.4:** Crear endpoint `POST /api/auth/register` en `AuthResource.java` retornando `201 Created` o `409 Conflict`.
+- [x] **Tarea 1.5:** Pruebas unitarias y de integración para registro de usuarios.
 
 ---
 
 ## 📌 HU02: Autenticación JWT & Refresh Tokens (ADR-001)
-- [ ] **Tarea 2.1:** Configurar SmallRye JWT (`smallrye-jwt` y `smallrye-jwt-build`) con claves privadas/públicas RSA/ECDSA.
-- [ ] **Tarea 2.2:** Implementar generación de **Access Token** (15 min) con claims (`sub`, `username`, `roles`).
-- [ ] **Tarea 2.3:** Implementar generación y persistencia de **Refresh Token** (7 días) en Neo4j.
-- [ ] **Tarea 2.4:** Crear endpoint `POST /api/auth/login` validando credenciales contra Neo4j y retornando ambos tokens.
-- [ ] **Tarea 2.5:** Crear endpoint `POST /api/auth/refresh` para rotación de tokens.
-- [ ] **Tarea 2.6:** Proteger rutas REST mediante anotaciones `@RolesAllowed` / `@Authenticated`.
+- [x] **Tarea 2.1:** Configurar SmallRye JWT (`smallrye-jwt` y `smallrye-jwt-build`) con claves privadas/públicas RSA/ECDSA.
+- [x] **Tarea 2.2:** Implementar generación de **Access Token** (15 min) con claims (`sub`, `username`, `roles`).
+- [x] **Tarea 2.3:** Implementar generación y persistencia de **Refresh Token** (7 días) en Neo4j.
+- [x] **Tarea 2.4:** Crear endpoint `POST /api/auth/login` validando credenciales contra Neo4j y retornando ambos tokens.
+- [x] **Tarea 2.5:** Crear endpoint `POST /api/auth/refresh` para rotación de tokens.
+- [x] **Tarea 2.6:** Proteger rutas REST mediante anotaciones `@RolesAllowed` / `@Authenticated`.
 
 ---
 
