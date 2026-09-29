@@ -159,7 +159,7 @@ La Red Social Distribuida es una aplicación web diseñada para poner en prácti
 - **Referencia:** HU07
 - **Nombre:** Publicación de contenido en el grafo
 - **Endpoint:** `POST /api/posts`
-- **Descripción:** Crea el nodo `:Post`, lo conecta con el autor mediante `(:Usuario)-[:PUBLICA {createdAt}]->(:Post)` y dispara el evento de notificación Web Push a los seguidores.
+- **Descripción:** Crea el nodo `:Post` y lo conecta con el autor mediante `(:Usuario)-[:PUBLICA {createdAt}]->(:Post)` en Neo4j. La notificación a seguidores se delega a HU11 (Tareas 11.1–11.4), que provee el módulo de Web Push; ver [issue #32](https://github.com/yan2005dris-afk/wyrdly/issues/32).
 - **Actor:** Usuario autenticado
 - **Prioridad:** Alta | **Riesgo:** Medio | **Estimación:** 8 hh
 - **Respuestas HTTP Esperadas:**
@@ -168,7 +168,7 @@ La Red Social Distribuida es una aplicación web diseñada para poner en prácti
   - `401 Unauthorized`: Token JWT ausente o inválido.
 - **Criterios de Aceptación (Calidad):**
   1. *Dado* un post válido con o sin imagen, *cuando* se crea, *entonces* queda indexado por `createdAt` en Neo4j.
-  2. *Dado* un autor con seguidores registrados, *entonces* el sistema encola de forma asíncrona las notificaciones Web Push para cada seguidor activo.
+  2. *Dado* un autor con seguidores registrados, *cuando* se publique HU11 (Web Push), *entonces* PostService deberá disparar el evento de notificación a cada seguidor activo. **Fuera del alcance de HU07 actual.**
 
 ---
 

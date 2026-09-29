@@ -2,6 +2,7 @@ package com.wyrdly.post.interfaces.rest;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -144,11 +145,8 @@ class PostResourceTest {
   @Test
   @TestSecurity(user = "usr_123")
   @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
-  void createPost_Returns400_WhenMediaUrlIsInvalid() {
+  void createPost_Returns400_WhenMediaUrlIsMalformed() {
     CreatePostRequest request = new CreatePostRequest("Valid content", "not-a-valid-url");
-
-    when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
-        .thenThrow(new PostValidationException("Invalid media URL format"));
 
     given()
         .contentType(ContentType.JSON)
@@ -157,8 +155,70 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("error", equalTo("Bad Request"))
-        .body("message", equalTo("Invalid media URL format"));
+        .body("violations.message", hasItem("mediaUrl must be a valid URL"));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void createPost_Returns400_WhenMediaUrlUsesInvalidProtocol() {
+    CreatePostRequest request =
+        new CreatePostRequest("Valid content", "ftp://example.com/image.jpg");
+
+    given()
+        .contentType(ContentType.JSON)
+        .body(request)
+        .when()
+        .post("/api/posts")
+        .then()
+        .statusCode(400)
+        .body("violations.message", hasItem("mediaUrl must use http or https protocol"));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void createPost_Returns400_WhenBodyIsEmptyJsonObject() {
+    given()
+        .contentType(ContentType.JSON)
+        .body("{}")
+        .when()
+        .post("/api/posts")
+        .then()
+        .statusCode(400)
+        .body("violations[0].message", equalTo("Content is required"));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void createPost_Returns400_WhenContentIsEmptyLiteral() {
+    CreatePostRequest request = new CreatePostRequest("", "https://example.com/image.jpg");
+
+    given()
+        .contentType(ContentType.JSON)
+        .body(request)
+        .when()
+        .post("/api/posts")
+        .then()
+        .statusCode(400)
+        .body("violations.message", hasItem("Content must be between 1 and 1000 characters"));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void createPost_Returns400_WhenContentIsNullWithMediaUrl() {
+    CreatePostRequest request = new CreatePostRequest(null, "https://example.com/image.jpg");
+
+    given()
+        .contentType(ContentType.JSON)
+        .body(request)
+        .when()
+        .post("/api/posts")
+        .then()
+        .statusCode(400)
+        .body("violations[0].message", equalTo("Content is required"));
   }
 
   @Test

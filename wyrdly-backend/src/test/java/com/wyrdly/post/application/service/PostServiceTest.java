@@ -1,6 +1,7 @@
 package com.wyrdly.post.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,6 +21,14 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Unit tests for {@link PostService}.
+ *
+ * <p>Input validation (content/mediaUrl format, length, required fields) is now declarative on
+ * {@link CreatePostRequest} and exercised at the REST boundary in {@code PostResourceTest}. This
+ * suite focuses on service-level business logic: ID generation, author enrichment, persistence
+ * orchestration, and business exceptions.
+ */
 class PostServiceTest {
 
   private PostRepository postRepository;
@@ -33,36 +42,24 @@ class PostServiceTest {
     postService = new PostService(postRepository, userRepository);
   }
 
+  private User sampleAuthor(String userId) {
+    return new User(
+        userId, "testuser", "test@yaga.social", "hashed", "Test User", "", "", Instant.now());
+  }
+
   @Test
   void createPost_Success_WithValidContent() {
     String userId = "usr_123";
     CreatePostRequest request = new CreatePostRequest("This is a test post", null);
-    User author =
-        new User(
-            userId,
-            "testuser",
-            "test@yaga.social",
-            "hashed_pass",
-            "Test User",
-            "Bio test",
-            "http://avatar.jpg",
-            Instant.now());
 
-    when(postRepository.save(any(Post.class)))
-        .thenAnswer(
-            invocation -> {
-              Post post = invocation.getArgument(0);
-              return post;
-            });
-    when(userRepository.findById(userId)).thenReturn(Optional.of(author));
+    when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(userRepository.findById(userId)).thenReturn(Optional.of(sampleAuthor(userId)));
 
     PostResponse response = postService.createPost(userId, request);
 
     assertNotNull(response);
     assertEquals("This is a test post", response.content());
     assertEquals(userId, response.author().id());
-    assertEquals("testuser", response.author().username());
-    assertEquals("Test User", response.author().fullName());
     assertEquals(0, response.reactionCounts().get("LIKE"));
 
     verify(postRepository).save(any(Post.class));
@@ -74,17 +71,9 @@ class PostServiceTest {
     String userId = "usr_123";
     String mediaUrl = "https://example.com/image.jpg";
     CreatePostRequest request = new CreatePostRequest("Post with media", mediaUrl);
-    User author =
-        new User(
-            userId, "testuser", "test@yaga.social", "hashed", "Test User", "", "", Instant.now());
 
-    when(postRepository.save(any(Post.class)))
-        .thenAnswer(
-            invocation -> {
-              Post post = invocation.getArgument(0);
-              return post;
-            });
-    when(userRepository.findById(userId)).thenReturn(Optional.of(author));
+    when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(userRepository.findById(userId)).thenReturn(Optional.of(sampleAuthor(userId)));
 
     PostResponse response = postService.createPost(userId, request);
 
@@ -93,65 +82,12 @@ class PostServiceTest {
   }
 
   @Test
-  void createPost_ThrowsPostValidationException_WhenContentIsNull() {
-    String userId = "usr_123";
-    CreatePostRequest request = new CreatePostRequest(null, null);
-
-    PostValidationException exception =
-        assertThrows(PostValidationException.class, () -> postService.createPost(userId, request));
-
-    assertEquals("Content is required", exception.getMessage());
-  }
-
-  @Test
-  void createPost_ThrowsPostValidationException_WhenContentIsBlank() {
-    String userId = "usr_123";
-    CreatePostRequest request = new CreatePostRequest("   ", null);
-
-    PostValidationException exception =
-        assertThrows(PostValidationException.class, () -> postService.createPost(userId, request));
-
-    assertEquals("Content is required", exception.getMessage());
-  }
-
-  @Test
-  void createPost_ThrowsPostValidationException_WhenContentExceedsMaxLength() {
-    String userId = "usr_123";
-    String tooLongContent = "a".repeat(1001);
-    CreatePostRequest request = new CreatePostRequest(tooLongContent, null);
-
-    PostValidationException exception =
-        assertThrows(PostValidationException.class, () -> postService.createPost(userId, request));
-
-    assertEquals("Content must not exceed 1000 characters", exception.getMessage());
-  }
-
-  @Test
-  void createPost_ThrowsPostValidationException_WhenMediaUrlIsInvalid() {
-    String userId = "usr_123";
-    CreatePostRequest request = new CreatePostRequest("Valid content", "not-a-valid-url");
-
-    PostValidationException exception =
-        assertThrows(PostValidationException.class, () -> postService.createPost(userId, request));
-
-    assertEquals("Invalid media URL format", exception.getMessage());
-  }
-
-  @Test
   void createPost_Success_WithValidHttpsUrl() {
     String userId = "usr_123";
     CreatePostRequest request = new CreatePostRequest("Content", "https://example.com/image.jpg");
-    User author =
-        new User(
-            userId, "testuser", "test@yaga.social", "hashed", "Test User", "", "", Instant.now());
 
-    when(postRepository.save(any(Post.class)))
-        .thenAnswer(
-            invocation -> {
-              Post post = invocation.getArgument(0);
-              return post;
-            });
-    when(userRepository.findById(userId)).thenReturn(Optional.of(author));
+    when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(userRepository.findById(userId)).thenReturn(Optional.of(sampleAuthor(userId)));
 
     PostResponse response = postService.createPost(userId, request);
 
@@ -162,17 +98,9 @@ class PostServiceTest {
   void createPost_Success_WithValidHttpUrl() {
     String userId = "usr_123";
     CreatePostRequest request = new CreatePostRequest("Content", "http://example.com/image.jpg");
-    User author =
-        new User(
-            userId, "testuser", "test@yaga.social", "hashed", "Test User", "", "", Instant.now());
 
-    when(postRepository.save(any(Post.class)))
-        .thenAnswer(
-            invocation -> {
-              Post post = invocation.getArgument(0);
-              return post;
-            });
-    when(userRepository.findById(userId)).thenReturn(Optional.of(author));
+    when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(userRepository.findById(userId)).thenReturn(Optional.of(sampleAuthor(userId)));
 
     PostResponse response = postService.createPost(userId, request);
 
@@ -184,12 +112,7 @@ class PostServiceTest {
     String userId = "usr_nonexistent";
     CreatePostRequest request = new CreatePostRequest("Valid content", null);
 
-    when(postRepository.save(any(Post.class)))
-        .thenAnswer(
-            invocation -> {
-              Post post = invocation.getArgument(0);
-              return post;
-            });
+    when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
     PostValidationException exception =
@@ -202,24 +125,16 @@ class PostServiceTest {
   void createPost_GeneratesUniquePostIds() {
     String userId = "usr_123";
     CreatePostRequest request = new CreatePostRequest("Content", null);
-    User author =
-        new User(
-            userId, "testuser", "test@yaga.social", "hashed", "Test User", "", "", Instant.now());
 
-    when(postRepository.save(any(Post.class)))
-        .thenAnswer(
-            invocation -> {
-              Post post = invocation.getArgument(0);
-              return post;
-            });
-    when(userRepository.findById(userId)).thenReturn(Optional.of(author));
+    when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(userRepository.findById(userId)).thenReturn(Optional.of(sampleAuthor(userId)));
 
     PostResponse response1 = postService.createPost(userId, request);
     PostResponse response2 = postService.createPost(userId, request);
 
     assertNotNull(response1.id());
     assertNotNull(response2.id());
-    assertEquals(false, response1.id().equals(response2.id()));
+    assertNotEquals(response1.id(), response2.id());
   }
 
   @Test
@@ -237,12 +152,7 @@ class PostServiceTest {
             "https://avatar.jpg",
             Instant.now());
 
-    when(postRepository.save(any(Post.class)))
-        .thenAnswer(
-            invocation -> {
-              Post post = invocation.getArgument(0);
-              return post;
-            });
+    when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(userRepository.findById(userId)).thenReturn(Optional.of(author));
 
     PostResponse response = postService.createPost(userId, request);

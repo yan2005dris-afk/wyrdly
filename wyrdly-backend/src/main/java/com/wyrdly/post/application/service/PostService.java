@@ -30,8 +30,6 @@ public class PostService implements CreatePostUseCase {
 
   @Override
   public PostResponse createPost(String userId, CreatePostRequest request) {
-    validateRequest(request);
-
     String postId = "pst_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
     Instant createdAt = Instant.now();
 
@@ -54,28 +52,5 @@ public class PostService implements CreatePostUseCase {
         new AuthorDto(author.id(), author.username(), author.fullName(), author.avatarUrl()),
         Map.of("LIKE", 0),
         null);
-  }
-
-  private void validateRequest(CreatePostRequest request) {
-    if (request.content() == null || request.content().isBlank()) {
-      throw new PostValidationException("Content is required");
-    }
-    if (request.content().length() > 1000) {
-      throw new PostValidationException("Content must not exceed 1000 characters");
-    }
-    if (request.mediaUrl() != null && !request.mediaUrl().isBlank()) {
-      if (!isValidUrl(request.mediaUrl())) {
-        throw new PostValidationException("Invalid media URL format");
-      }
-    }
-  }
-
-  private boolean isValidUrl(String url) {
-    try {
-      new java.net.URL(url);
-      return true;
-    } catch (java.net.MalformedURLException e) {
-      return false;
-    }
   }
 }
