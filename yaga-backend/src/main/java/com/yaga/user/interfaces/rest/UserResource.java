@@ -3,8 +3,10 @@ package com.yaga.user.interfaces.rest;
 import com.yaga.user.application.dto.FollowActionResponse;
 import com.yaga.user.application.dto.UpdateProfileRequest;
 import com.yaga.user.application.dto.UserProfileResponse;
+import com.yaga.user.application.dto.UserSearchResponseDto;
 import com.yaga.user.application.usecase.FollowUserUseCase;
 import com.yaga.user.application.usecase.GetUserProfileUseCase;
+import com.yaga.user.application.usecase.SearchUsersUseCase;
 import com.yaga.user.application.usecase.UnfollowUserUseCase;
 import com.yaga.user.application.usecase.UpdateUserProfileUseCase;
 import com.yaga.user.infrastructure.security.OptionalJwtSubjectExtractor;
@@ -21,6 +23,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Objects;
@@ -35,6 +38,7 @@ public class UserResource {
   private final UpdateUserProfileUseCase updateUserProfileUseCase;
   private final FollowUserUseCase followUserUseCase;
   private final UnfollowUserUseCase unfollowUserUseCase;
+  private final SearchUsersUseCase searchUsersUseCase;
   private final OptionalJwtSubjectExtractor optionalJwtSubjectExtractor;
   private final JsonWebToken jwt;
 
@@ -44,6 +48,7 @@ public class UserResource {
       UpdateUserProfileUseCase updateUserProfileUseCase,
       FollowUserUseCase followUserUseCase,
       UnfollowUserUseCase unfollowUserUseCase,
+      SearchUsersUseCase searchUsersUseCase,
       OptionalJwtSubjectExtractor optionalJwtSubjectExtractor,
       JsonWebToken jwt) {
     this.getUserProfileUseCase =
@@ -55,6 +60,8 @@ public class UserResource {
         Objects.requireNonNull(followUserUseCase, "followUserUseCase must not be null");
     this.unfollowUserUseCase =
         Objects.requireNonNull(unfollowUserUseCase, "unfollowUserUseCase must not be null");
+    this.searchUsersUseCase =
+        Objects.requireNonNull(searchUsersUseCase, "searchUsersUseCase must not be null");
     this.optionalJwtSubjectExtractor =
         Objects.requireNonNull(
             optionalJwtSubjectExtractor, "optionalJwtSubjectExtractor must not be null");
@@ -96,6 +103,21 @@ public class UserResource {
   public Response unfollowUser(@PathParam("targetUserId") String targetUserId) {
     String userId = jwt.getSubject();
     FollowActionResponse response = unfollowUserUseCase.unfollow(userId, targetUserId);
+    return Response.ok(response).build();
+  }
+
+  @GET
+  @Path("/search")
+  @Authenticated
+  public Response searchUsers(
+      @QueryParam("q") String q,
+      @QueryParam("page") Integer page,
+      @QueryParam("pageSize") Integer pageSize) {
+    String userId = jwt.getSubject();
+    int effectivePage = page != null ? page : 0;
+    int effectivePageSize = pageSize != null ? pageSize : 20;
+    UserSearchResponseDto response =
+        searchUsersUseCase.searchUsers(userId, q, effectivePage, effectivePageSize);
     return Response.ok(response).build();
   }
 }
