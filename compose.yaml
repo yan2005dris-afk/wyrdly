@@ -1,7 +1,7 @@
 services:
-  yaga-neo4j:
+  wyrdly-neo4j:
     image: docker.io/library/neo4j:5.26-community
-    container_name: yaga-neo4j
+    container_name: wyrdly-neo4j
     restart: unless-stopped
     ports:
       - "${NEO4J_HTTP_PORT:-7474}:7474" # HTTP Browser UI
@@ -16,7 +16,7 @@ services:
       - neo4j_data:/data:Z
       - neo4j_logs:/logs:Z
     networks:
-      - yaga-network
+      - wyrdly-network
     healthcheck:
       test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USERNAME:-neo4j} -p ${NEO4J_PASSWORD} 'RETURN 1' || exit 1"]
       interval: 15s
@@ -24,9 +24,9 @@ services:
       retries: 12
       start_period: 60s
 
-  yaga-rustfs:
+  wyrdly-rustfs:
     image: docker.io/rustfs/rustfs:latest
-    container_name: yaga-rustfs
+    container_name: wyrdly-rustfs
     restart: unless-stopped
     ports:
       - "${RUSTFS_API_PORT:-9000}:9000" # S3 API
@@ -37,7 +37,7 @@ services:
     volumes:
       - rustfs_data:/data:Z
     networks:
-      - yaga-network
+      - wyrdly-network
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9000/ > /dev/null || exit 1"]
       interval: 10s
@@ -45,31 +45,31 @@ services:
       retries: 5
       start_period: 10s
 
-  yaga-backend:
+  wyrdly-backend:
     build:
-      context: ./yaga-backend
+      context: ./wyrdly-backend
       dockerfile: Dockerfile
-    container_name: yaga-backend
+    container_name: wyrdly-backend
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     environment:
-      - NEO4J_URI=${NEO4J_URI:-bolt://yaga-neo4j:7687}
+      - NEO4J_URI=${NEO4J_URI:-bolt://wyrdly-neo4j:7687}
       - NEO4J_USERNAME=${NEO4J_USERNAME:-neo4j}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
-      - RUSTFS_ENDPOINT=${RUSTFS_ENDPOINT:-http://yaga-rustfs:9000}
+      - RUSTFS_ENDPOINT=${RUSTFS_ENDPOINT:-http://wyrdly-rustfs:9000}
       - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
       - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
       - RUSTFS_BUCKET=${RUSTFS_BUCKET:-social-media-assets}
-      - YAGA_SEED_ENABLED=${YAGA_SEED_ENABLED:-true}
+      - WYRDLY_SEED_ENABLED=${WYRDLY_SEED_ENABLED:-true}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:80}
     depends_on:
-      yaga-neo4j:
+      wyrdly-neo4j:
         condition: service_healthy
-      yaga-rustfs:
+      wyrdly-rustfs:
         condition: service_healthy
     networks:
-      - yaga-network
+      - wyrdly-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/q/health/live > /dev/null || exit 1"]
       interval: 10s
@@ -77,19 +77,19 @@ services:
       retries: 5
       start_period: 20s
 
-  yaga-frontend:
+  wyrdly-frontend:
     build:
-      context: ./yaga-frontend
+      context: ./wyrdly-frontend
       dockerfile: Dockerfile
-    container_name: yaga-frontend
+    container_name: wyrdly-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:8080"
     depends_on:
-      yaga-backend:
+      wyrdly-backend:
         condition: service_healthy
     networks:
-      - yaga-network
+      - wyrdly-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz > /dev/null || exit 1"]
       interval: 10s
@@ -99,13 +99,13 @@ services:
 
 volumes:
   neo4j_data:
-    name: yaga_neo4j_data
+    name: wyrdly_neo4j_data
   neo4j_logs:
-    name: yaga_neo4j_logs
+    name: wyrdly_neo4j_logs
   rustfs_data:
-    name: yaga_rustfs_data
+    name: wyrdly_rustfs_data
 
 networks:
-  yaga-network:
-    name: yaga-network
+  wyrdly-network:
+    name: wyrdly-network
     driver: bridge
