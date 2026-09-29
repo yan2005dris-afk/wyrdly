@@ -18,5 +18,6 @@ export interface AppNavbarProps {
   readonly backTo?: string;
   readonly backLabel?: string;
   readonly actions?: ReactNode;
+  readonly onLogout?: () => void;
   readonly className?: string;
 }

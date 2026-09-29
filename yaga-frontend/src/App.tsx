@@ -5,6 +5,7 @@ import { FeedPage } from "./pages/FeedPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { RootRedirect } from "./components/RootRedirect";
 import { MainLayout } from "./components/layout";
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<AuthPage />} />
           <Route path="/register" element={<AuthPage />} />
+          <Route path="/" element={<RootRedirect />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
@@ -23,7 +25,6 @@ function App() {
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/explore" element={<FeedPage />} />
               <Route path="/notifications" element={<FeedPage />} />
-              <Route path="/" element={<Navigate to="/feed" replace />} />
             </Route>
           </Route>
 

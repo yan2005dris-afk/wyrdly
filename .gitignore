@@ -18,4 +18,6 @@ coverage/
 *.key
 jwt/
 
-.env
+# Local tooling artifacts (not for committing)
+.atl/
+.codegraph/
