@@ -34,16 +34,8 @@ public class PostResource {
   @POST
   @Authenticated
   public Response createPost(CreatePostRequest request) {
-    try {
-      String userId = jwt.getSubject();
-      PostResponse response = createPostUseCase.createPost(userId, request);
-      return Response.status(Response.Status.CREATED).entity(response).build();
-    } catch (Exception e) {
-      return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(new ErrorResponse(e.getMessage()))
-          .build();
-    }
+    String userId = jwt.getSubject();
+    PostResponse response = createPostUseCase.createPost(userId, request);
+    return Response.status(Response.Status.CREATED).entity(response).build();
   }
-
-  record ErrorResponse(String error) {}
 }

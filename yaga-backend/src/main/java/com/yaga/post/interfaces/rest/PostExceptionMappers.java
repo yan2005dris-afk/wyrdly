@@ -7,24 +7,19 @@ import jakarta.ws.rs.ext.Provider;
 import java.time.Instant;
 
 @Provider
-public class PostExceptionMappers {
+class PostValidationExceptionMapper implements ExceptionMapper<PostValidationException> {
 
-  @Provider
-  public static class PostValidationExceptionMapper
-      implements ExceptionMapper<PostValidationException> {
-
-    @Override
-    public Response toResponse(PostValidationException exception) {
-      return Response.status(Response.Status.BAD_REQUEST)
-          .entity(
-              new ErrorResponseDto(
-                  Instant.now(),
-                  Response.Status.BAD_REQUEST.getStatusCode(),
-                  "Bad Request",
-                  exception.getMessage(),
-                  "POST /api/posts"))
-          .build();
-    }
+  @Override
+  public Response toResponse(PostValidationException exception) {
+    return Response.status(Response.Status.BAD_REQUEST)
+        .entity(
+            new ErrorResponseDto(
+                Instant.now(),
+                Response.Status.BAD_REQUEST.getStatusCode(),
+                "Bad Request",
+                exception.getMessage(),
+                "POST /api/posts"))
+        .build();
   }
 
   record ErrorResponseDto(
