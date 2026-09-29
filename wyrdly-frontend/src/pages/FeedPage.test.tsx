@@ -244,4 +244,74 @@ describe("FeedPage Component", () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  it("flips the Follow button to Following immediately on click (optimistic)", async () => {
+    mockedFollow.mockResolvedValueOnce({
+      message: "Followed",
+      targetUserId: "user-alice",
+      following: true,
+    });
+    const refetch = vi.fn();
+    mockedUseGraphSuggestions.mockReturnValue({
+      suggestions: successResponse.data,
+      isLoading: false,
+      error: null,
+      refetch,
+    });
+
+    renderFeedPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+    });
+
+    const followBtn = screen.getByTestId("follow-btn-user-alice");
+    expect(followBtn).toHaveTextContent("Follow");
+
+    await act(async () => {
+      fireEvent.click(followBtn);
+    });
+
+    // Immediately after click, before the awaited follow() resolves the next
+    // tick, the button must already read "Following".
+    expect(screen.getByTestId("follow-btn-user-alice")).toHaveTextContent(
+      "Following",
+    );
+    expect(mockedFollow).toHaveBeenCalledTimes(1);
+  });
+
+  it("rolls back the optimistic Following state when the follow API rejects", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    mockedFollow.mockRejectedValueOnce(new Error("boom"));
+    mockedUseGraphSuggestions.mockReturnValue({
+      suggestions: successResponse.data,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderFeedPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("follow-btn-user-alice"));
+    });
+
+    // The catch path must restore the Follow label.
+    await waitFor(() => {
+      expect(screen.getByTestId("follow-btn-user-alice")).toHaveTextContent(
+        "Follow",
+      );
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Follow toggle failed",
+      expect.any(Error),
+    );
+    consoleErrorSpy.mockRestore();
+  });
 });
