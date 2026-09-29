@@ -121,6 +121,6 @@ public class MediaService implements UploadMediaUseCase {
   }
 
   private String generateStorageKey() {
-    return String.format("posts/img_%s.jpg", UUID.randomUUID());
+    return String.format("posts/img_%s.webp", UUID.randomUUID());
   }
 }

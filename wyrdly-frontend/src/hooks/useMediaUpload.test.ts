@@ -36,20 +36,6 @@ const PASSTHROUGH_RESPONSE: MediaUploadResponse = {
   fileUrl: "https://cdn.wyrdly.app/posts/img_passthrough.webp",
 };
 
-/** Helper: configure mocks so a raster input is treated as a no-op
- *  passthrough (the "happy" path for the hook without depending on
- *  browser canvas APIs). */
-function stubRasterPassthrough(file: File): void {
-  mockedIsRasterInputMimeType.mockImplementation(
-    (mime: string) => mime === file.type,
-  );
-  mockedConvertToWebP.mockResolvedValue(
-    new File(["webp"], file.name.replace(/\.[^.]+$/, ".webp"), {
-      type: "image/webp",
-    }),
-  );
-}
-
 describe("useMediaUpload", () => {
   beforeEach(() => {
     mockedUpload.mockReset();
