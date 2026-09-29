@@ -33,10 +33,10 @@
 ---
 
 ## 📌 HU07: Creación y Publicación de Posts (Backend)
-- [ ] **Tarea 7.1:** Diseñar DTO de creación de post (`content`, `mediaUrl` opcional).
-- [ ] **Tarea 7.2:** Crear consulta Cypher para instanciar nodo `:Post` y crear relación `(:Usuario)-[:PUBLICA {fecha}]->(:Post)`.
-- [ ] **Tarea 7.3:** Crear endpoint protegido `POST /api/posts` en `PostResource.java`.
-- [ ] **Tarea 7.4:** Validar longitud de contenido (1-1000 caracteres) y URL de multimedia.
+- [x] **Tarea 7.1:** Diseñar DTO de creación de post (`content`, `mediaUrl` opcional).
+- [x] **Tarea 7.2:** Crear consulta Cypher para instanciar nodo `:Post` y crear relación `(:Usuario)-[:PUBLICA {fecha}]->(:Post)`.
+- [x] **Tarea 7.3:** Crear endpoint protegido `POST /api/posts` en `PostResource.java`.
+- [x] **Tarea 7.4:** Validar longitud de contenido (1-1000 caracteres) y URL de multimedia.
 
 ---
 
