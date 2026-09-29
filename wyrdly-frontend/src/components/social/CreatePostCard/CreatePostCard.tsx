@@ -15,37 +15,55 @@ import styles from "./CreatePostCard.module.css";
 export const CreatePostCard: FC<CreatePostCardProps> = ({
   currentUser,
   isSubmitting = false,
+  uploadMedia,
+  isUploadingMedia = false,
   onPublish,
   className = "",
 }) => {
   const [content, setContent] = useState("");
   const [visibility, setVisibility] = useState<PostVisibility>("PUBLIC");
   const [selectedFiles, setSelectedFiles] = useState<readonly File[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       setSelectedFiles((prev) => [...prev, ...filesArray]);
+      setUploadError(null);
     }
   };
 
   const removeFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setUploadError(null);
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!content.trim() && selectedFiles.length === 0) return;
 
+    let mediaUrl: string | undefined;
+
+    if (uploadMedia && selectedFiles.length > 0) {
+      const url = await uploadMedia(selectedFiles[0]);
+      if (!url) {
+        setUploadError("Upload failed. Please try again.");
+        return;
+      }
+      mediaUrl = url;
+    }
+
     await onPublish({
       content: content.trim(),
       visibility,
       attachments: selectedFiles.length > 0 ? selectedFiles : undefined,
+      mediaUrl,
     });
 
     setContent("");
     setSelectedFiles([]);
+    setUploadError(null);
   };
 
   const toggleVisibility = () => {
@@ -99,6 +117,20 @@ export const CreatePostCard: FC<CreatePostCardProps> = ({
           </div>
         </div>
 
+        {uploadError && (
+          <div
+            data-testid="upload-error"
+            role="alert"
+            style={{
+              marginTop: "0.5rem",
+              fontSize: "0.75rem",
+              color: "#b91c1c",
+            }}
+          >
+            {uploadError}
+          </div>
+        )}
+
         <div className={styles.bottomToolbar}>
           <div className={styles.toolsGroup}>
             <input
@@ -141,16 +173,29 @@ export const CreatePostCard: FC<CreatePostCardProps> = ({
             </button>
           </div>
 
-          <Button
-            type="submit"
-            variant="primary"
-            size="sm"
-            isLoading={isSubmitting}
-            disabled={!content.trim() && selectedFiles.length === 0}
-            data-testid="publish-post-btn"
-          >
-            Publish
-          </Button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {isUploadingMedia && (
+              <span
+                data-testid="uploading-indicator"
+                style={{ fontSize: "0.75rem", color: "#64748b" }}
+              >
+                Uploading...
+              </span>
+            )}
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isSubmitting || isUploadingMedia}
+              disabled={
+                isUploadingMedia ||
+                (!content.trim() && selectedFiles.length === 0)
+              }
+              data-testid="publish-post-btn"
+            >
+              Publish
+            </Button>
+          </div>
         </div>
       </form>
     </div>
