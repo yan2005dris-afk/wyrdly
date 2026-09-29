@@ -27,7 +27,9 @@ describe("AppNavbar Component", () => {
     renderWithRouter(<AppNavbar currentUser={MOCK_USER} />);
 
     expect(screen.getByText("Wyrdly")).toBeInTheDocument();
-    expect(screen.getByText("Where connections weave the future")).toBeInTheDocument();
+    expect(
+      screen.getByText("Where connections weave the future"),
+    ).toBeInTheDocument();
   });
 
   it("renders back button when backTo is provided", () => {

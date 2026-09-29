@@ -36,7 +36,9 @@ describe("UserSearchResultCard Component", () => {
       />,
     );
 
-    expect(screen.queryByTestId("user-search-bio-usr_alice")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("user-search-bio-usr_alice"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows mutual snippet when present", () => {
@@ -47,9 +49,9 @@ describe("UserSearchResultCard Component", () => {
       />,
     );
 
-    expect(screen.getByTestId("user-search-mutual-usr_alice")).toHaveTextContent(
-      "3 amigos en común",
-    );
+    expect(
+      screen.getByTestId("user-search-mutual-usr_alice"),
+    ).toHaveTextContent("3 amigos en común");
   });
 
   it("shows Follow when isFollowing is false", () => {

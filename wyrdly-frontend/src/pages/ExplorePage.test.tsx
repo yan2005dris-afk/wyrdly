@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { ExplorePage } from "./ExplorePage";
@@ -90,10 +96,16 @@ describe("ExplorePage", () => {
     mockSearchUsers.mockResolvedValueOnce(successResponse);
     renderWithRoute("/explore?q=alice");
     await waitFor(() => {
-      expect(screen.getByTestId("user-search-result-usr_alice")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("user-search-result-usr_alice"),
+      ).toBeInTheDocument();
     });
-    expect(screen.getByTestId("user-search-result-usr_alicia")).toBeInTheDocument();
-    expect(screen.getByTestId("explore-results-count")).toHaveTextContent("2 resultados");
+    expect(
+      screen.getByTestId("user-search-result-usr_alicia"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("explore-results-count")).toHaveTextContent(
+      "2 resultados",
+    );
   });
 
   it("renders empty state when there are no results", async () => {
@@ -114,7 +126,9 @@ describe("ExplorePage", () => {
     });
     renderWithRoute("/explore?q=alice");
     await waitFor(() => {
-      expect(screen.getByTestId("explore-results-count")).toHaveTextContent("1 resultado");
+      expect(screen.getByTestId("explore-results-count")).toHaveTextContent(
+        "1 resultado",
+      );
     });
   });
 
@@ -124,7 +138,9 @@ describe("ExplorePage", () => {
     });
     renderWithRoute("/explore?q=alice");
     await waitFor(() => {
-      expect(screen.getByTestId("explore-error")).toHaveTextContent("El backend explotó");
+      expect(screen.getByTestId("explore-error")).toHaveTextContent(
+        "El backend explotó",
+      );
     });
   });
 
@@ -162,14 +178,18 @@ describe("ExplorePage", () => {
     mockSearchUsers.mockResolvedValueOnce(successResponse);
     renderWithRoute("/explore?q=alice");
     await waitFor(() => {
-      expect(screen.getByTestId("user-search-follow-btn-usr_alice")).toHaveTextContent("Follow");
+      expect(
+        screen.getByTestId("user-search-follow-btn-usr_alice"),
+      ).toHaveTextContent("Follow");
     });
 
     await act(async () => {
       fireEvent.click(screen.getByTestId("user-search-follow-btn-usr_alice"));
     });
 
-    expect(screen.getByTestId("user-search-follow-btn-usr_alice")).toHaveTextContent("Following");
+    expect(
+      screen.getByTestId("user-search-follow-btn-usr_alice"),
+    ).toHaveTextContent("Following");
   });
 
   it("debounces API calls when only the draft changes", async () => {

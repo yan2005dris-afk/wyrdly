@@ -18,7 +18,9 @@ describe("AuthPage Component", () => {
   it("renders brand hero, graph SVG, and welcome message", () => {
     renderAuthPage();
     expect(screen.getByText("Wyrdly")).toBeInTheDocument();
-    expect(screen.getByText("Where connections weave the future")).toBeInTheDocument();
+    expect(
+      screen.getByText("Where connections weave the future"),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Your social graph,/i)).toBeInTheDocument();
     expect(screen.getByText(/Welcome to Wyrdly/i)).toBeInTheDocument();
   });

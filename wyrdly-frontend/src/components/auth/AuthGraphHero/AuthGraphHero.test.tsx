@@ -7,7 +7,9 @@ describe("AuthGraphHero Component", () => {
     render(<AuthGraphHero />);
 
     expect(screen.getByText("Wyrdly")).toBeInTheDocument();
-    expect(screen.getByText("Where connections weave the future")).toBeInTheDocument();
+    expect(
+      screen.getByText("Where connections weave the future"),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("graph-svg")).toBeInTheDocument();
     expect(screen.getByText(/Your social graph,/)).toBeInTheDocument();
     expect(screen.getByText("Federated Relays")).toBeInTheDocument();

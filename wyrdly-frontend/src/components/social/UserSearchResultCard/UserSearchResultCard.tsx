@@ -29,14 +29,23 @@ export const UserSearchResultCard: FC<UserSearchResultCardProps> = ({
         />
       </div>
       <div className={styles.identity}>
-        <p className={styles.username} data-testid={`user-search-username-${result.id}`}>
+        <p
+          className={styles.username}
+          data-testid={`user-search-username-${result.id}`}
+        >
           @{result.username}
         </p>
-        <p className={styles.fullName} data-testid={`user-search-fullname-${result.id}`}>
+        <p
+          className={styles.fullName}
+          data-testid={`user-search-fullname-${result.id}`}
+        >
           {result.fullName}
         </p>
         {result.bio && (
-          <p className={styles.bio} data-testid={`user-search-bio-${result.id}`}>
+          <p
+            className={styles.bio}
+            data-testid={`user-search-bio-${result.id}`}
+          >
             {result.bio}
           </p>
         )}

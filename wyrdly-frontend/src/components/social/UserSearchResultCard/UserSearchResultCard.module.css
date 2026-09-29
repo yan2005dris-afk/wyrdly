@@ -6,7 +6,9 @@
   background: var(--color-bg-elevated, #ffffff);
   border: 1px solid var(--color-border, #e5e7eb);
   border-radius: 0.75rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .card:hover {

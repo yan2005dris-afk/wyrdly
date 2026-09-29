@@ -120,7 +120,9 @@ export const AppNavbar: FC<AppNavbarProps> = ({
               </div>
               <div>
                 <span className={styles.brandText}>Wyrdly</span>
-                <span className={styles.brandSubtext}>Where connections weave the future</span>
+                <span className={styles.brandSubtext}>
+                  Where connections weave the future
+                </span>
               </div>
             </Link>
           )}

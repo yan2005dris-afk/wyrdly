@@ -16,7 +16,9 @@ export const AuthGraphHero: FC<AuthGraphHeroProps> = ({ className = "" }) => {
         </div>
         <div>
           <h1 className={styles.brandName}>Wyrdly</h1>
-          <p className={styles.brandSubtext}>Where connections weave the future</p>
+          <p className={styles.brandSubtext}>
+            Where connections weave the future
+          </p>
         </div>
       </div>
 

@@ -13,9 +13,12 @@ export const userSearchApi = {
     page = 0,
     pageSize = 20,
   }: SearchUsersParams): Promise<UserSearchResponse> {
-    const response = await apiClient.get<UserSearchResponse>("/api/users/search", {
-      params: { q, page, pageSize },
-    });
+    const response = await apiClient.get<UserSearchResponse>(
+      "/api/users/search",
+      {
+        params: { q, page, pageSize },
+      },
+    );
     return response.data;
   },
 };
