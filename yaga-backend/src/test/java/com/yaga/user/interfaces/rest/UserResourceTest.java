@@ -8,10 +8,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.yaga.user.application.dto.FollowActionResponse;
 import com.yaga.user.application.dto.UpdateProfileRequest;
 import com.yaga.user.application.dto.UserProfileResponse;
+import com.yaga.user.application.usecase.FollowUserUseCase;
 import com.yaga.user.application.usecase.GetUserProfileUseCase;
+import com.yaga.user.application.usecase.UnfollowUserUseCase;
 import com.yaga.user.application.usecase.UpdateUserProfileUseCase;
+import com.yaga.user.domain.exception.SelfFollowNotAllowedException;
 import com.yaga.user.domain.exception.UserProfileNotFoundException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -28,6 +32,10 @@ class UserResourceTest {
   @InjectMock GetUserProfileUseCase getUserProfileUseCase;
 
   @InjectMock UpdateUserProfileUseCase updateUserProfileUseCase;
+
+  @InjectMock FollowUserUseCase followUserUseCase;
+
+  @InjectMock UnfollowUserUseCase unfollowUserUseCase;
 
   @Test
   void getProfile_Returns200_WhenNoTokenProvided() {
@@ -159,5 +167,104 @@ class UserResourceTest {
         .put("/api/users/profile")
         .then()
         .statusCode(200);
+  }
+
+  @Test
+  void followUser_Returns401_WhenNoTokenProvided() {
+    given().when().post("/api/users/usr_456/follow").then().statusCode(401);
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void followUser_Returns200_WhenAuthenticated() {
+    FollowActionResponse response =
+        new FollowActionResponse("Usuario seguido exitosamente.", "usr_456", true);
+
+    when(followUserUseCase.follow(eq("usr_123"), eq("usr_456"))).thenReturn(response);
+
+    given()
+        .when()
+        .post("/api/users/usr_456/follow")
+        .then()
+        .statusCode(200)
+        .body("message", equalTo("Usuario seguido exitosamente."))
+        .body("targetUserId", equalTo("usr_456"))
+        .body("following", equalTo(true));
+
+    verify(followUserUseCase).follow(eq("usr_123"), eq("usr_456"));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void followUser_Returns400_WhenFollowingSelf() {
+    when(followUserUseCase.follow(eq("usr_123"), eq("usr_123")))
+        .thenThrow(new SelfFollowNotAllowedException("usr_123"));
+
+    given()
+        .when()
+        .post("/api/users/usr_123/follow")
+        .then()
+        .statusCode(400)
+        .body("error", equalTo("Bad Request"))
+        .body("message", equalTo("No puedes seguirte a ti mismo."));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void followUser_Returns404_WhenTargetUserDoesNotExist() {
+    when(followUserUseCase.follow(eq("usr_123"), eq("usr_ghost")))
+        .thenThrow(new UserProfileNotFoundException("El usuario 'usr_ghost' no existe."));
+
+    given()
+        .when()
+        .post("/api/users/usr_ghost/follow")
+        .then()
+        .statusCode(404)
+        .body("error", equalTo("Not Found"))
+        .body("message", equalTo("El usuario 'usr_ghost' no existe."));
+  }
+
+  @Test
+  void unfollowUser_Returns401_WhenNoTokenProvided() {
+    given().when().delete("/api/users/usr_456/follow").then().statusCode(401);
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void unfollowUser_Returns200_WhenAuthenticated() {
+    FollowActionResponse response =
+        new FollowActionResponse("Se dejó de seguir al usuario.", "usr_456", false);
+
+    when(unfollowUserUseCase.unfollow(eq("usr_123"), eq("usr_456"))).thenReturn(response);
+
+    given()
+        .when()
+        .delete("/api/users/usr_456/follow")
+        .then()
+        .statusCode(200)
+        .body("message", equalTo("Se dejó de seguir al usuario."))
+        .body("targetUserId", equalTo("usr_456"))
+        .body("following", equalTo(false));
+
+    verify(unfollowUserUseCase).unfollow(eq("usr_123"), eq("usr_456"));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void unfollowUser_Returns404_WhenTargetUserDoesNotExist() {
+    when(unfollowUserUseCase.unfollow(eq("usr_123"), eq("usr_ghost")))
+        .thenThrow(new UserProfileNotFoundException("El usuario 'usr_ghost' no existe."));
+
+    given()
+        .when()
+        .delete("/api/users/usr_ghost/follow")
+        .then()
+        .statusCode(404)
+        .body("error", equalTo("Not Found"));
   }
 }
