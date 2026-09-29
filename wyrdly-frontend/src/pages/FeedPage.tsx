@@ -80,13 +80,20 @@ export const FeedPage: FC = () => {
     useGraphSuggestions();
   const { follow, unfollow } = useFollow();
 
+  // Optimistic follow state: when the user clicks Follow, mark the user as
+  // followed immediately so the button flips to "Following" without waiting
+  // for the backend refetch. Rolled back on API error.
+  const [locallyFollowed, setLocallyFollowed] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
+
   const suggestions = apiSuggestions.map((s) => ({
     id: s.id,
     username: s.username,
     fullName: s.fullName,
     avatarUrl: s.avatarUrl ?? undefined,
     mutualConnectionSnippet: s.mutualConnectionSnippet,
-    isFollowing: s.isFollowing,
+    isFollowing: s.isFollowing || locallyFollowed.has(s.id),
   }));
 
   const currentUserSummary: UserProfileSummary = {
@@ -146,14 +153,40 @@ export const FeedPage: FC = () => {
 
   const handleFollowToggle = async (userId: string) => {
     const suggestion = apiSuggestions.find((s) => s.id === userId);
+    if (!suggestion) return;
+
+    const wasFollowing = suggestion.isFollowing || locallyFollowed.has(userId);
+    // Optimistic: flip the local flag immediately for instant feedback.
+    setLocallyFollowed((prev) => {
+      const next = new Set(prev);
+      if (wasFollowing) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+
     try {
-      if (suggestion?.isFollowing) {
+      if (wasFollowing) {
         await unfollow(userId);
       } else {
         await follow(userId);
       }
+      // Backend will exclude newly-followed users via WHERE NOT in the next
+      // refetch; re-sync to drop them from the list.
       refetchSuggestions();
     } catch (err) {
+      // Rollback the optimistic flag on failure.
+      setLocallyFollowed((prev) => {
+        const next = new Set(prev);
+        if (wasFollowing) {
+          next.add(userId);
+        } else {
+          next.delete(userId);
+        }
+        return next;
+      });
       console.error("Follow toggle failed", err);
     }
   };
