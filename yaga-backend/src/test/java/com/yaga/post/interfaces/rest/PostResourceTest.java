@@ -114,9 +114,6 @@ class PostResourceTest {
   void createPost_Returns400_WhenContentIsBlank() {
     CreatePostRequest request = new CreatePostRequest("   ", null);
 
-    when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
-        .thenThrow(new PostValidationException("Content is required"));
-
     given()
         .contentType(ContentType.JSON)
         .body(request)
@@ -124,8 +121,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("error", equalTo("Bad Request"))
-        .body("message", equalTo("Content is required"));
+        .body("violations[0].message", equalTo("Content is required"));
   }
 
   @Test
@@ -135,9 +131,6 @@ class PostResourceTest {
     String tooLongContent = "a".repeat(1001);
     CreatePostRequest request = new CreatePostRequest(tooLongContent, null);
 
-    when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
-        .thenThrow(new PostValidationException("Content must not exceed 1000 characters"));
-
     given()
         .contentType(ContentType.JSON)
         .body(request)
@@ -145,8 +138,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("error", equalTo("Bad Request"))
-        .body("message", equalTo("Content must not exceed 1000 characters"));
+        .body("violations[0].message", equalTo("Content must be between 1 and 1000 characters"));
   }
 
   @Test

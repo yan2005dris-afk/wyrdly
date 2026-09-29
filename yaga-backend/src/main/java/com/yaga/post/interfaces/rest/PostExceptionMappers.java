@@ -1,27 +1,28 @@
 package com.yaga.post.interfaces.rest;
 
 import com.yaga.post.domain.exception.PostValidationException;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.ext.ExceptionMapper;
-import jakarta.ws.rs.ext.Provider;
 import java.time.Instant;
+import java.util.Map;
+import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
-@Provider
-class PostValidationExceptionMapper implements ExceptionMapper<PostValidationException> {
+@ApplicationScoped
+public class PostExceptionMappers {
 
-  @Override
-  public Response toResponse(PostValidationException exception) {
+  @ServerExceptionMapper
+  public Response handlePostValidation(PostValidationException ex) {
     return Response.status(Response.Status.BAD_REQUEST)
         .entity(
-            new ErrorResponseDto(
-                Instant.now(),
-                Response.Status.BAD_REQUEST.getStatusCode(),
+            Map.of(
+                "status",
+                400,
+                "error",
                 "Bad Request",
-                exception.getMessage(),
-                "POST /api/posts"))
+                "message",
+                ex.getMessage() != null ? ex.getMessage() : "",
+                "timestamp",
+                Instant.now().toString()))
         .build();
   }
-
-  record ErrorResponseDto(
-      Instant timestamp, int status, String error, String message, String path) {}
 }

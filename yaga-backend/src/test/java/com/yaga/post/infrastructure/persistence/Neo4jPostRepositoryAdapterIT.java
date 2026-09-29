@@ -112,6 +112,7 @@ class Neo4jPostRepositoryAdapterIT {
 
     assertTrue(found.isPresent());
     assertEquals("pst_abc123", found.get().id());
+    assertEquals("usr_123", found.get().userId());
     assertEquals("Test content", found.get().content());
     assertEquals(createdAt, found.get().createdAt());
   }

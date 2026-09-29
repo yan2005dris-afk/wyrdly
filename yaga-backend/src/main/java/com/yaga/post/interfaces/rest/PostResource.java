@@ -6,6 +6,7 @@ import com.yaga.post.application.usecase.CreatePostUseCase;
 import io.quarkus.security.Authenticated;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -33,7 +34,7 @@ public class PostResource {
 
   @POST
   @Authenticated
-  public Response createPost(CreatePostRequest request) {
+  public Response createPost(@Valid CreatePostRequest request) {
     String userId = jwt.getSubject();
     PostResponse response = createPostUseCase.createPost(userId, request);
     return Response.status(Response.Status.CREATED).entity(response).build();

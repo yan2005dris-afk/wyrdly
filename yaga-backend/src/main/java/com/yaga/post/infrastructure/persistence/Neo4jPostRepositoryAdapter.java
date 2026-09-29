@@ -54,9 +54,9 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           tx ->
               tx
                   .run(
-                      "MATCH (p:Post {id: $id}) "
+                      "MATCH (author:Usuario)-[:PUBLICA]->(p:Post {id: $id}) "
                           + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, p.createdAt AS createdAt, "
-                          + "           'unknown' AS userId",
+                          + "       author.id AS userId",
                       Values.parameters("id", id))
                   .list()
                   .stream()
