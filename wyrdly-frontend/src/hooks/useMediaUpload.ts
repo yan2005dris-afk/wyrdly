@@ -5,10 +5,7 @@ import {
   MAX_FILE_SIZE_BYTES,
   type MediaUploadResponse,
 } from "../types/media";
-import {
-  convertToWebP,
-  isRasterInputMimeType,
-} from "../utils/imageTransform";
+import { convertToWebP, isRasterInputMimeType } from "../utils/imageTransform";
 
 interface UseMediaUploadReturn {
   readonly upload: (file: File) => Promise<MediaUploadResponse | null>;

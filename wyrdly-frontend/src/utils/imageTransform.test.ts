@@ -32,8 +32,8 @@ describe("supportsWebPEncoding", () => {
     document.createElement = vi.fn((tag: string) => {
       const el = originalCreateElement(tag);
       if (tag === "canvas") {
-        (el as HTMLCanvasElement).toDataURL = vi.fn(() =>
-          "data:image/webp;base64,AAAA",
+        (el as HTMLCanvasElement).toDataURL = vi.fn(
+          () => "data:image/webp;base64,AAAA",
         );
       }
       return el;
@@ -45,8 +45,8 @@ describe("supportsWebPEncoding", () => {
     document.createElement = vi.fn((tag: string) => {
       const el = originalCreateElement(tag);
       if (tag === "canvas") {
-        (el as HTMLCanvasElement).toDataURL = vi.fn(() =>
-          "data:image/png;base64,AAAA",
+        (el as HTMLCanvasElement).toDataURL = vi.fn(
+          () => "data:image/png;base64,AAAA",
         );
       }
       return el;

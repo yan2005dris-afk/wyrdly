@@ -51,9 +51,7 @@ export async function decodeImage(file: File): Promise<HTMLImageElement> {
  * pixels as a WebP Blob. Prefers `OffscreenCanvas` when available,
  * falls back to a detached `<canvas>` element.
  */
-async function rasterizeToWebP(
-  image: HTMLImageElement,
-): Promise<Blob> {
+async function rasterizeToWebP(image: HTMLImageElement): Promise<Blob> {
   const width = image.naturalWidth;
   const height = image.naturalHeight;
 
@@ -120,8 +118,7 @@ export async function convertToWebP(
   const blob = await raster(image);
 
   const dotIndex = file.name.lastIndexOf(".");
-  const baseName =
-    dotIndex > 0 ? file.name.slice(0, dotIndex) : file.name;
+  const baseName = dotIndex > 0 ? file.name.slice(0, dotIndex) : file.name;
   const newName = `${baseName}.webp`;
 
   return new File([blob], newName, {
