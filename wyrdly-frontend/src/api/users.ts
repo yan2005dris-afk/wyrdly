@@ -1,4 +1,9 @@
 import { apiClient } from "./axios";
+import type {
+  FollowActionResponse,
+  GetSuggestionsParams,
+  GraphSuggestionsResponse,
+} from "../types/suggestions";
 
 export interface UserProfileApiResponse {
   readonly id: string;
@@ -32,6 +37,35 @@ export const usersApi = {
     const response = await apiClient.put<UserProfileApiResponse>(
       "/api/users/profile",
       payload,
+    );
+    return response.data;
+  },
+
+  async getSuggestions(
+    params: GetSuggestionsParams = {},
+  ): Promise<GraphSuggestionsResponse> {
+    const response = await apiClient.get<GraphSuggestionsResponse>(
+      "/api/users/suggestions",
+      {
+        params: {
+          page: params.page ?? 0,
+          pageSize: params.pageSize ?? 10,
+        },
+      },
+    );
+    return response.data;
+  },
+
+  async follow(targetUserId: string): Promise<FollowActionResponse> {
+    const response = await apiClient.post<FollowActionResponse>(
+      `/api/users/${encodeURIComponent(targetUserId)}/follow`,
+    );
+    return response.data;
+  },
+
+  async unfollow(targetUserId: string): Promise<FollowActionResponse> {
+    const response = await apiClient.delete<FollowActionResponse>(
+      `/api/users/${encodeURIComponent(targetUserId)}/follow`,
     );
     return response.data;
   },

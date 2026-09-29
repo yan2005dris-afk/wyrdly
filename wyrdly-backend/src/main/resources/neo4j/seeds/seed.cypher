@@ -52,6 +52,55 @@ ON CREATE SET
 ON MATCH SET
   u4.passwordHash = "$2a$12$vx53idU5DJsd81SkMYa2..3wOz78V6FE8iFlIGpfQRAi2a2HaT1sG";
 
+// 1b. Usuarios Adicionales (para que HU05 muestre varias sugerencias FoF)
+MERGE (u5:Usuario {id: "usr_marcus_05"})
+ON CREATE SET
+  u5.username = "marcus",
+  u5.email = "marcus@wyrdly.social",
+  u5.fullName = "Marcus Rivera",
+  u5.bio = "Ingeniero de datos y contribuidor de proyectos open source",
+  u5.avatarUrl = "http://localhost:9000/social-media-assets/avatars/marcus.png",
+  u5.passwordHash = "$2a$12$vx53idU5DJsd81SkMYa2..3wOz78V6FE8iFlIGpfQRAi2a2HaT1sG",
+  u5.createdAt = datetime("2026-09-24T12:20:00Z")
+ON MATCH SET
+  u5.passwordHash = "$2a$12$vx53idU5DJsd81SkMYa2..3wOz78V6FE8iFlIGpfQRAi2a2HaT1sG";
+
+MERGE (u6:Usuario {id: "usr_sofia_06"})
+ON CREATE SET
+  u6.username = "sofia",
+  u6.email = "sofia@wyrdly.social",
+  u6.fullName = "Sofía Castillo",
+  u6.bio = "Diseñadora UX/UI y artista digital",
+  u6.avatarUrl = "http://localhost:9000/social-media-assets/avatars/sofia.png",
+  u6.passwordHash = "$2a$12$vx53idU5DJsd81SkMYa2..3wOz78V6FE8iFlIGpfQRAi2a2HaT1sG",
+  u6.createdAt = datetime("2026-09-24T12:25:00Z")
+ON MATCH SET
+  u6.passwordHash = "$2a$12$vx53idU5DJsd81SkMYa2..3wOz78V6FE8iFlIGpfQRAi2a2HaT1sG";
+
+MERGE (u7:Usuario {id: "usr_david_07"})
+ON CREATE SET
+  u7.username = "david",
+  u7.email = "david@wyrdly.social",
+  u7.fullName = "David Otero",
+  u7.bio = "Backend dev: Go, Kubernetes y observabilidad",
+  u7.avatarUrl = "http://localhost:9000/social-media-assets/avatars/david.png",
+  u7.passwordHash = "$2a$12$vx53idU5DJsd81SkMYa2..3wOz78V6FE8iFlIGpfQRAi2a2HaT1sG",
+  u7.createdAt = datetime("2026-09-24T12:30:00Z")
+ON MATCH SET
+  u7.passwordHash = "$2a$12$vx53idU5DJsd81SkMYa2..3wOz78V6FE8iFlIGpfQRAi2a2HaT1sG";
+
+MERGE (u8:Usuario {id: "usr_elena_08"})
+ON CREATE SET
+  u8.username = "elena",
+  u8.email = "elena@wyrdly.social",
+  u8.fullName = "Elena Méndez",
+  u8.bio = "ML engineer y community manager de Wyrdly",
+  u8.avatarUrl = "http://localhost:9000/social-media-assets/avatars/elena.png",
+  u8.passwordHash = "$2a$12$vx53idU5DJsd81SkMYa2..3wOz78V6FE8iFlIGpfQRAi2a2HaT1sG",
+  u8.createdAt = datetime("2026-09-24T12:35:00Z")
+ON MATCH SET
+  u8.passwordHash = "$2a$12$vx53idU5DJsd81SkMYa2..3wOz78V6FE8iFlIGpfQRAi2a2HaT1sG";
+
 // 2. Relaciones de Seguimiento ([:SIGUE])
 MATCH (u1:Usuario {id: "usr_yandris_01"}), (u2:Usuario {id: "usr_gino_02"})
 MERGE (u1)-[r:SIGUE]->(u2)
@@ -72,6 +121,37 @@ ON CREATE SET r.createdAt = datetime("2026-09-24T13:15:00Z");
 MATCH (u4:Usuario {id: "usr_allison_04"}), (u1:Usuario {id: "usr_yandris_01"})
 MERGE (u4)-[r:SIGUE]->(u1)
 ON CREATE SET r.createdAt = datetime("2026-09-24T13:20:00Z");
+
+// 2b. Edges adicionales para que Yandris vea varias sugerencias FoF.
+// Yandris ya sigue a sofia (NO debe aparecer como sugerencia); el resto son
+// candidatos ordenados por mutualCount DESC.
+MATCH (u1:Usuario {id: "usr_yandris_01"}), (u6:Usuario {id: "usr_sofia_06"})
+MERGE (u1)-[r:SIGUE]->(u6)
+ON CREATE SET r.createdAt = datetime("2026-09-24T13:25:00Z");
+
+MATCH (u2:Usuario {id: "usr_gino_02"}), (u5:Usuario {id: "usr_marcus_05"})
+MERGE (u2)-[r:SIGUE]->(u5)
+ON CREATE SET r.createdAt = datetime("2026-09-24T13:30:00Z");
+
+MATCH (u2:Usuario {id: "usr_gino_02"}), (u8:Usuario {id: "usr_elena_08"})
+MERGE (u2)-[r:SIGUE]->(u8)
+ON CREATE SET r.createdAt = datetime("2026-09-24T13:35:00Z");
+
+MATCH (u3:Usuario {id: "usr_andy_03"}), (u7:Usuario {id: "usr_david_07"})
+MERGE (u3)-[r:SIGUE]->(u7)
+ON CREATE SET r.createdAt = datetime("2026-09-24T13:40:00Z");
+
+MATCH (u5:Usuario {id: "usr_marcus_05"}), (u7:Usuario {id: "usr_david_07"})
+MERGE (u5)-[r:SIGUE]->(u7)
+ON CREATE SET r.createdAt = datetime("2026-09-24T13:45:00Z");
+
+MATCH (u5:Usuario {id: "usr_marcus_05"}), (u8:Usuario {id: "usr_elena_08"})
+MERGE (u5)-[r:SIGUE]->(u8)
+ON CREATE SET r.createdAt = datetime("2026-09-24T13:50:00Z");
+
+MATCH (u6:Usuario {id: "usr_sofia_06"}), (u5:Usuario {id: "usr_marcus_05"})
+MERGE (u6)-[r:SIGUE]->(u5)
+ON CREATE SET r.createdAt = datetime("2026-09-24T13:55:00Z");
 
 // 3. Publicaciones de Prueba ([:PUBLICA])
 MERGE (p1:Post {id: "pst_001"})

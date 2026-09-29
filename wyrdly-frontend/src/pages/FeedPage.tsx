@@ -1,7 +1,9 @@
 import { useState, type FC } from "react";
 import type { Post, CreatePostPayload, ReactionType } from "../types/feed";
-import type { UserProfileSummary, GraphSuggestionUser } from "../types/domain";
+import type { UserProfileSummary } from "../types/domain";
 import { useAuth } from "../hooks/useAuth";
+import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
+import { useFollow } from "../hooks/useFollow";
 import {
   CreatePostCard,
   PostCard,
@@ -16,27 +18,6 @@ const FEED_FILTER_TABS: readonly TabItem<FeedFilter>[] = [
   { id: "for_you", label: "For you (Graph Feed)" },
   { id: "latest", label: "Latest" },
   { id: "relays", label: "Relays near you" },
-];
-
-const INITIAL_SUGGESTIONS: readonly GraphSuggestionUser[] = [
-  {
-    id: "user-alice",
-    username: "alice",
-    fullName: "Alice Chen",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-    mutualConnectionSnippet: "Followed by Jon and 2 others",
-    isFollowing: false,
-  },
-  {
-    id: "user-marcus",
-    username: "marcus",
-    fullName: "Marcus Cole",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-    mutualConnectionSnippet: "Followed by Priya and 5 others",
-    isFollowing: false,
-  },
 ];
 
 const INITIAL_POSTS: readonly Post[] = [
@@ -94,8 +75,26 @@ export const FeedPage: FC = () => {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>("for_you");
   const [posts, setPosts] = useState<readonly Post[]>(INITIAL_POSTS);
-  const [suggestions, setSuggestions] =
-    useState<readonly GraphSuggestionUser[]>(INITIAL_SUGGESTIONS);
+
+  const { suggestions: apiSuggestions, refetch: refetchSuggestions } =
+    useGraphSuggestions();
+  const { follow, unfollow } = useFollow();
+
+  // Optimistic follow state: when the user clicks Follow, mark the user as
+  // followed immediately so the button flips to "Following" without waiting
+  // for the backend refetch. Rolled back on API error.
+  const [locallyFollowed, setLocallyFollowed] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
+
+  const suggestions = apiSuggestions.map((s) => ({
+    id: s.id,
+    username: s.username,
+    fullName: s.fullName,
+    avatarUrl: s.avatarUrl ?? undefined,
+    mutualConnectionSnippet: s.mutualConnectionSnippet,
+    isFollowing: s.isFollowing || locallyFollowed.has(s.id),
+  }));
 
   const currentUserSummary: UserProfileSummary = {
     id: user?.id || "usr-current",
@@ -152,12 +151,44 @@ export const FeedPage: FC = () => {
     );
   };
 
-  const handleFollowToggle = (userId: string) => {
-    setSuggestions((prev) =>
-      prev.map((s) =>
-        s.id === userId ? { ...s, isFollowing: !s.isFollowing } : s,
-      ),
-    );
+  const handleFollowToggle = async (userId: string) => {
+    const suggestion = apiSuggestions.find((s) => s.id === userId);
+    if (!suggestion) return;
+
+    const wasFollowing = suggestion.isFollowing || locallyFollowed.has(userId);
+    // Optimistic: flip the local flag immediately for instant feedback.
+    setLocallyFollowed((prev) => {
+      const next = new Set(prev);
+      if (wasFollowing) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+
+    try {
+      if (wasFollowing) {
+        await unfollow(userId);
+      } else {
+        await follow(userId);
+      }
+      // Backend will exclude newly-followed users via WHERE NOT in the next
+      // refetch; re-sync to drop them from the list.
+      refetchSuggestions();
+    } catch (err) {
+      // Rollback the optimistic flag on failure.
+      setLocallyFollowed((prev) => {
+        const next = new Set(prev);
+        if (wasFollowing) {
+          next.add(userId);
+        } else {
+          next.delete(userId);
+        }
+        return next;
+      });
+      console.error("Follow toggle failed", err);
+    }
   };
 
   return (
