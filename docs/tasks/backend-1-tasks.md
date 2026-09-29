@@ -24,7 +24,7 @@
 ---
 
 ## 📌 HU06: Subida de Archivos Multimedia a RustFS (S3)
-- [ ] **Tarea 6.1:** Configurar cliente AWS S3 SDK v2 / Async en Quarkus apuntando a RustFS (`http://yaga-rustfs:9000`).
+- [ ] **Tarea 6.1:** Configurar cliente AWS S3 SDK v2 / Async en Quarkus apuntando a RustFS (`http://wyrdly-rustfs:9000`).
 - [ ] **Tarea 6.2:** Crear servicio de inicialización para asegurar la existencia del bucket `social-media-assets`.
 - [ ] **Tarea 6.3:** Implementar validación de archivos `multipart/form-data` (MIME types permitidos: `image/*`, `video/mp4`, límite 10 MB).
 - [ ] **Tarea 6.4:** Generar identificadores únicos de archivo (`storageKey` tipo UUID) y subir al bucket S3.

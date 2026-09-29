@@ -4,12 +4,12 @@ on:
   push:
     branches: [develop, main]
     paths:
-      - 'yaga-frontend/**'
+      - 'wyrdly-frontend/**'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
     branches: [develop, main]
     paths:
-      - 'yaga-frontend/**'
+      - 'wyrdly-frontend/**'
       - '.github/workflows/frontend-ci.yml'
 
 concurrency:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: yaga-frontend
+        working-directory: wyrdly-frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('yaga-frontend/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('wyrdly-frontend/pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run format:check
 
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: yaga-frontend
+        working-directory: wyrdly-frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('yaga-frontend/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('wyrdly-frontend/pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
 
@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: yaga-frontend
+        working-directory: wyrdly-frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -82,7 +82,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('yaga-frontend/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('wyrdly-frontend/pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run test
 
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: yaga-frontend
+        working-directory: wyrdly-frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -105,7 +105,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('yaga-frontend/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('wyrdly-frontend/pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run test:coverage
 
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: yaga-frontend
+        working-directory: wyrdly-frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -128,6 +128,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('yaga-frontend/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('wyrdly-frontend/pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build

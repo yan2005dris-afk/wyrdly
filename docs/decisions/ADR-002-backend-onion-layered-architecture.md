@@ -7,7 +7,7 @@ Aceptado
 Inicialmente, los módulos del backend en Quarkus adoptaban una convención de Arquitectura Hexagonal con subpaquetes `in` y `out` (puertos primarios/secundarios y adaptadores de entrada/salida). Si bien este enfoque desacopla puertos y adaptadores, la nomenclatura `in`/`out` resultaba verbosa y menos intuitiva para la organización por capas del dominio y la navegación del código.
 
 ## Decisión
-Adoptar una arquitectura por capas basada en principios de **Domain-Driven Design (DDD) / Onion Architecture**, estructurando cada módulo funcional del backend (`com.yaga.<modulo>`) en 4 capas bien definidas:
+Adoptar una arquitectura por capas basada en principios de **Domain-Driven Design (DDD) / Onion Architecture**, estructurando cada módulo funcional del backend (`com.wyrdly.<modulo>`) en 4 capas bien definidas:
 
 1. **`domain` (Núcleo de Negocio):**
    - **`model/`:** Entidades y Value Objects puros del dominio (ej. `User`, `AuthTokens`).
