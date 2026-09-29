@@ -10,6 +10,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @ApplicationScoped
@@ -36,9 +37,11 @@ public class BucketInitializer {
       HeadBucketRequest headBucketRequest = HeadBucketRequest.builder().bucket(bucketName).build();
       s3Client.headBucket(headBucketRequest);
       Log.infof("Bucket '%s' already exists", bucketName);
+      applyPublicReadPolicy();
     } catch (S3Exception e) {
       if (e.statusCode() == 404) {
         createBucket();
+        applyPublicReadPolicy();
       } else {
         Log.warnf(e, "Failed to check bucket status: %s", bucketName);
       }
@@ -53,6 +56,35 @@ public class BucketInitializer {
       Log.infof("Bucket '%s' created successfully", bucketName);
     } catch (S3Exception e) {
       Log.warnf(e, "Failed to create bucket: %s", bucketName);
+    }
+  }
+
+  /**
+   * Apply a public-read bucket policy so avatars and posts referenced by
+   * their public URL (seed.cypher, PostResponse.mediaUrl) can be served
+   * directly without presigned URLs. Write actions stay authenticated
+   * via the AWS credentials used by the backend.
+   */
+  private void applyPublicReadPolicy() {
+    String policy =
+        "{"
+            + "\"Version\":\"2012-10-17\","
+            + "\"Statement\":[{"
+            + "\"Sid\":\"PublicRead\","
+            + "\"Effect\":\"Allow\","
+            + "\"Principal\":\"*\","
+            + "\"Action\":\"s3:GetObject\","
+            + "\"Resource\":\"arn:aws:s3:::"
+            + bucketName
+            + "/*\""
+            + "}]}";
+    try {
+      PutBucketPolicyRequest putPolicyRequest =
+          PutBucketPolicyRequest.builder().bucket(bucketName).policy(policy).build();
+      s3Client.putBucketPolicy(putPolicyRequest);
+      Log.infof("Bucket '%s' policy set to public-read", bucketName);
+    } catch (S3Exception e) {
+      Log.warnf(e, "Failed to apply public-read policy to bucket '%s'", bucketName);
     }
   }
 }
