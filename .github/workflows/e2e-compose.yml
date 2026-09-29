@@ -6,16 +6,16 @@ on:
     paths:
       - 'compose.yaml'
       - '.env.example'
-      - 'yaga-backend/**'
-      - 'yaga-frontend/**'
+      - 'wyrdly-backend/**'
+      - 'wyrdly-frontend/**'
       - '.github/workflows/e2e-compose.yml'
   pull_request:
     branches: [develop, main]
     paths:
       - 'compose.yaml'
       - '.env.example'
-      - 'yaga-backend/**'
-      - 'yaga-frontend/**'
+      - 'wyrdly-backend/**'
+      - 'wyrdly-frontend/**'
       - '.github/workflows/e2e-compose.yml'
 
 concurrency:

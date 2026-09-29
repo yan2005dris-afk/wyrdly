@@ -1,6 +1,6 @@
 # HU12 — Búsqueda de Usuarios por nombre / username / bio
 
-> Issue: [#27](https://github.com/yan2005dris-afk/yaga-social/issues/27)
+> Issue: [#27](https://github.com/yan2005dris-afk/wyrdly/issues/27)
 > Estado: spec pendiente de implementación
 > Depende de: HU04 (follow) ✅ merged, HU05 (suggestions) opcional
 
@@ -31,7 +31,7 @@ Excluye al usuario autenticado. Ordena por `isFollowing DESC, mutualCount DESC, 
       "id": "usr_abc123",
       "username": "alice",
       "fullName": "Alice Chen",
-      "avatarUrl": "https://cdn.yaga.social/avatars/alice.jpg",
+      "avatarUrl": "https://cdn.wyrdly.app/avatars/alice.jpg",
       "bio": "Backend dev, loves Neo4j",
       "isFollowing": false,
       "mutualConnectionSnippet": "Followed by Jon and 2 others"
