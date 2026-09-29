@@ -2,8 +2,10 @@ package com.yaga.user.infrastructure.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.yaga.user.domain.exception.UserProfileNotFoundException;
 import com.yaga.user.domain.model.UserProfile;
 import java.time.Instant;
 import java.util.Map;
@@ -130,6 +132,86 @@ class Neo4jUserProfileRepositoryAdapterIT {
     Optional<UserProfile> updated = adapter.updateProfile("usr_ghost", "Name", null, null);
 
     assertTrue(updated.isEmpty());
+  }
+
+  @Test
+  void followUser_CreatesFollowRelationship_WhenBothUsersExist() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+    seedUser("usr_bob", "bob", "Bob", "", "");
+
+    adapter.followUser("usr_bob", "usr_alice");
+
+    assertTrue(adapter.isFollowing("usr_bob", "usr_alice"));
+    assertFalse(adapter.isFollowing("usr_alice", "usr_bob"));
+  }
+
+  @Test
+  void followUser_IsMergeIdempotent_FollowingTwiceCreatesOneRelationship() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+    seedUser("usr_bob", "bob", "Bob", "", "");
+
+    adapter.followUser("usr_bob", "usr_alice");
+    adapter.followUser("usr_bob", "usr_alice");
+
+    assertTrue(adapter.isFollowing("usr_bob", "usr_alice"));
+  }
+
+  @Test
+  void unfollowUser_DeletesFollowRelationship_WhenRelationshipExists() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+    seedUser("usr_bob", "bob", "Bob", "", "");
+    follow("usr_bob", "usr_alice");
+
+    adapter.unfollowUser("usr_bob", "usr_alice");
+
+    assertFalse(adapter.isFollowing("usr_bob", "usr_alice"));
+  }
+
+  @Test
+  void unfollowUser_IsIdempotent_UnfollowingNonExistentRelationshipSucceeds() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+    seedUser("usr_bob", "bob", "Bob", "", "");
+
+    adapter.unfollowUser("usr_bob", "usr_alice");
+
+    assertFalse(adapter.isFollowing("usr_bob", "usr_alice"));
+  }
+
+  @Test
+  void isFollowing_ReturnsFalse_WhenNoRelationshipExists() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+    seedUser("usr_bob", "bob", "Bob", "", "");
+
+    boolean result = adapter.isFollowing("usr_bob", "usr_alice");
+
+    assertFalse(result);
+  }
+
+  @Test
+  void isFollowing_ReturnsTrue_WhenRelationshipExists() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+    seedUser("usr_bob", "bob", "Bob", "", "");
+    follow("usr_bob", "usr_alice");
+
+    boolean result = adapter.isFollowing("usr_bob", "usr_alice");
+
+    assertTrue(result);
+  }
+
+  @Test
+  void validateUserExists_DoesNotThrow_WhenUserExists() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+
+    adapter.validateUserExists("usr_alice");
+  }
+
+  @Test
+  void validateUserExists_ThrowsUserProfileNotFoundException_WhenUserDoesNotExist() {
+    UserProfileNotFoundException exception =
+        assertThrows(
+            UserProfileNotFoundException.class, () -> adapter.validateUserExists("usr_ghost"));
+
+    assertTrue(exception.getMessage().contains("no existe"));
   }
 
   private void seedUser(String id, String username, String fullName, String bio, String avatarUrl) {
