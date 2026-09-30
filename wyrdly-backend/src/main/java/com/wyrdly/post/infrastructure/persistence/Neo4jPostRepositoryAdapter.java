@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
 
 @ApplicationScoped
@@ -84,16 +85,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                   .list()
                   .stream()
                   .findFirst()
-                  .map(
-                      record ->
-                          new Post(
-                              record.get("id").asString(),
-                              record.get("userId").asString(),
-                              record.get("content").asString(),
-                              record.get("mediaUrl").isNull()
-                                  ? null
-                                  : record.get("mediaUrl").asString(),
-                              Instant.parse(record.get("createdAt").asString()))));
+                  .map(this::mapRecordToPost));
 
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Post by id: %s", id);
@@ -221,14 +213,14 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         record.get("userId").asString(),
         record.get("content").asString(),
         record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString(),
-        Instant.parse(record.get("createdAt").asString()));
+        readCreatedAt(record));
   }
 
   private FeedPost mapRecordToFeedPost(Record record) {
     String id = record.get("id").asString();
     String content = record.get("content").asString();
     String mediaUrl = record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString();
-    Instant createdAt = Instant.parse(record.get("createdAt").asString());
+    Instant createdAt = readCreatedAt(record);
 
     String authorId = record.get("authorId").asString();
     String authorUsername = record.get("authorUsername").asString();
@@ -253,5 +245,22 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         loveCount,
         celebrateCount,
         userReactionType);
+  }
+
+  private Instant readCreatedAt(Record record) {
+    Value createdVal = record.get("createdAt");
+    if (createdVal == null || createdVal.isNull()) {
+      return Instant.now();
+    }
+    try {
+      return createdVal.asZonedDateTime().toInstant();
+    } catch (Exception e) {
+      try {
+        return Instant.parse(createdVal.asString());
+      } catch (Exception ex2) {
+        Log.warnf("Could not parse Post createdAt; defaulting to now(). value=%s", createdVal);
+        return Instant.now();
+      }
+    }
   }
 }

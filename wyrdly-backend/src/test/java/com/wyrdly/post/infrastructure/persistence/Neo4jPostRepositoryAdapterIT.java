@@ -341,4 +341,50 @@ class Neo4jPostRepositoryAdapterIT {
     assertEquals(1L, feed.get(0).celebrateCount());
     assertEquals("CELEBRATE", feed.get(0).userReaction());
   }
+
+  @Test
+  void findById_And_FindByAuthor_HandleNeo4jNativeDateTimeCreatedAt() {
+    seedUser("usr_datetime", "datetime_user");
+    seedPostWithDateTime(
+        "pst_dt1", "usr_datetime", "Post with native datetime", "2026-09-24T14:00:00Z");
+
+    Optional<Post> found = adapter.findById("pst_dt1");
+    assertTrue(found.isPresent());
+    assertEquals("pst_dt1", found.get().id());
+    assertEquals(Instant.parse("2026-09-24T14:00:00Z"), found.get().createdAt());
+
+    var postsByAuthor = adapter.findByAuthor("usr_datetime", 1, 10);
+    assertEquals(1, postsByAuthor.size());
+    assertEquals("pst_dt1", postsByAuthor.get(0).id());
+    assertEquals(Instant.parse("2026-09-24T14:00:00Z"), postsByAuthor.get(0).createdAt());
+  }
+
+  @Test
+  void findFeedByUserId_HandlesNeo4jNativeDateTimeCreatedAt() {
+    seedUser("usr_reader", "reader");
+    seedUser("usr_author", "author");
+    follow("usr_reader", "usr_author");
+    seedPostWithDateTime(
+        "pst_dt2", "usr_author", "Feed post with native datetime", "2026-09-24T15:00:00Z");
+
+    var feed = adapter.findFeedByUserId("usr_reader", 1, 10);
+    assertEquals(1, feed.size());
+    assertEquals("pst_dt2", feed.get(0).id());
+    assertEquals(Instant.parse("2026-09-24T15:00:00Z"), feed.get(0).createdAt());
+  }
+
+  private void seedPostWithDateTime(
+      String postId, String authorId, String content, String createdAtIso) {
+    try (Session session = driver.session()) {
+      session.run(
+          "MATCH (author:Usuario {id: $authorId}) "
+              + "CREATE (p:Post {id: $id, content: $content, createdAt: datetime($createdAt)}) "
+              + "CREATE (author)-[:PUBLICA {createdAt: datetime($createdAt)}]->(p)",
+          Map.of(
+              "id", postId,
+              "authorId", authorId,
+              "content", content,
+              "createdAt", createdAtIso));
+    }
+  }
 }
