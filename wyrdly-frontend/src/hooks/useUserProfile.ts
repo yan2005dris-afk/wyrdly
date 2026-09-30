@@ -30,10 +30,11 @@ function mapApiResponseToSummary(
     isVerified: false,
     instanceUrl: "wyrdly.app",
     joinedDate,
+    isFollowing: data.isFollowing,
     stats: {
       followersCount: data.followersCount,
       followingCount: data.followingCount,
-      postsCount: 0,
+      postsCount: data.postsCount,
     },
   };
 }

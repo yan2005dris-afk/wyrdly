@@ -7,6 +7,7 @@ import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
@@ -89,10 +90,69 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                               record.get("mediaUrl").isNull()
                                   ? null
                                   : record.get("mediaUrl").asString(),
-                              Instant.parse(record.get("createdAt").asString()))));
+                              readCreatedAt(record))));
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Post by id: %s", id);
       throw new PostPersistenceException("Failed to query Post by id=" + id, e);
+    }
+  }
+
+  @Override
+  public List<Post> findByAuthor(String authorId, int page, int pageSize) {
+    long skip = (long) page * pageSize;
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx
+                  .run(
+                      "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
+                          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+                          + "       p.createdAt AS createdAt, author.id AS userId "
+                          + "ORDER BY p.createdAt DESC "
+                          + "SKIP $skip LIMIT $limit",
+                      Values.parameters(
+                          "authorId", authorId,
+                          "skip", skip,
+                          "limit", (long) pageSize))
+                  .list()
+                  .stream()
+                  .map(
+                      record ->
+                          new Post(
+                              record.get("id").asString(),
+                              record.get("userId").asString(),
+                              record.get("content").asString(),
+                              record.get("mediaUrl").isNull()
+                                  ? null
+                                  : record.get("mediaUrl").asString(),
+                              readCreatedAt(record)))
+                  .toList());
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query Posts by author: %s", authorId);
+      throw new PostPersistenceException("Failed to query Posts by authorId=" + authorId, e);
+    }
+  }
+
+  /**
+   * Read the post createdAt field as a Java {@link Instant}. The seed.cypher uses {@code
+   * datetime()} which Neo4j 5.x returns as a DATE_TIME value; older drivers or string-cast paths
+   * may hand back a String instead. Try the native path first, fall back to ISO-8601 string
+   * parsing.
+   */
+  private Instant readCreatedAt(org.neo4j.driver.Record record) {
+    org.neo4j.driver.Value value = record.get("createdAt");
+    if (value.isNull()) {
+      return Instant.EPOCH;
+    }
+    try {
+      return value.asZonedDateTime().toInstant();
+    } catch (Exception e) {
+      try {
+        return Instant.parse(value.asString());
+      } catch (Exception ex2) {
+        Log.warnf("Could not parse Post createdAt; defaulting to EPOCH. value=%s", value);
+        return Instant.EPOCH;
+      }
     }
   }
 }
