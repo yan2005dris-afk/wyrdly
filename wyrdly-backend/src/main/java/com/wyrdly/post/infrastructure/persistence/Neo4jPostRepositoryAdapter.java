@@ -90,7 +90,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                               record.get("mediaUrl").isNull()
                                   ? null
                                   : record.get("mediaUrl").asString(),
-                              Instant.parse(record.get("createdAt").asString()))));
+                              readCreatedAt(record))));
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Post by id: %s", id);
       throw new PostPersistenceException("Failed to query Post by id=" + id, e);
@@ -125,11 +125,34 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                               record.get("mediaUrl").isNull()
                                   ? null
                                   : record.get("mediaUrl").asString(),
-                              Instant.parse(record.get("createdAt").asString())))
+                              readCreatedAt(record)))
                   .toList());
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Posts by author: %s", authorId);
       throw new PostPersistenceException("Failed to query Posts by authorId=" + authorId, e);
+    }
+  }
+
+  /**
+   * Read the post createdAt field as a Java {@link Instant}. The seed.cypher uses {@code
+   * datetime()} which Neo4j 5.x returns as a DATE_TIME value; older drivers or string-cast paths
+   * may hand back a String instead. Try the native path first, fall back to ISO-8601 string
+   * parsing.
+   */
+  private Instant readCreatedAt(org.neo4j.driver.Record record) {
+    org.neo4j.driver.Value value = record.get("createdAt");
+    if (value.isNull()) {
+      return Instant.EPOCH;
+    }
+    try {
+      return value.asZonedDateTime().toInstant();
+    } catch (Exception e) {
+      try {
+        return Instant.parse(value.asString());
+      } catch (Exception ex2) {
+        Log.warnf("Could not parse Post createdAt; defaulting to EPOCH. value=%s", value);
+        return Instant.EPOCH;
+      }
     }
   }
 }
