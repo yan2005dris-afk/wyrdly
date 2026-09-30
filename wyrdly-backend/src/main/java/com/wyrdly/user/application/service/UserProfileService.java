@@ -4,6 +4,7 @@ import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.post.domain.repository.PostRepository;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
+import com.wyrdly.user.application.dto.UserSearchResultDto;
 import com.wyrdly.user.application.usecase.GetUserProfileUseCase;
 import com.wyrdly.user.application.usecase.UpdateUserProfileUseCase;
 import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
@@ -75,6 +76,60 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
                         profile.username(),
                         profile.fullName(),
                         profile.avatarUrl())))
+        .toList();
+  }
+
+  /**
+   * List the users who follow {@code username}. Each row is a
+   * {@link UserSearchResultDto} so the frontend can reuse the existing
+   * suggestion-card component. {@code viewerId} is optional — when
+   * non-null, each row carries an isFollowing flag computed against the
+   * viewer; when null, that flag is false everywhere.
+   */
+  public List<UserSearchResultDto> getUserFollowers(
+      String username, String viewerId, int page, int pageSize) {
+    UserProfile profile =
+        userProfileRepository
+            .findProfileByUsername(username, null)
+            .orElseThrow(
+                () -> new UserProfileNotFoundException("El usuario '" + username + "' no existe."));
+
+    return userProfileRepository.findFollowers(profile.id(), viewerId, page, pageSize).stream()
+        .map(
+            summary ->
+                new UserSearchResultDto(
+                    summary.id(),
+                    summary.username(),
+                    summary.fullName(),
+                    summary.avatarUrl(),
+                    null,
+                    summary.isFollowing(),
+                    null))
+        .toList();
+  }
+
+  /**
+   * Symmetric to {@link #getUserFollowers} for the following direction.
+   */
+  public List<UserSearchResultDto> getUserFollowing(
+      String username, String viewerId, int page, int pageSize) {
+    UserProfile profile =
+        userProfileRepository
+            .findProfileByUsername(username, null)
+            .orElseThrow(
+                () -> new UserProfileNotFoundException("El usuario '" + username + "' no existe."));
+
+    return userProfileRepository.findFollowing(profile.id(), viewerId, page, pageSize).stream()
+        .map(
+            summary ->
+                new UserSearchResultDto(
+                    summary.id(),
+                    summary.username(),
+                    summary.fullName(),
+                    summary.avatarUrl(),
+                    null,
+                    summary.isFollowing(),
+                    null))
         .toList();
   }
 }

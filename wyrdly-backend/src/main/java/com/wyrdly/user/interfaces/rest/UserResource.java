@@ -6,6 +6,7 @@ import com.wyrdly.user.application.dto.GraphSuggestionsResponse;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
 import com.wyrdly.user.application.dto.UserSearchResponseDto;
+import com.wyrdly.user.application.dto.UserSearchResultDto;
 import com.wyrdly.user.application.usecase.FollowUserUseCase;
 import com.wyrdly.user.application.usecase.GetSuggestionsUseCase;
 import com.wyrdly.user.application.usecase.GetUserProfileUseCase;
@@ -127,6 +128,40 @@ public class UserResource {
       @QueryParam("pageSize") @DefaultValue("20") int pageSize) {
     List<PostResponse> posts = userProfileService.getUserPosts(username, page, pageSize);
     return Response.ok(posts).build();
+  }
+
+  /**
+   * Paginated list of users following {@code username}. The viewer
+   * (taken from the Authorization header if present) controls the
+   * per-row isFollowing flag.
+   */
+  @GET
+  @Path("/{username}/followers")
+  public Response getUserFollowers(
+      @PathParam("username") String username,
+      @HeaderParam("Authorization") String authorizationHeader,
+      @QueryParam("page") @DefaultValue("0") int page,
+      @QueryParam("pageSize") @DefaultValue("30") int pageSize) {
+    String viewerId = optionalJwtSubjectExtractor.extractSubject(authorizationHeader);
+    List<UserSearchResultDto> followers =
+        userProfileService.getUserFollowers(username, viewerId, page, pageSize);
+    return Response.ok(followers).build();
+  }
+
+  /**
+   * Paginated list of users that {@code username} follows.
+   */
+  @GET
+  @Path("/{username}/following")
+  public Response getUserFollowing(
+      @PathParam("username") String username,
+      @HeaderParam("Authorization") String authorizationHeader,
+      @QueryParam("page") @DefaultValue("0") int page,
+      @QueryParam("pageSize") @DefaultValue("30") int pageSize) {
+    String viewerId = optionalJwtSubjectExtractor.extractSubject(authorizationHeader);
+    List<UserSearchResultDto> following =
+        userProfileService.getUserFollowing(username, viewerId, page, pageSize);
+    return Response.ok(following).build();
   }
 
   @POST

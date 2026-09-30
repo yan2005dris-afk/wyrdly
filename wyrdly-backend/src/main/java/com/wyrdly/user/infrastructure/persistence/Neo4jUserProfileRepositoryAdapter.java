@@ -3,10 +3,12 @@ package com.wyrdly.user.infrastructure.persistence;
 import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
 import com.wyrdly.user.domain.model.UserProfile;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
+import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -211,5 +213,85 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
         postsCount,
         isFollowing,
         createdAt);
+  }
+
+  @Override
+  public List<FollowerSummary> findFollowers(
+      String userId, String viewerId, int page, int pageSize) {
+    long skip = (long) page * pageSize;
+    String cypher =
+        "MATCH (target:Usuario {id: $userId})<-[:SIGUE]-(follower:Usuario) "
+            + "OPTIONAL MATCH (viewer:Usuario {id: $viewerId})-[:SIGUE]->(follower) "
+            + "RETURN follower.id AS id, follower.username AS username, "
+            + "       follower.fullName AS fullName, follower.avatarUrl AS avatarUrl, "
+            + "       viewer IS NOT NULL AS isFollowing "
+            + "ORDER BY follower.username ASC "
+            + "SKIP $skip LIMIT $limit";
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("userId", userId);
+    params.put("viewerId", viewerId);
+    params.put("skip", skip);
+    params.put("limit", (long) pageSize);
+
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx.run(cypher, params).list().stream()
+                  .map(
+                      record ->
+                          new UserProfileRepository.FollowerSummary(
+                              record.get("id").asString(),
+                              record.get("username").asString(),
+                              record.get("fullName").asString(""),
+                              record.get("avatarUrl").isNull()
+                                  ? ""
+                                  : record.get("avatarUrl").asString(""),
+                              record.get("isFollowing").asBoolean(false)))
+                  .toList());
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query followers for userId=%s", userId);
+      throw new RuntimeException("Failed to query followers", e);
+    }
+  }
+
+  @Override
+  public List<UserProfileRepository.FollowerSummary> findFollowing(
+      String userId, String viewerId, int page, int pageSize) {
+    long skip = (long) page * pageSize;
+    String cypher =
+        "MATCH (target:Usuario {id: $userId})-[:SIGUE]->(followed:Usuario) "
+            + "OPTIONAL MATCH (viewer:Usuario {id: $viewerId})-[:SIGUE]->(followed) "
+            + "RETURN followed.id AS id, followed.username AS username, "
+            + "       followed.fullName AS fullName, followed.avatarUrl AS avatarUrl, "
+            + "       viewer IS NOT NULL AS isFollowing "
+            + "ORDER BY followed.username ASC "
+            + "SKIP $skip LIMIT $limit";
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("userId", userId);
+    params.put("viewerId", viewerId);
+    params.put("skip", skip);
+    params.put("limit", (long) pageSize);
+
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx.run(cypher, params).list().stream()
+                  .map(
+                      record ->
+                          new UserProfileRepository.FollowerSummary(
+                              record.get("id").asString(),
+                              record.get("username").asString(),
+                              record.get("fullName").asString(""),
+                              record.get("avatarUrl").isNull()
+                                  ? ""
+                                  : record.get("avatarUrl").asString(""),
+                              record.get("isFollowing").asBoolean(false)))
+                  .toList());
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query following for userId=%s", userId);
+      throw new RuntimeException("Failed to query following", e);
+    }
   }
 }
