@@ -22,5 +22,5 @@
 - [x] `TASK-2`: Migrate `features/profile/` (encapsulate `EditProfileModal`, `ProfileHeaderCard`, `PostGridItem`, `useUserProfile`, `useProfileUsers`, profile types/APIs, public API barrel, update `ProfilePage` and tests).
 - [x] `TASK-3`: Migrate `features/social/` (encapsulate `PostCard`, `CreatePostCard`, `GraphSuggestionsCard`, `UserListRow`, `UserSearchResultCard`, `UserSummaryCard`, `RelayHealthWidget`, social hooks/APIs, public API barrel, update `FeedPage` and tests).
 - [x] `TASK-4`: Migrate `features/chat/` (encapsulate `ChatWindow`, `ChatInputBar`, `ConversationList`, `MessageBubble`, `ChatHeader`, chat types, public API barrel, update `ChatPage` and tests).
-- [ ] `TASK-5`: Migrate `features/notifications/` (encapsulate `NotificationPopover`, `NotificationItem`, `PushPermissionBanner`, notifications types, public API barrel, update consumers and tests).
+- [x] `TASK-5`: Migrate `features/notifications/` (encapsulate `NotificationPopover`, `NotificationItem`, `PushPermissionBanner`, notifications types, public API barrel, update consumers and tests).
 - [ ] `TASK-6`: Clean up deprecated root directories/imports, run complete validation suite (Vitest 216+ specs, ESLint, Prettier, Vite production build).

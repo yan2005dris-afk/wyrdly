@@ -1,3 +1,2 @@
-export * from "./PushPermissionBanner";
-export * from "./NotificationItem";
-export * from "./NotificationPopover";
+// Backward-compatibility bridge pointing to features/notifications
+export * from "../../features/notifications";

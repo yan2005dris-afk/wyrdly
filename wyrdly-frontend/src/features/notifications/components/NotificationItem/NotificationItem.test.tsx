@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { NotificationItem } from "./NotificationItem";
-import type { SocialNotification } from "../../../types/notifications";
+import type { SocialNotification } from "../../types";
 
 const MOCK_NOTIFICATION: SocialNotification = {
   id: "notif-1",

@@ -2,13 +2,15 @@ import { useState, type FC } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import type { MainLayoutProps } from "./MainLayout.types";
 import type { UserProfileSummary } from "../../../types/domain";
-import type { SocialNotification } from "../../../types/notifications";
+import {
+  NotificationPopover,
+  type SocialNotification,
+} from "../../../features/notifications";
 import { useAuth } from "../../../features/auth";
 import { useUserProfile } from "../../../features/profile";
 import { AppNavbar } from "../AppNavbar";
 import { SidebarNav } from "../SidebarNav";
 import { UserSummaryCard } from "../../../features/social";
-import { NotificationPopover } from "../../notifications/NotificationPopover";
 import styles from "./MainLayout.module.css";
 
 const INITIAL_NOTIFICATIONS: readonly SocialNotification[] = [

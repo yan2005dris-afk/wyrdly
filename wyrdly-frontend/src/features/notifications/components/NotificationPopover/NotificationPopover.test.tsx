@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { NotificationPopover } from "./NotificationPopover";
-import type { SocialNotification } from "../../../types/notifications";
+import type { SocialNotification } from "../../types";
 
 const MOCK_NOTIFICATIONS: SocialNotification[] = [
   {

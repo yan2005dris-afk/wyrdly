@@ -1,4 +1,4 @@
-import type { SocialNotification } from "../../../types/notifications";
+import type { SocialNotification } from "../../types";
 
 export interface NotificationItemProps {
   readonly notification: SocialNotification;

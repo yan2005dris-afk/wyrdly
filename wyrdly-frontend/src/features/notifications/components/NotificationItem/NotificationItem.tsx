@@ -1,8 +1,8 @@
 import type { FC } from "react";
 import { Heart, Repeat, UserPlus, MessageSquare } from "lucide-react";
 import type { NotificationItemProps } from "./NotificationItem.types";
-import type { NotificationType } from "../../../types/notifications";
-import { Avatar } from "../../ui/Avatar";
+import type { NotificationType } from "../../types";
+import { Avatar } from "../../../../components/ui/Avatar";
 import styles from "./NotificationItem.module.css";
 
 const TYPE_CONFIG: Record<
