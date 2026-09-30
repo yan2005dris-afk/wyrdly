@@ -66,10 +66,9 @@ public class MediaResource {
   }
 
   /**
-   * Stream a media file's bytes through the backend. The bucket stays
-   * 100% private — only this endpoint, authenticated via JWT, can
-   * serve a media asset. Visibility per post is not yet enforced;
-   * follow-up ticket will gate reads by post.visibility.
+   * Stream a media file's bytes through the backend. The bucket stays 100% private — only this
+   * endpoint, authenticated via JWT, can serve a media asset. Visibility per post is not yet
+   * enforced; follow-up ticket will gate reads by post.visibility.
    */
   @GET
   @Path("/{id}")
@@ -86,8 +85,7 @@ public class MediaResource {
     S3StorageService.StoredObject stored = s3StorageService.downloadFile(mediaFile.storageKey());
 
     Response.ResponseBuilder builder =
-        Response.ok((InputStream) stored.stream())
-            .header("Content-Type", mediaFile.mimeType());
+        Response.ok((InputStream) stored.stream()).header("Content-Type", mediaFile.mimeType());
     if (stored.contentLength() > 0) {
       builder.header("Content-Length", stored.contentLength());
     }

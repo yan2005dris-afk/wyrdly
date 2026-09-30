@@ -75,14 +75,14 @@ public class Neo4jMediaRepositoryAdapter implements MediaRepository {
       }
 
       MediaFile mediaFile =
-              new MediaFile(
-                  result.get("id").asString(),
-                  result.get("userId").asString(),
-                  result.get("storageKey").asString(),
-                  result.get("fileUrl").asString(),
-                  result.get("mimeType").asString(),
-                  result.get("fileSizeBytes").asLong(),
-                  Instant.parse(result.get("uploadedAt").asString()));
+          new MediaFile(
+              result.get("id").asString(),
+              result.get("userId").asString(),
+              result.get("storageKey").asString(),
+              result.get("fileUrl").asString(),
+              result.get("mimeType").asString(),
+              result.get("fileSizeBytes").asLong(),
+              Instant.parse(result.get("uploadedAt").asString()));
       return Optional.of(mediaFile);
     } catch (org.neo4j.driver.exceptions.NoSuchRecordException e) {
       return Optional.empty();

@@ -63,10 +63,9 @@ public class MediaService implements UploadMediaUseCase {
   }
 
   /**
-   * Public URL points at the backend proxy endpoint so the bucket can
-   * stay private. Using a relative path keeps the response neutral to
-   * the host the backend is deployed behind; the browser resolves it
-   * against the current origin.
+   * Public URL points at the backend proxy endpoint so the bucket can stay private. Using a
+   * relative path keeps the response neutral to the host the backend is deployed behind; the
+   * browser resolves it against the current origin.
    */
   private String buildPublicFileUrl(String mediaId) {
     return "/api/media/" + mediaId;

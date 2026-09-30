@@ -26,10 +26,9 @@ public class S3StorageService {
   }
 
   /**
-   * Upload bytes to the configured bucket under {@code storageKey} with
-   * the given {@code mimeType}. The returned value is just the key —
-   * callers (MediaService) build the public-facing URL themselves so
-   * the bucket can stay 100% private.
+   * Upload bytes to the configured bucket under {@code storageKey} with the given {@code mimeType}.
+   * The returned value is just the key — callers (MediaService) build the public-facing URL
+   * themselves so the bucket can stay 100% private.
    */
   public String uploadFile(String storageKey, byte[] fileContent, String mimeType) {
     try {
@@ -56,9 +55,8 @@ public class S3StorageService {
   }
 
   /**
-   * Open a streaming body from S3 for {@code storageKey}. The returned
-   * stream is owned by the caller and must be closed (try-with-resources)
-   * once the body has been drained.
+   * Open a streaming body from S3 for {@code storageKey}. The returned stream is owned by the
+   * caller and must be closed (try-with-resources) once the body has been drained.
    */
   public StoredObject downloadFile(String storageKey) {
     try {
@@ -77,11 +75,9 @@ public class S3StorageService {
   }
 
   /**
-   * Tuple of an open streaming body plus the S3-supplied
-   * Content-Type and Content-Length. Callers must close the stream.
+   * Tuple of an open streaming body plus the S3-supplied Content-Type and Content-Length. Callers
+   * must close the stream.
    */
   public record StoredObject(
-      ResponseInputStream<GetObjectResponse> stream,
-      String contentType,
-      long contentLength) {}
+      ResponseInputStream<GetObjectResponse> stream, String contentType, long contentLength) {}
 }
