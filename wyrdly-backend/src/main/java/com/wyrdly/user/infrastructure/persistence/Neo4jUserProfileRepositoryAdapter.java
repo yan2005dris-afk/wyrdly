@@ -23,7 +23,8 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
       "u.id AS id, u.username AS username, u.fullName AS fullName, u.bio AS bio, "
           + "u.avatarUrl AS avatarUrl, u.createdAt AS createdAt, "
           + "COUNT { (u)<-[:SIGUE]-() } AS followersCount, "
-          + "COUNT { (u)-[:SIGUE]->() } AS followingCount";
+          + "COUNT { (u)-[:SIGUE]->() } AS followingCount, "
+          + "COUNT { (u)-[:PUBLICA]->() } AS postsCount";
 
   private final Driver driver;
 
@@ -180,6 +181,7 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
     String avatarUrl = record.get("avatarUrl").isNull() ? "" : record.get("avatarUrl").asString("");
     long followersCount = record.get("followersCount").asLong(0);
     long followingCount = record.get("followingCount").asLong(0);
+    long postsCount = record.get("postsCount").asLong(0);
     boolean isFollowing = includeIsFollowing && record.get("isFollowing").asBoolean(false);
 
     Instant createdAt;
@@ -206,6 +208,7 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
         avatarUrl,
         followersCount,
         followingCount,
+        postsCount,
         isFollowing,
         createdAt);
   }

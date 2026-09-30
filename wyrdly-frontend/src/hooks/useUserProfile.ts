@@ -33,7 +33,7 @@ function mapApiResponseToSummary(
     stats: {
       followersCount: data.followersCount,
       followingCount: data.followingCount,
-      postsCount: 0,
+      postsCount: data.postsCount,
     },
   };
 }

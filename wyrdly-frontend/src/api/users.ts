@@ -13,6 +13,7 @@ export interface UserProfileApiResponse {
   readonly avatarUrl: string | null;
   readonly followersCount: number;
   readonly followingCount: number;
+  readonly postsCount: number;
   readonly isFollowing: boolean;
   readonly createdAt: string;
 }

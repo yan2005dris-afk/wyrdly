@@ -11,6 +11,7 @@ public record UserProfileResponse(
     String avatarUrl,
     long followersCount,
     long followingCount,
+    long postsCount,
     boolean isFollowing,
     Instant createdAt) {
 
@@ -23,6 +24,7 @@ public record UserProfileResponse(
         profile.avatarUrl(),
         profile.followersCount(),
         profile.followingCount(),
+        profile.postsCount(),
         profile.isFollowing(),
         profile.createdAt());
   }
