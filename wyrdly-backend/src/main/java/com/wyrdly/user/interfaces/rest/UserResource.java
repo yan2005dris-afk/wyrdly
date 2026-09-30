@@ -1,5 +1,6 @@
 package com.wyrdly.user.interfaces.rest;
 
+import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.user.application.dto.FollowActionResponse;
 import com.wyrdly.user.application.dto.GraphSuggestionsResponse;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
@@ -11,6 +12,7 @@ import com.wyrdly.user.application.usecase.GetUserProfileUseCase;
 import com.wyrdly.user.application.usecase.SearchUsersUseCase;
 import com.wyrdly.user.application.usecase.UnfollowUserUseCase;
 import com.wyrdly.user.application.usecase.UpdateUserProfileUseCase;
+import com.wyrdly.user.application.service.UserProfileService;
 import com.wyrdly.user.infrastructure.security.OptionalJwtSubjectExtractor;
 import io.quarkus.security.Authenticated;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -29,6 +31,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.List;
 import java.util.Objects;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
@@ -38,6 +41,7 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 public class UserResource {
 
   private final GetUserProfileUseCase getUserProfileUseCase;
+  private final UserProfileService userProfileService;
   private final UpdateUserProfileUseCase updateUserProfileUseCase;
   private final GetSuggestionsUseCase getSuggestionsUseCase;
   private final FollowUserUseCase followUserUseCase;
@@ -49,6 +53,7 @@ public class UserResource {
   @Inject
   public UserResource(
       GetUserProfileUseCase getUserProfileUseCase,
+      UserProfileService userProfileService,
       UpdateUserProfileUseCase updateUserProfileUseCase,
       GetSuggestionsUseCase getSuggestionsUseCase,
       FollowUserUseCase followUserUseCase,
@@ -58,6 +63,8 @@ public class UserResource {
       JsonWebToken jwt) {
     this.getUserProfileUseCase =
         Objects.requireNonNull(getUserProfileUseCase, "getUserProfileUseCase must not be null");
+    this.userProfileService =
+        Objects.requireNonNull(userProfileService, "userProfileService must not be null");
     this.updateUserProfileUseCase =
         Objects.requireNonNull(
             updateUserProfileUseCase, "updateUserProfileUseCase must not be null");
@@ -105,6 +112,21 @@ public class UserResource {
     GraphSuggestionsResponse response =
         getSuggestionsUseCase.getSuggestions(userId, page, pageSize);
     return Response.ok(response).build();
+  }
+
+  /**
+   * Paginated list of posts authored by the user whose username is in
+   * the path. Returns 404 when the username does not exist (mapped
+   * from {@link com.wyrdly.user.domain.exception.UserProfileNotFoundException}).
+   */
+  @GET
+  @Path("/{username}/posts")
+  public Response getUserPosts(
+      @PathParam("username") String username,
+      @QueryParam("page") @DefaultValue("0") int page,
+      @QueryParam("pageSize") @DefaultValue("20") int pageSize) {
+    List<PostResponse> posts = userProfileService.getUserPosts(username, page, pageSize);
+    return Response.ok(posts).build();
   }
 
   @POST

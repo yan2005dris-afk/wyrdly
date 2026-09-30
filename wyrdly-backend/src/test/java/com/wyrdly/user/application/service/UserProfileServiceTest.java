@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.wyrdly.post.domain.repository.PostRepository;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
 import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
@@ -19,12 +20,14 @@ import org.junit.jupiter.api.Test;
 class UserProfileServiceTest {
 
   private UserProfileRepository userProfileRepository;
+  private PostRepository postRepository;
   private UserProfileService userProfileService;
 
   @BeforeEach
   void setUp() {
     userProfileRepository = mock(UserProfileRepository.class);
-    userProfileService = new UserProfileService(userProfileRepository);
+    postRepository = mock(PostRepository.class);
+    userProfileService = new UserProfileService(userProfileRepository, postRepository);
   }
 
   @Test
@@ -38,6 +41,7 @@ class UserProfileServiceTest {
             "http://avatar",
             42L,
             18L,
+            5L,
             true,
             Instant.parse("2026-09-24T18:30:00Z"));
 
@@ -50,6 +54,7 @@ class UserProfileServiceTest {
     assertEquals("juanperez", response.username());
     assertEquals(42L, response.followersCount());
     assertEquals(18L, response.followingCount());
+    assertEquals(5L, response.postsCount());
     assertEquals(true, response.isFollowing());
   }
 
@@ -74,6 +79,7 @@ class UserProfileServiceTest {
             "http://new-avatar",
             42L,
             18L,
+            5L,
             false,
             Instant.parse("2026-09-24T18:30:00Z"));
 
