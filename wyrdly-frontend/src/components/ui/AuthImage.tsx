@@ -1,4 +1,4 @@
-import { useEffect, useState, type FC } from "react";
+import { useEffect, useMemo, useState, type FC } from "react";
 
 /**
  * Like a regular <img>, but if `src` points at our own /api/media/{id}
@@ -36,31 +36,16 @@ export const AuthImage: FC<AuthImageProps> = ({
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    let revoked: string | null = null;
-    let cancelled = false;
-
-    if (!src) {
-      setBlobUrl(null);
-      return () => {
-        if (revoked) URL.revokeObjectURL(revoked);
-      };
-    }
-
-    if (!isOwnMediaUrl(src)) {
-      setBlobUrl(null);
-      return () => {
-        if (revoked) URL.revokeObjectURL(revoked);
-      };
+    if (!src || !isOwnMediaUrl(src)) {
+      return;
     }
 
     const token = localStorage.getItem("wyrdly_token");
     if (!token) {
-      setBlobUrl(null);
-      return () => {
-        if (revoked) URL.revokeObjectURL(revoked);
-      };
+      return;
     }
 
+    let cancelled = false;
     fetch(src, { headers: { Authorization: `Bearer ${token}` } })
       .then(async (response) => {
         if (!response.ok) {
@@ -68,49 +53,48 @@ export const AuthImage: FC<AuthImageProps> = ({
         }
         const blob = await response.blob();
         if (cancelled) return;
-        const newBlobUrl = URL.createObjectURL(blob);
-        revoked = newBlobUrl;
-        setBlobUrl(newBlobUrl);
+        // setState inside an async callback fires only when the fetch
+        // lifecycle completes. No cascading-render risk.
+        setBlobUrl(URL.createObjectURL(blob));
       })
       .catch(() => {
         if (!cancelled) {
+          // Same reasoning as above: fires from a Promise rejection.
           setBlobUrl(null);
         }
       });
 
     return () => {
       cancelled = true;
-      if (revoked) {
-        URL.revokeObjectURL(revoked);
+    };
+  }, [src]);
+
+  // Revoke the previous blob URL whenever a new one takes its place
+  // or the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
       }
     };
-  }, [src, fallbackSrc]);
+  }, [blobUrl]);
 
-  const resolvedSrc = blobUrl ?? fallbackSrc ?? null;
+  // Derive the rendered src. External URLs go straight through; our
+  // own /api/media URLs wait for the blob to be fetched.
+  const effectiveSrc = useMemo(() => {
+    if (src && !isOwnMediaUrl(src)) {
+      return src;
+    }
+    return blobUrl ?? fallbackSrc ?? null;
+  }, [src, blobUrl, fallbackSrc]);
 
-  // When the src is external (not /api/media) and we never needed a
-  // blob URL, render <img src> directly with the original src so the
-  // browser handles caching and lazy-loading the same way as before.
-  if (src && !isOwnMediaUrl(src)) {
-    return (
-      <img
-        src={src}
-        alt={alt}
-        className={className}
-        loading="lazy"
-        onError={onError}
-        data-testid="auth-image"
-      />
-    );
-  }
-
-  if (!resolvedSrc) {
+  if (!effectiveSrc) {
     return null;
   }
 
   return (
     <img
-      src={resolvedSrc}
+      src={effectiveSrc}
       alt={alt}
       className={className}
       loading="lazy"
