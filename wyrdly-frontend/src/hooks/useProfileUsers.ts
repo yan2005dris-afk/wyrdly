@@ -56,7 +56,7 @@ export function useProfileUsers(
     } finally {
       setIsLoading(false);
     }
-  }, [username, direction, params.page, params.pageSize]);
+  }, [username, direction, fetcher, params]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -91,7 +91,7 @@ export function useProfileUsers(
     return () => {
       isCancelled = true;
     };
-  }, [username, direction, params.page, params.pageSize]);
+  }, [username, direction, fetcher, params]);
 
   return { users, isLoading, error, refetch: fetchUsers };
 }

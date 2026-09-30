@@ -54,7 +54,7 @@ export function useUserPosts(
     } finally {
       setIsLoading(false);
     }
-  }, [username, params.page, params.pageSize]);
+  }, [username, params]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -89,7 +89,7 @@ export function useUserPosts(
     return () => {
       isCancelled = true;
     };
-  }, [username, params.page, params.pageSize]);
+  }, [username, params]);
 
   return { posts, isLoading, error, refetch: fetchPosts };
 }
