@@ -311,4 +311,34 @@ class Neo4jPostRepositoryAdapterIT {
     assertEquals(1, page2.size());
     assertEquals("pst_1", page2.get(0).id());
   }
+
+  @Test
+  void findFeedByUserId_IncludesReactionCountsAndCurrentUserReaction() {
+    seedUser("usr_me", "myself");
+    seedUser("usr_friend", "friend");
+    seedUser("usr_other", "other");
+    follow("usr_me", "usr_friend");
+
+    adapter.save(new Post("pst_friend", "usr_friend", "Great day", null, Instant.now()));
+
+    try (var session = driver.session()) {
+      session.executeWrite(
+          tx -> {
+            tx.run(
+                "MATCH (u:Usuario {id: 'usr_me'}), (p:Post {id: 'pst_friend'}) "
+                    + "CREATE (u)-[:REACCIONA {tipo: 'CELEBRATE', createdAt: datetime()}]->(p)");
+            tx.run(
+                "MATCH (u:Usuario {id: 'usr_other'}), (p:Post {id: 'pst_friend'}) "
+                    + "CREATE (u)-[:REACCIONA {tipo: 'LIKE', createdAt: datetime()}]->(p)");
+            return null;
+          });
+    }
+
+    var feed = adapter.findFeedByUserId("usr_me", 1, 10);
+    assertEquals(1, feed.size());
+    assertEquals(1L, feed.get(0).likeCount());
+    assertEquals(0L, feed.get(0).loveCount());
+    assertEquals(1L, feed.get(0).celebrateCount());
+    assertEquals("CELEBRATE", feed.get(0).userReaction());
+  }
 }
