@@ -16,6 +16,7 @@ import type {
 } from "./ProfileHeaderCard.types";
 import type { TabItem } from "../../ui/Tabs";
 import { Avatar } from "../../ui/Avatar";
+import { AuthImage } from "../../ui/AuthImage";
 import { Tabs } from "../../ui/Tabs";
 import { Button } from "../../ui/Button";
 import styles from "./ProfileHeaderCard.module.css";
@@ -55,11 +56,10 @@ export const ProfileHeaderCard: FC<ProfileHeaderCardProps> = ({
       {/* Cover Image (RustFS) */}
       <div className={styles.coverContainer}>
         {coverUrl && (
-          <img
+          <AuthImage
             src={coverUrl}
             alt="Profile cover"
             className={styles.coverImage}
-            loading="lazy"
           />
         )}
         <span className={styles.rustfsBadge} data-testid="cover-rustfs-badge">

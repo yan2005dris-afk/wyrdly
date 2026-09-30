@@ -93,7 +93,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                               record.get("mediaUrl").isNull()
                                   ? null
                                   : record.get("mediaUrl").asString(),
-                              Instant.parse(record.get("createdAt").asString()))));
+                              readCreatedAt(record))));
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Post by id: %s", id);
       throw new PostPersistenceException("Failed to query Post by id=" + id, e);

@@ -22,6 +22,13 @@ export interface UserProfileSummary {
   readonly website?: string;
   readonly joinedDate?: string;
   readonly homeRelay?: string;
+  /**
+   * Whether the viewer (the currently authenticated user) follows the
+   * profile owner. Computed server-side via OPTIONAL MATCH against
+   * the caller's id. Null when no viewer context was supplied (the
+   * public GET /api/users/{username} path).
+   */
+  readonly isFollowing?: boolean | null;
   readonly stats: UserStats;
 }
 

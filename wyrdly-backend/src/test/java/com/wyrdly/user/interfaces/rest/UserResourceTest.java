@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.wyrdly.user.application.dto.FollowActionResponse;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
+import com.wyrdly.user.application.service.UserProfileService;
 import com.wyrdly.user.application.usecase.FollowUserUseCase;
 import com.wyrdly.user.application.usecase.GetUserProfileUseCase;
 import com.wyrdly.user.application.usecase.UnfollowUserUseCase;
@@ -31,6 +32,8 @@ class UserResourceTest {
 
   @InjectMock GetUserProfileUseCase getUserProfileUseCase;
 
+  @InjectMock UserProfileService userProfileService;
+
   @InjectMock UpdateUserProfileUseCase updateUserProfileUseCase;
 
   @InjectMock FollowUserUseCase followUserUseCase;
@@ -48,6 +51,7 @@ class UserResourceTest {
             "",
             42L,
             18L,
+            5L,
             false,
             Instant.parse("2026-09-24T18:30:00Z"));
 
@@ -105,6 +109,7 @@ class UserResourceTest {
             "http://new-avatar",
             42L,
             18L,
+            5L,
             false,
             Instant.parse("2026-09-24T18:30:00Z"));
 
@@ -153,6 +158,7 @@ class UserResourceTest {
             "Juan Perez",
             "",
             "",
+            0L,
             0L,
             0L,
             false,
