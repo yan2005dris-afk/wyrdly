@@ -1,14 +1,18 @@
 package com.wyrdly.post.infrastructure.persistence;
 
 import com.wyrdly.post.domain.exception.PostPersistenceException;
+import com.wyrdly.post.domain.model.Author;
+import com.wyrdly.post.domain.model.FeedPost;
 import com.wyrdly.post.domain.model.Post;
 import com.wyrdly.post.domain.repository.PostRepository;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Values;
 
@@ -94,5 +98,69 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
       Log.errorf(e, "Failed to query Post by id: %s", id);
       throw new PostPersistenceException("Failed to query Post by id=" + id, e);
     }
+  }
+
+  private static final String FEED_QUERY =
+      "MATCH (me:Usuario {id: $userId})-[:SIGUE]->(author:Usuario)-[:PUBLICA]->(p:Post) "
+          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, p.createdAt AS createdAt, "
+          + "       author.id AS authorId, author.username AS authorUsername, "
+          + "       author.fullName AS authorFullName, author.avatarUrl AS authorAvatarUrl "
+          + "ORDER BY p.createdAt DESC "
+          + "SKIP $skip LIMIT $limit";
+
+  private static final String COUNT_FEED_QUERY =
+      "MATCH (me:Usuario {id: $userId})-[:SIGUE]->(author:Usuario)-[:PUBLICA]->(p:Post) "
+          + "RETURN count(p) AS total";
+
+  @Override
+  public List<FeedPost> findFeedByUserId(String userId, int page, int pageSize) {
+    int skip = Math.max(0, (page - 1) * pageSize);
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx.run(
+                      FEED_QUERY,
+                      Values.parameters(
+                          "userId", userId,
+                          "skip", skip,
+                          "limit", pageSize))
+                  .list(this::mapRecordToFeedPost));
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query feed for userId: %s", userId);
+      throw new PostPersistenceException("Failed to query feed for userId=" + userId, e);
+    }
+  }
+
+  @Override
+  public long countFeedByUserId(String userId) {
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx -> {
+            var result = tx.run(COUNT_FEED_QUERY, Values.parameters("userId", userId));
+            if (result.hasNext()) {
+              return result.next().get("total").asLong();
+            }
+            return 0L;
+          });
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to count feed for userId: %s", userId);
+      throw new PostPersistenceException("Failed to count feed for userId=" + userId, e);
+    }
+  }
+
+  private FeedPost mapRecordToFeedPost(Record record) {
+    String id = record.get("id").asString();
+    String content = record.get("content").asString();
+    String mediaUrl = record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString();
+    Instant createdAt = Instant.parse(record.get("createdAt").asString());
+
+    String authorId = record.get("authorId").asString();
+    String authorUsername = record.get("authorUsername").asString();
+    String authorFullName = record.get("authorFullName").asString();
+    String authorAvatarUrl =
+        record.get("authorAvatarUrl").isNull() ? null : record.get("authorAvatarUrl").asString();
+
+    Author author = new Author(authorId, authorUsername, authorFullName, authorAvatarUrl);
+    return new FeedPost(id, content, mediaUrl, createdAt, author);
   }
 }

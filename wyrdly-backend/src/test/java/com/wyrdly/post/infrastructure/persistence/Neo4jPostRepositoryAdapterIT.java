@@ -230,4 +230,85 @@ class Neo4jPostRepositoryAdapterIT {
       assertEquals(1, count, "Expected exactly one [:PUBLICA] relationship");
     }
   }
+
+  private void follow(String followerId, String followedId) {
+    try (Session session = driver.session()) {
+      session.run(
+          "MATCH (a:Usuario {id: $followerId}), (b:Usuario {id: $followedId}) "
+              + "MERGE (a)-[:SIGUE {createdAt: datetime()}]->(b)",
+          Map.of("followerId", followerId, "followedId", followedId));
+    }
+  }
+
+  @Test
+  void findFeedByUserId_ReturnsPostsFromFollowedUsersOnly_InReverseChronologicalOrder() {
+    seedUser("usr_me", "myself");
+    seedUser("usr_alice", "alice");
+    seedUser("usr_bob", "bob");
+    seedUser("usr_stranger", "stranger");
+
+    follow("usr_me", "usr_alice");
+    follow("usr_me", "usr_bob");
+
+    Instant t1 = Instant.parse("2026-09-29T10:00:00Z");
+    Instant t2 = Instant.parse("2026-09-29T11:00:00Z");
+    Instant t3 = Instant.parse("2026-09-29T12:00:00Z");
+
+    adapter.save(new Post("pst_alice_1", "usr_alice", "Alice oldest post", null, t1));
+    adapter.save(new Post("pst_bob_1", "usr_bob", "Bob newer post", null, t2));
+    adapter.save(new Post("pst_stranger", "usr_stranger", "Stranger post", null, t3));
+
+    var feed = adapter.findFeedByUserId("usr_me", 1, 10);
+    long total = adapter.countFeedByUserId("usr_me");
+
+    assertEquals(2, feed.size());
+    assertEquals(2L, total);
+
+    assertEquals("pst_bob_1", feed.get(0).id());
+    assertEquals("usr_bob", feed.get(0).author().id());
+    assertEquals("bob", feed.get(0).author().username());
+    assertEquals("Bob newer post", feed.get(0).content());
+
+    assertEquals("pst_alice_1", feed.get(1).id());
+    assertEquals("usr_alice", feed.get(1).author().id());
+    assertEquals("alice", feed.get(1).author().username());
+  }
+
+  @Test
+  void findFeedByUserId_ReturnsEmpty_WhenUserFollowsNoOne() {
+    seedUser("usr_lonely", "lonely");
+    seedUser("usr_alice", "alice");
+    adapter.save(new Post("pst_alice_1", "usr_alice", "Alice post", null, Instant.now()));
+
+    var feed = adapter.findFeedByUserId("usr_lonely", 1, 10);
+    long total = adapter.countFeedByUserId("usr_lonely");
+
+    assertTrue(feed.isEmpty());
+    assertEquals(0L, total);
+  }
+
+  @Test
+  void findFeedByUserId_RespectsPaginationSkipAndLimit() {
+    seedUser("usr_me", "myself");
+    seedUser("usr_alice", "alice");
+    follow("usr_me", "usr_alice");
+
+    Instant t1 = Instant.parse("2026-09-29T08:00:00Z");
+    Instant t2 = Instant.parse("2026-09-29T09:00:00Z");
+    Instant t3 = Instant.parse("2026-09-29T10:00:00Z");
+
+    adapter.save(new Post("pst_1", "usr_alice", "Post 1", null, t1));
+    adapter.save(new Post("pst_2", "usr_alice", "Post 2", null, t2));
+    adapter.save(new Post("pst_3", "usr_alice", "Post 3", null, t3));
+
+    var page1 = adapter.findFeedByUserId("usr_me", 1, 2);
+    var page2 = adapter.findFeedByUserId("usr_me", 2, 2);
+
+    assertEquals(2, page1.size());
+    assertEquals("pst_3", page1.get(0).id());
+    assertEquals("pst_2", page1.get(1).id());
+
+    assertEquals(1, page2.size());
+    assertEquals("pst_1", page2.get(0).id());
+  }
 }
