@@ -3,7 +3,9 @@ import type {
   FollowActionResponse,
   GetSuggestionsParams,
   GraphSuggestionsResponse,
+  ProfileUserSummary,
 } from "../types/suggestions";
+import type { PostApiResponse } from "../types/feed";
 
 export interface UserProfileApiResponse {
   readonly id: string;
@@ -38,6 +40,48 @@ export const usersApi = {
     const response = await apiClient.put<UserProfileApiResponse>(
       "/api/users/profile",
       payload,
+    );
+    return response.data;
+  },
+
+  async getUserPosts(
+    username: string,
+    params: { page?: number; pageSize?: number } = {},
+  ): Promise<readonly PostApiResponse[]> {
+    const search = new URLSearchParams();
+    if (params.page !== undefined) search.set("page", String(params.page));
+    if (params.pageSize !== undefined) search.set("pageSize", String(params.pageSize));
+    const qs = search.toString();
+    const response = await apiClient.get<readonly PostApiResponse[]>(
+      `/api/users/${encodeURIComponent(username)}/posts${qs ? `?${qs}` : ""}`,
+    );
+    return response.data;
+  },
+
+  async getUserFollowers(
+    username: string,
+    params: { page?: number; pageSize?: number } = {},
+  ): Promise<readonly ProfileUserSummary[]> {
+    const search = new URLSearchParams();
+    if (params.page !== undefined) search.set("page", String(params.page));
+    if (params.pageSize !== undefined) search.set("pageSize", String(params.pageSize));
+    const qs = search.toString();
+    const response = await apiClient.get<readonly ProfileUserSummary[]>(
+      `/api/users/${encodeURIComponent(username)}/followers${qs ? `?${qs}` : ""}`,
+    );
+    return response.data;
+  },
+
+  async getUserFollowing(
+    username: string,
+    params: { page?: number; pageSize?: number } = {},
+  ): Promise<readonly ProfileUserSummary[]> {
+    const search = new URLSearchParams();
+    if (params.page !== undefined) search.set("page", String(params.page));
+    if (params.pageSize !== undefined) search.set("pageSize", String(params.pageSize));
+    const qs = search.toString();
+    const response = await apiClient.get<readonly ProfileUserSummary[]>(
+      `/api/users/${encodeURIComponent(username)}/following${qs ? `?${qs}` : ""}`,
     );
     return response.data;
   },

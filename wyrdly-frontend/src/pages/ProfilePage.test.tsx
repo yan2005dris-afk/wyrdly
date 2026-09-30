@@ -21,6 +21,7 @@ const mockProfile = {
     "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
   followersCount: 1420,
   followingCount: 380,
+  postsCount: 24,
   isFollowing: false,
   createdAt: "2024-08-15T10:00:00Z",
 };
