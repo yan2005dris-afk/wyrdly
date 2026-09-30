@@ -42,7 +42,8 @@ class FeedServiceTest {
   void getFeed_Success_WithPosts() {
     FeedPost post1 = new FeedPost("pst_1", "First post", null, NOW, AUTHOR, 5, 2, 0, "LIKE");
     FeedPost post2 =
-        new FeedPost("pst_2", "Second post", "https://example.com/p.webp", NOW, AUTHOR, 10, 5, 3, null);
+        new FeedPost(
+            "pst_2", "Second post", "https://example.com/p.webp", NOW, AUTHOR, 10, 5, 3, null);
 
     when(postRepository.findFeedByUserId("usr_me", 1, 20)).thenReturn(List.of(post1, post2));
     when(postRepository.countFeedByUserId("usr_me")).thenReturn(2L);

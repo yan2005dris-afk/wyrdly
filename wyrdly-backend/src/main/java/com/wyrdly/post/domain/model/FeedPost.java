@@ -3,7 +3,10 @@ package com.wyrdly.post.domain.model;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Domain entity representing a post enriched with its author information and reactions for feed presentation. */
+/**
+ * Domain entity representing a post enriched with its author information and reactions for feed
+ * presentation.
+ */
 public record FeedPost(
     String id,
     String content,

@@ -101,11 +101,9 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
   }
 
   /**
-   * Feed query combining:
-   * 1. Posts from users the caller follows
-   * 2. The caller's own posts
+   * Feed query combining: 1. Posts from users the caller follows 2. The caller's own posts
    *
-   * Counts reactions (LIKE, LOVE, CELEBRATE) and returns the caller's reaction type (if any).
+   * <p>Counts reactions (LIKE, LOVE, CELEBRATE) and returns the caller's reaction type (if any).
    * Results ordered by createdAt DESC, with SKIP/LIMIT for pagination.
    */
   private static final String FEED_QUERY =
@@ -202,13 +200,18 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     long loveCount = record.get("loveCount").asLong();
     long celebrateCount = record.get("celebrateCount").asLong();
     String userReactionType =
-        record.get("userReactionType").isNull()
-            ? null
-            : record.get("userReactionType").asString();
+        record.get("userReactionType").isNull() ? null : record.get("userReactionType").asString();
 
     Author author = new Author(authorId, authorUsername, authorFullName, authorAvatarUrl);
     return new FeedPost(
-        id, content, mediaUrl, createdAt, author, likeCount, loveCount, celebrateCount,
+        id,
+        content,
+        mediaUrl,
+        createdAt,
+        author,
+        likeCount,
+        loveCount,
+        celebrateCount,
         userReactionType);
   }
 }
