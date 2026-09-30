@@ -1,13 +1,6 @@
 import { useState, type FC } from "react";
 import { useParams, Link } from "react-router-dom";
-import {
-  ArrowLeft,
-  Share2,
-  Edit3,
-  Loader2,
-  AlertCircle,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, Share2, Edit3, Loader2, AlertCircle } from "lucide-react";
 import type { PostApiResponse } from "../types/feed";
 import type { UpdateProfilePayload } from "../api/users";
 import type { ProfileTabId } from "../components/profile/ProfileHeaderCard";
@@ -24,6 +17,7 @@ import {
   PostGridItem,
   EditProfileModal,
 } from "../components/profile";
+import { Avatar } from "../components/ui/Avatar";
 import { Button } from "../components/ui/Button";
 
 export const ProfilePage: FC = () => {
@@ -316,25 +310,15 @@ const FollowersOrFollowingTab: FC<FollowersOrFollowingTabProps> = ({
             to={`/profile/${user.username}`}
             className="flex items-center gap-3 flex-1 min-w-0"
           >
-            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.fullName}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-500">
-                  <Users className="w-5 h-5" />
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Avatar src={user.avatarUrl} alt={user.fullName} size="sm" />
+              <div className="min-w-0">
+                <div className="font-medium text-sm text-slate-900 truncate">
+                  {user.fullName}
                 </div>
-              )}
-            </div>
-            <div className="min-w-0">
-              <div className="font-medium text-sm text-slate-900 truncate">
-                {user.fullName}
-              </div>
-              <div className="text-xs text-slate-500 truncate">
-                @{user.username}
+                <div className="text-xs text-slate-500 truncate">
+                  @{user.username}
+                </div>
               </div>
             </div>
           </Link>
