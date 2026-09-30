@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("./axios", () => ({
   apiClient: {
     post: vi.fn(),
+    get: vi.fn(),
   },
 }));
 
@@ -11,6 +12,7 @@ import { postsApi } from "./posts";
 import type { PostApiResponse } from "../types/feed";
 
 const mockedPost = vi.mocked(apiClient.post);
+const mockedGet = vi.mocked(apiClient.get);
 
 const successResponse: PostApiResponse = {
   id: "post-abc",
@@ -68,5 +70,35 @@ describe("postsApi.create", () => {
       mediaUrl: "https://example.com/x.jpg",
     });
     expect(result.mediaUrl).toBe("https://example.com/x.jpg");
+  });
+});
+
+describe("postsApi.getFeed", () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+  });
+
+  it("calls /api/feed with page and pageSize", async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: { data: [], meta: { page: 1, pageSize: 20, totalElements: 0, totalPages: 0, hasNext: false } },
+    });
+
+    await postsApi.getFeed(2, 10);
+
+    expect(mockedGet).toHaveBeenCalledWith("/api/feed", {
+      params: { page: 2, pageSize: 10 },
+    });
+  });
+
+  it("calls /api/feed with cursor and limit when options object is passed", async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: { data: [], meta: { page: 1, pageSize: 20, totalElements: 0, totalPages: 0, hasNext: false, nextCursor: "abc", hasMore: true } },
+    });
+
+    await postsApi.getFeed({ cursor: "abc", limit: 15 });
+
+    expect(mockedGet).toHaveBeenCalledWith("/api/feed", {
+      params: { cursor: "abc", limit: 15, page: undefined, pageSize: undefined },
+    });
   });
 });

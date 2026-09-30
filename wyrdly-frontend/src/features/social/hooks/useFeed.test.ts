@@ -245,4 +245,86 @@ describe("useFeed", () => {
     expect(result.current.posts[0].userReaction).toBe("LIKE");
     expect(result.current.posts[1].id).toBe("post-2");
   });
+
+  it("loadMore appends posts without duplicating existing posts using nextCursor", async () => {
+    mockedPostsApi.getFeed.mockResolvedValueOnce({
+      data: [buildPostApiResponse("post-1", "first")],
+      meta: {
+        page: 1,
+        pageSize: 20,
+        totalElements: 2,
+        totalPages: 1,
+        hasNext: true,
+        nextCursor: "cur_page1",
+        hasMore: true,
+      },
+    });
+
+    const { result } = renderHook(() => useFeed());
+
+    await waitFor(() => {
+      expect(result.current.posts).toHaveLength(1);
+      expect(result.current.hasMore).toBe(true);
+      expect(result.current.nextCursor).toBe("cur_page1");
+    });
+
+    mockedPostsApi.getFeed.mockResolvedValueOnce({
+      data: [
+        buildPostApiResponse("post-1", "first duplicate"),
+        buildPostApiResponse("post-2", "second page"),
+      ],
+      meta: {
+        page: 1,
+        pageSize: 20,
+        totalElements: 2,
+        totalPages: 1,
+        hasNext: false,
+        nextCursor: null,
+        hasMore: false,
+      },
+    });
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(mockedPostsApi.getFeed).toHaveBeenCalledWith({
+      cursor: "cur_page1",
+      limit: 20,
+    });
+    expect(result.current.posts).toHaveLength(2);
+    expect(result.current.posts[0].id).toBe("post-1");
+    expect(result.current.posts[1].id).toBe("post-2");
+    expect(result.current.hasMore).toBe(false);
+    expect(result.current.nextCursor).toBeNull();
+  });
+
+  it("loadMore does nothing when hasMore is false or nextCursor is null", async () => {
+    mockedPostsApi.getFeed.mockResolvedValueOnce({
+      data: [buildPostApiResponse("post-1", "first")],
+      meta: {
+        page: 1,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+        hasNext: false,
+        nextCursor: null,
+        hasMore: false,
+      },
+    });
+
+    const { result } = renderHook(() => useFeed());
+
+    await waitFor(() => {
+      expect(result.current.posts).toHaveLength(1);
+    });
+
+    expect(mockedPostsApi.getFeed).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(mockedPostsApi.getFeed).toHaveBeenCalledTimes(1);
+  });
 });

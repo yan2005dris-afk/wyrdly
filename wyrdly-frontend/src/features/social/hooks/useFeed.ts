@@ -3,13 +3,17 @@ import { postsApi } from "../../../api/posts";
 import type { Post } from "../../../types/feed";
 import { mapPostApiResponseToPost } from "../../../types/feed";
 
-interface UseFeedReturn {
+export interface UseFeedReturn {
   readonly posts: readonly Post[];
   readonly isLoading: boolean;
+  readonly isLoadingMore: boolean;
   readonly error: string | null;
+  readonly hasMore: boolean;
+  readonly nextCursor: string | null;
   readonly addPost: (post: Post) => void;
   readonly replacePost: (post: Post) => void;
   readonly refetch: (page?: number) => Promise<void>;
+  readonly loadMore: () => Promise<void>;
 }
 
 /**
@@ -19,12 +23,15 @@ interface UseFeedReturn {
  * user reaction indicators from HU08. Provides optimistic `addPost` and
  * `replacePost` for client-side mutations (HU07 creation, HU09 reactions).
  *
- * Loads feed on mount and provides `refetch` to reload with pagination.
+ * Supports cursor-based infinite scroll via `loadMore`, as well as `refetch`.
  */
 export function useFeed(): UseFeedReturn {
   const [posts, setPosts] = useState<readonly Post[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState<boolean>(false);
 
   const fetchFeed = useCallback(async (page: number = 1): Promise<void> => {
     setIsLoading(true);
@@ -36,6 +43,8 @@ export function useFeed(): UseFeedReturn {
         mapPostApiResponseToPost(postApiResponse),
       );
       setPosts(mappedPosts);
+      setNextCursor(response.meta.nextCursor ?? null);
+      setHasMore(response.meta.hasMore ?? response.meta.hasNext);
     } catch (err) {
       setError("Failed to load feed");
       console.error("Feed fetch error:", err);
@@ -50,6 +59,33 @@ export function useFeed(): UseFeedReturn {
     },
     [fetchFeed],
   );
+
+  const loadMore = useCallback(async (): Promise<void> => {
+    if (!hasMore || isLoadingMore || !nextCursor) {
+      return;
+    }
+    setIsLoadingMore(true);
+    try {
+      const response = await postsApi.getFeed({
+        cursor: nextCursor,
+        limit: 20,
+      });
+      const mappedPosts = response.data.map((postApiResponse) =>
+        mapPostApiResponseToPost(postApiResponse),
+      );
+      setPosts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const newPosts = mappedPosts.filter((p) => !existingIds.has(p.id));
+        return [...prev, ...newPosts];
+      });
+      setNextCursor(response.meta.nextCursor ?? null);
+      setHasMore(response.meta.hasMore ?? response.meta.hasNext);
+    } catch (err) {
+      console.error("Feed loadMore error:", err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMore, isLoadingMore, nextCursor]);
 
   // Load feed on mount
   useEffect(() => {
@@ -66,6 +102,8 @@ export function useFeed(): UseFeedReturn {
             mapPostApiResponseToPost(postApiResponse),
           );
           setPosts(mappedPosts);
+          setNextCursor(response.meta.nextCursor ?? null);
+          setHasMore(response.meta.hasMore ?? response.meta.hasNext);
         }
       } catch (err) {
         if (!ignore) {
@@ -94,5 +132,16 @@ export function useFeed(): UseFeedReturn {
     setPosts((prev) => prev.map((p) => (p.id === post.id ? post : p)));
   }, []);
 
-  return { posts, isLoading, error, addPost, replacePost, refetch };
+  return {
+    posts,
+    isLoading,
+    isLoadingMore,
+    error,
+    hasMore,
+    nextCursor,
+    addPost,
+    replacePost,
+    refetch,
+    loadMore,
+  };
 }
