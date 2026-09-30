@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import type { PostGridItemProps } from "./PostGridItem.types";
+import { AuthImage } from "../../ui/AuthImage";
 import styles from "./PostGridItem.module.css";
 
 const formatCount = (count: number): string => {
@@ -28,12 +29,7 @@ export const PostGridItem: FC<PostGridItemProps> = ({
       data-testid={`post-grid-item-${id}`}
     >
       <div className={styles.imageContainer}>
-        <img
-          src={imageUrl}
-          alt={title}
-          className={styles.image}
-          loading="lazy"
-        />
+        <AuthImage src={imageUrl} alt={title} className={styles.image} />
       </div>
       <div className={styles.content}>
         <h4 className={styles.title} title={title}>
