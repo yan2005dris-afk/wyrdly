@@ -41,15 +41,17 @@ public class MediaService implements UploadMediaUseCase {
     validateMimeType(mimeType);
 
     String storageKey = generateStorageKey();
+    s3StorageService.uploadFile(storageKey, fileContent, mimeType);
 
-    String fileUrl = s3StorageService.uploadFile(storageKey, fileContent, mimeType);
+    String mediaId = UUID.randomUUID().toString();
+    String publicFileUrl = buildPublicFileUrl(mediaId);
 
     MediaFile mediaFile =
         new MediaFile(
-            UUID.randomUUID().toString(),
+            mediaId,
             userId,
             storageKey,
-            fileUrl,
+            publicFileUrl,
             mimeType,
             fileContent.length,
             Instant.now());
@@ -58,6 +60,16 @@ public class MediaService implements UploadMediaUseCase {
 
     Log.infof("Media uploaded successfully: userId=%s, id=%s", userId, saved.id());
     return MediaUploadResponse.fromDomain(saved);
+  }
+
+  /**
+   * Public URL points at the backend proxy endpoint so the bucket can
+   * stay private. Using a relative path keeps the response neutral to
+   * the host the backend is deployed behind; the browser resolves it
+   * against the current origin.
+   */
+  private String buildPublicFileUrl(String mediaId) {
+    return "/api/media/" + mediaId;
   }
 
   private String detectMimeType(byte[] fileContent) {
