@@ -1,8 +1,8 @@
 import { useState, type FC } from "react";
-import type { ChatConversation, ChatMessage } from "../types/chat";
+import type { ChatConversation, ChatMessage } from "../features/chat";
 import type { UserProfileSummary } from "../types/domain";
-import { useAuth } from "../hooks/useAuth";
-import { ConversationList, ChatWindow } from "../components/chat";
+import { useAuth } from "../features/auth";
+import { ConversationList, ChatWindow } from "../features/chat";
 
 const MOCK_PARTICIPANTS: readonly UserProfileSummary[] = [
   {

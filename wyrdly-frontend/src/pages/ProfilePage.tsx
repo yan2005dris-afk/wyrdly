@@ -1,29 +1,24 @@
-import { useState, type FC } from "react";
+import { useCallback, useState, type FC } from "react";
 import { useParams, Link } from "react-router-dom";
-import {
-  ArrowLeft,
-  Share2,
-  Edit3,
-  Loader2,
-  AlertCircle,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, Share2, Edit3, Loader2, AlertCircle } from "lucide-react";
 import type { PostApiResponse } from "../types/feed";
 import type { UpdateProfilePayload } from "../api/users";
-import type { ProfileTabId } from "../components/profile/ProfileHeaderCard";
-import type { ProfileUserSummary } from "../types/suggestions";
-import { useAuth } from "../hooks/useAuth";
-import { useUserProfile } from "../hooks/useUserProfile";
-import { useUserPosts } from "../hooks/useUserPosts";
-import { useProfileUsers } from "../hooks/useProfileUsers";
-import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
-import { useFollow } from "../hooks/useFollow";
-import { GraphSuggestionsCard } from "../components/social";
+import { useAuth } from "../features/auth";
 import {
   ProfileHeaderCard,
   PostGridItem,
   EditProfileModal,
-} from "../components/profile";
+  useUserProfile,
+  useUserPosts,
+  useProfileUsers,
+  type ProfileTabId,
+  type ProfileUserSummary,
+} from "../features/profile";
+import {
+  GraphSuggestionsCard,
+  UserListRow,
+  useGraphSuggestions,
+} from "../features/social";
 import { Button } from "../components/ui/Button";
 
 export const ProfilePage: FC = () => {
@@ -39,32 +34,28 @@ export const ProfilePage: FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const { posts, isLoading: postsLoading } = useUserPosts(profileUsername);
-  const { users: followers, isLoading: followersLoading } = useProfileUsers(
-    profileUsername,
-    "followers",
-  );
-  const { users: following, isLoading: followingLoading } = useProfileUsers(
-    profileUsername,
-    "following",
-  );
+  const {
+    users: followers,
+    isLoading: followersLoading,
+    refetch: refetchFollowers,
+  } = useProfileUsers(profileUsername, "followers");
+  const {
+    users: following,
+    isLoading: followingLoading,
+    refetch: refetchFollowing,
+  } = useProfileUsers(profileUsername, "following");
   const { suggestions: apiSuggestions } = useGraphSuggestions();
-  const { follow, unfollow } = useFollow();
 
   const isCurrentUser = !!authUser && profile?.username === authUser.username;
 
-  const handleFollowToggle = async (userId: string) => {
-    const suggestion = apiSuggestions.find((s) => s.id === userId);
-    if (!suggestion) return;
-    try {
-      if (suggestion.isFollowing) {
-        await unfollow(userId);
-      } else {
-        await follow(userId);
-      }
-    } catch (err) {
-      console.error("Follow toggle failed", err);
-    }
-  };
+  const handleAfterToggle = useCallback(() => {
+    // Re-fetch the profile header (followers / following / postsCount)
+    // and the two tab lists so a follow or unfollow in the Followers /
+    // Following tab is reflected everywhere.
+    refetch();
+    refetchFollowers();
+    refetchFollowing();
+  }, [refetch, refetchFollowers, refetchFollowing]);
 
   const handleSaveProfile = async (payload: UpdateProfilePayload) => {
     setIsSaving(true);
@@ -104,15 +95,6 @@ export const ProfilePage: FC = () => {
       </div>
     );
   }
-
-  const headerSuggestions = apiSuggestions.map((s) => ({
-    id: s.id,
-    username: s.username,
-    fullName: s.fullName,
-    avatarUrl: s.avatarUrl ?? undefined,
-    mutualConnectionSnippet: s.mutualConnectionSnippet,
-    isFollowing: s.isFollowing,
-  }));
 
   return (
     <>
@@ -177,6 +159,7 @@ export const ProfilePage: FC = () => {
               isLoading={followersLoading}
               emptyMessage={`@${profile.username} has no followers yet`}
               testId="profile-followers-list"
+              onAfterToggle={handleAfterToggle}
             />
           )}
 
@@ -186,6 +169,7 @@ export const ProfilePage: FC = () => {
               isLoading={followingLoading}
               emptyMessage={`@${profile.username} isn't following anyone yet`}
               testId="profile-following-list"
+              onAfterToggle={handleAfterToggle}
             />
           )}
 
@@ -199,8 +183,8 @@ export const ProfilePage: FC = () => {
         {/* Right Sidebar Area (4 columns) */}
         <aside className="lg:col-span-4 flex flex-col gap-4">
           <GraphSuggestionsCard
-            suggestions={headerSuggestions}
-            onFollowToggle={handleFollowToggle}
+            suggestions={apiSuggestions}
+            onAfterToggle={handleAfterToggle}
           />
         </aside>
       </div>
@@ -271,6 +255,7 @@ interface FollowersOrFollowingTabProps {
   readonly isLoading: boolean;
   readonly emptyMessage: string;
   readonly testId: string;
+  readonly onAfterToggle?: (userId: string) => void;
 }
 
 const FollowersOrFollowingTab: FC<FollowersOrFollowingTabProps> = ({
@@ -278,6 +263,7 @@ const FollowersOrFollowingTab: FC<FollowersOrFollowingTabProps> = ({
   isLoading,
   emptyMessage,
   testId,
+  onAfterToggle,
 }) => {
   if (isLoading) {
     return (
@@ -307,47 +293,8 @@ const FollowersOrFollowingTab: FC<FollowersOrFollowingTabProps> = ({
       data-testid={testId}
     >
       {users.map((user) => (
-        <li
-          key={user.id}
-          className="flex items-center justify-between p-4"
-          data-testid={`profile-user-${user.id}`}
-        >
-          <Link
-            to={`/profile/${user.username}`}
-            className="flex items-center gap-3 flex-1 min-w-0"
-          >
-            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.fullName}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-500">
-                  <Users className="w-5 h-5" />
-                </div>
-              )}
-            </div>
-            <div className="min-w-0">
-              <div className="font-medium text-sm text-slate-900 truncate">
-                {user.fullName}
-              </div>
-              <div className="text-xs text-slate-500 truncate">
-                @{user.username}
-              </div>
-            </div>
-          </Link>
-          <span
-            className={`text-xs px-2 py-1 rounded-full ${
-              user.isFollowing
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-slate-50 text-slate-500"
-            }`}
-            data-testid={`profile-user-${user.id}-following`}
-          >
-            {user.isFollowing ? "Following" : "Not following"}
-          </span>
+        <li key={user.id} data-testid={`profile-user-${user.id}`}>
+          <UserListRow user={user} onAfterToggle={onAfterToggle} />
         </li>
       ))}
     </ul>

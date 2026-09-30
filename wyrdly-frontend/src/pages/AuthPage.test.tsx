@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { AuthPage } from "./AuthPage";
-import { AuthProvider } from "../context/AuthContext";
+import { AuthProvider } from "../features/auth";
 
 const renderAuthPage = () => {
   return render(

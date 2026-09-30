@@ -21,7 +21,10 @@ export const postsApi = {
     return response.data;
   },
 
-  async getFeed(page: number = 1, pageSize: number = 20): Promise<FeedResponseDto> {
+  async getFeed(
+    page: number = 1,
+    pageSize: number = 20,
+  ): Promise<FeedResponseDto> {
     const response = await apiClient.get<FeedResponseDto>("/api/feed", {
       params: { page, pageSize },
     });
