@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FC } from "react";
+import { defaultAvatarDataUrl } from "../../utils/defaultAvatar";
 
 /**
  * Like a regular <img>, but if `src` points at our own /api/media/{id}
@@ -80,13 +81,16 @@ export const AuthImage: FC<AuthImageProps> = ({
   }, [blobUrl]);
 
   // Derive the rendered src. External URLs go straight through; our
-  // own /api/media URLs wait for the blob to be fetched.
+  // own /api/media URLs wait for the blob to be fetched. When no
+  // explicit fallback was supplied, use a deterministic inline-SVG
+  // avatar derived from the alt text so failed loads still render
+  // something sensible.
   const effectiveSrc = useMemo(() => {
     if (src && !isOwnMediaUrl(src)) {
       return src;
     }
-    return blobUrl ?? fallbackSrc ?? null;
-  }, [src, blobUrl, fallbackSrc]);
+    return blobUrl ?? fallbackSrc ?? defaultAvatarDataUrl(alt) ?? null;
+  }, [src, blobUrl, fallbackSrc, alt]);
 
   if (!effectiveSrc) {
     return null;

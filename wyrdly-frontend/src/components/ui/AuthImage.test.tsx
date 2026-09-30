@@ -30,12 +30,16 @@ describe("AuthImage", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("renders nothing when src is null or undefined", () => {
+  it("renders a default inline-SVG avatar when src is null or undefined", () => {
     const { container: c1 } = render(<AuthImage src={null} alt="" />);
-    expect(c1.querySelector("[data-testid='auth-image']")).toBeNull();
+    const img1 = c1.querySelector("[data-testid='auth-image']");
+    expect(img1).not.toBeNull();
+    expect(img1?.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
 
     const { container: c2 } = render(<AuthImage src={undefined} alt="" />);
-    expect(c2.querySelector("[data-testid='auth-image']")).toBeNull();
+    const img2 = c2.querySelector("[data-testid='auth-image']");
+    expect(img2).not.toBeNull();
+    expect(img2?.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
   });
 
   it("fetches the bytes with Authorization for /api/media URLs", async () => {
@@ -79,7 +83,7 @@ describe("AuthImage", () => {
     });
   });
 
-  it("renders nothing when fetch fails and no fallback is supplied", async () => {
+  it("renders the default SVG when fetch fails and no fallback is supplied", async () => {
     localStorage.setItem("wyrdly_token", "test-jwt");
 
     vi.mocked(global.fetch).mockResolvedValueOnce({
@@ -90,7 +94,9 @@ describe("AuthImage", () => {
     render(<AuthImage src={OWN_MEDIA_URL} alt="private" />);
 
     await waitFor(() => {
-      expect(screen.queryByTestId("auth-image")).toBeNull();
+      const img = screen.queryByTestId("auth-image");
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
     });
   });
 
