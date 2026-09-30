@@ -28,7 +28,7 @@ import { Button } from "../components/ui/Button";
 
 export const ProfilePage: FC = () => {
   const { username } = useParams<{ username: string }>();
-  const { user: authUser, updateAuthUser } = useAuth();
+  const { user: authUser } = useAuth();
 
   const profileUsername = username || authUser?.username;
   const { profile, isLoading, error, updateProfile, refetch } =
@@ -69,12 +69,7 @@ export const ProfilePage: FC = () => {
   const handleSaveProfile = async (payload: UpdateProfilePayload) => {
     setIsSaving(true);
     try {
-      const updated = await updateProfile(payload);
-      if (updated && updateAuthUser) {
-        updateAuthUser({
-          fullName: updated.fullName ?? undefined,
-        });
-      }
+      await updateProfile(payload);
       setIsEditOpen(false);
     } catch {
       // error is already surfaced via the hook
@@ -162,7 +157,7 @@ export const ProfilePage: FC = () => {
             user={profile}
             coverUrl="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1000&auto=format&fit=crop&q=80"
             isCurrentUser={isCurrentUser}
-            isSubscribed={profile.isFollowing}
+            isSubscribed={profile.isFollowing ?? false}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onSubscribeToggle={() => {
