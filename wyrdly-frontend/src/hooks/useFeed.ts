@@ -1,5 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { postsApi } from "../api/posts";
 import type { Post } from "../types/feed";
+import { mapPostApiResponseToPost } from "../types/feed";
 
 interface UseFeedReturn {
   readonly posts: readonly Post[];
@@ -7,25 +9,47 @@ interface UseFeedReturn {
   readonly error: string | null;
   readonly addPost: (post: Post) => void;
   readonly replacePost: (post: Post) => void;
-  readonly refetch: () => void;
+  readonly refetch: () => Promise<void>;
 }
 
 /**
- * Holds the in-memory feed of posts shown on FeedPage.
+ * Fetches the authenticated user's feed from GET /api/feed.
  *
- * NOTE: There is no GET /api/posts endpoint yet — that lands with HU08.
- * Until then the feed starts empty and is populated by createPost results
- * (HU07) and the refetch is a no-op. When HU08 ships, replace `refetch` with
- * a real fetch and seed `posts` from the response.
+ * Combines posts from followed users + own posts, with reaction counts and
+ * user reaction indicators from HU08. Provides optimistic `addPost` and
+ * `replacePost` for client-side mutations (HU07 creation, HU09 reactions).
  *
- * `replacePost` is a pragmatic helper used by the optimistic reaction UI on
- * FeedPage until HU09 ships the real reaction mutation hook. It is not part
- * of the published spec signature but keeps the previous PR's behavior intact.
+ * Loads feed on mount and provides `refetch` to reload with pagination.
  */
 export function useFeed(): UseFeedReturn {
   const [posts, setPosts] = useState<readonly Post[]>([]);
-  const [isLoading] = useState<boolean>(false);
-  const [error] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const refetch = useCallback(async (page: number = 1): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await postsApi.getFeed(page, 20);
+      const mappedPosts = response.data.map((postApiResponse) =>
+        mapPostApiResponseToPost(postApiResponse),
+      );
+      setPosts(mappedPosts);
+      setCurrentPage(page);
+    } catch (err) {
+      setError("Failed to load feed");
+      console.error("Feed fetch error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Load feed on mount
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const addPost = useCallback((post: Post) => {
     setPosts((prev) => [post, ...prev]);
@@ -33,10 +57,6 @@ export function useFeed(): UseFeedReturn {
 
   const replacePost = useCallback((post: Post) => {
     setPosts((prev) => prev.map((p) => (p.id === post.id ? post : p)));
-  }, []);
-
-  const refetch = useCallback(() => {
-    // Intentionally empty — GET /api/posts ships with HU08.
   }, []);
 
   return { posts, isLoading, error, addPost, replacePost, refetch };
