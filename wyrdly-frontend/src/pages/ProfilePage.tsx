@@ -181,14 +181,7 @@ export const ProfilePage: FC = () => {
         {/* Right Sidebar Area (4 columns) */}
         <aside className="lg:col-span-4 flex flex-col gap-4">
           <GraphSuggestionsCard
-            suggestions={apiSuggestions.map((s) => ({
-              id: s.id,
-              username: s.username,
-              fullName: s.fullName,
-              avatarUrl: s.avatarUrl ?? undefined,
-              mutualConnectionSnippet: s.mutualConnectionSnippet,
-              isFollowing: s.isFollowing,
-            }))}
+            suggestions={apiSuggestions}
             onAfterToggle={handleAfterToggle}
           />
         </aside>

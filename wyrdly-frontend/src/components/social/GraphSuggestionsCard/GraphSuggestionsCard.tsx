@@ -6,8 +6,8 @@ import styles from "./GraphSuggestionsCard.module.css";
 
 export const GraphSuggestionsCard: FC<GraphSuggestionsCardProps> = ({
   suggestions,
-  onSeeAllClick,
   onAfterToggle,
+  onSeeAllClick,
   className = "",
 }) => {
   return (

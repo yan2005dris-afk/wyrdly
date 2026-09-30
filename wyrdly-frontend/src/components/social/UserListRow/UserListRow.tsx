@@ -1,20 +1,13 @@
 import { useState, type FC } from "react";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import type { ProfileUserSummary } from "../../../types/suggestions";
 import { Avatar } from "../../ui/Avatar";
 import { useFollow } from "../../../hooks/useFollow";
 import styles from "./UserListRow.module.css";
 
-export interface UserListRowUser {
-  readonly id: string;
-  readonly username: string;
-  readonly fullName: string;
-  readonly avatarUrl?: string | null;
-  readonly isFollowing: boolean;
-}
-
 export interface UserListRowProps {
-  readonly user: UserListRowUser;
+  readonly user: ProfileUserSummary;
   /**
    * Optional one-line subtitle shown under the user's name. Smart
    * Suggestions passes the mutual-connection snippet; followers /
@@ -48,14 +41,17 @@ export const UserListRow: FC<UserListRowProps> = ({
 }) => {
   const { follow, unfollow, isMutating } = useFollow();
 
-  // Optimistic local state: starts from the server-side `isFollowing`
-  // flag, flips on click, rolls back if the API rejects the call.
-  const [following, setFollowing] = useState<boolean>(user.isFollowing);
-  const [original, setOriginal] = useState<boolean>(user.isFollowing);
+  // Optimistic override: null = trust the server-side `isFollowing`,
+  // any other value = the local optimistic flip the user clicked. The
+  // rendered value is `optimistic ?? user.isFollowing`, which means
+  // we never need an effect to sync local state from props and the
+  // React 19 set-state-in-effect rule stays happy.
+  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const following = optimistic ?? user.isFollowing;
 
   const handleToggle = async () => {
     const next = !following;
-    setFollowing(next);
+    setOptimistic(next);
     try {
       if (next) {
         await follow(user.id);
@@ -65,17 +61,10 @@ export const UserListRow: FC<UserListRowProps> = ({
       onAfterToggle?.(user.id);
     } catch (err) {
       // Roll back to the server-known state.
-      setFollowing(original);
+      setOptimistic(null);
       console.error("Follow toggle failed", err);
     }
   };
-
-  // If the parent re-fetches and the server-side flag changes, sync
-  // our local state so the UI stays consistent.
-  if (user.isFollowing !== original && !isMutating) {
-    setOriginal(user.isFollowing);
-    setFollowing(user.isFollowing);
-  }
 
   const buttonClass = [
     styles.followBtn,
