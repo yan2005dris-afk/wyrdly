@@ -12,6 +12,7 @@ import {
   useUserPosts,
   useProfileUsers,
   type ProfileTabId,
+  type ProfileUserSummary,
 } from "../features/profile";
 import {
   GraphSuggestionsCard,

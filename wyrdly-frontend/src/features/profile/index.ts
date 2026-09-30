@@ -13,3 +13,4 @@ export type { PostGridItemProps } from "./components/PostGridItem";
 export { useUserProfile } from "./hooks/useUserProfile";
 export { useProfileUsers } from "./hooks/useProfileUsers";
 export { useUserPosts } from "./hooks/useUserPosts";
+export type { ProfileUserSummary } from "../../types/suggestions";

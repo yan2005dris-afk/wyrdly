@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../features/auth";
 
 export const RootRedirect: FC = () => {
   const { isAuthenticated, isLoading } = useAuth();

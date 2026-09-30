@@ -23,4 +23,13 @@
 - [x] `TASK-3`: Migrate `features/social/` (encapsulate `PostCard`, `CreatePostCard`, `GraphSuggestionsCard`, `UserListRow`, `UserSearchResultCard`, `UserSummaryCard`, `RelayHealthWidget`, social hooks/APIs, public API barrel, update `FeedPage` and tests).
 - [x] `TASK-4`: Migrate `features/chat/` (encapsulate `ChatWindow`, `ChatInputBar`, `ConversationList`, `MessageBubble`, `ChatHeader`, chat types, public API barrel, update `ChatPage` and tests).
 - [x] `TASK-5`: Migrate `features/notifications/` (encapsulate `NotificationPopover`, `NotificationItem`, `PushPermissionBanner`, notifications types, public API barrel, update consumers and tests).
-- [ ] `TASK-6`: Clean up deprecated root directories/imports, run complete validation suite (Vitest 216+ specs, ESLint, Prettier, Vite production build).
+- [x] `TASK-6`: Clean up deprecated root directories/imports, run complete validation suite (Vitest 216+ specs, ESLint, Prettier, Vite production build).
+
+## Verification Evidence
+
+- **Unit & Integration Tests**: 46 test suites passed, 216/216 Vitest tests passing.
+- **Linting**: ESLint clean, 0 warnings/errors.
+- **Formatting**: Prettier check 100% clean.
+- **TypeScript & Bundle**: `tsc -b && vite build` built in <1s with 0 errors.
+- **Backward-Compatible Bridges**: Preserved in `src/components/{auth,profile,social,chat,notifications}`, `src/hooks/`, and `src/types/`.
+

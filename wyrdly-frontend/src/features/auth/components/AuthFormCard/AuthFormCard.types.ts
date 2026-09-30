@@ -1,7 +1,4 @@
-import type {
-  LoginCredentials,
-  RegisterCredentials,
-} from "../../../types/auth";
+import type { LoginCredentials, RegisterCredentials } from "../../types";
 
 export type AuthMode = "signin" | "signup";
 
