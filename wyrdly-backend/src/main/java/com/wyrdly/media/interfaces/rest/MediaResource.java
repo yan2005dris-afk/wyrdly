@@ -67,12 +67,13 @@ public class MediaResource {
 
   /**
    * Stream a media file's bytes through the backend. The bucket stays 100% private — only this
-   * endpoint, authenticated via JWT, can serve a media asset. Visibility per post is not yet
-   * enforced; follow-up ticket will gate reads by post.visibility.
+   * endpoint serves a media asset. The endpoint is intentionally public (no @Authenticated) because
+   * browsers embed media URLs in <img> / <video> tags and never send the Authorization header.
+   * Authenticated visibility per post is a follow-up ticket; for now every persisted media is
+   * reachable by anyone who knows (or guesses) its id.
    */
   @GET
   @Path("/{id}")
-  @Authenticated
   @Produces(MediaType.WILDCARD)
   public Response downloadMedia(@PathParam("id") String id) {
     MediaFile mediaFile = mediaRepository.findById(id).orElse(null);
