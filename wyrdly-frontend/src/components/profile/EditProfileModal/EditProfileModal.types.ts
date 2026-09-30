@@ -7,4 +7,5 @@ export interface EditProfileModalProps {
   readonly isSaving: boolean;
   readonly onSave: (payload: UpdateProfilePayload) => void;
   readonly onClose: () => void;
+  readonly uploadAvatar?: (file: File) => Promise<string | null>;
 }
