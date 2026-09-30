@@ -70,7 +70,9 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
                     post.mediaUrl(),
                     post.createdAt(),
                     new PostResponse.AuthorDto(
-                        profile.id(), profile.username(), profile.fullName(), profile.avatarUrl())))
+                        profile.id(), profile.username(), profile.fullName(), profile.avatarUrl()),
+                    new PostResponse.ReactionCounts(0, 0, 0),
+                    null))
         .toList();
   }
 

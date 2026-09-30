@@ -93,7 +93,8 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                               record.get("mediaUrl").isNull()
                                   ? null
                                   : record.get("mediaUrl").asString(),
-                              readCreatedAt(record))));
+                              Instant.parse(record.get("createdAt").asString()))));
+
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Post by id: %s", id);
       throw new PostPersistenceException("Failed to query Post by id=" + id, e);
@@ -189,6 +190,38 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
       Log.errorf(e, "Failed to count feed for userId: %s", userId);
       throw new PostPersistenceException("Failed to count feed for userId=" + userId, e);
     }
+  }
+
+  @Override
+  public List<Post> findByAuthor(String authorId, int page, int pageSize) {
+    int skip = Math.max(0, (page - 1) * pageSize);
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx.run(
+                      "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
+                          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+                          + "       p.createdAt AS createdAt, author.id AS userId "
+                          + "ORDER BY p.createdAt DESC "
+                          + "SKIP $skip LIMIT $limit",
+                      Values.parameters(
+                          "authorId", authorId,
+                          "skip", skip,
+                          "limit", pageSize))
+                  .list(this::mapRecordToPost));
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query posts by author: %s", authorId);
+      throw new PostPersistenceException("Failed to query posts by author=" + authorId, e);
+    }
+  }
+
+  private Post mapRecordToPost(Record record) {
+    return new Post(
+        record.get("id").asString(),
+        record.get("userId").asString(),
+        record.get("content").asString(),
+        record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString(),
+        Instant.parse(record.get("createdAt").asString()));
   }
 
   private FeedPost mapRecordToFeedPost(Record record) {
