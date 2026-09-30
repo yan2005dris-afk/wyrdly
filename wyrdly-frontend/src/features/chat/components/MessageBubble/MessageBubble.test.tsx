@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MessageBubble } from "./MessageBubble";
-import type { ChatMessage } from "../../../types/chat";
+import type { ChatMessage } from "../../types";
 
 const INCOMING_MSG: ChatMessage = {
   id: "msg-1",

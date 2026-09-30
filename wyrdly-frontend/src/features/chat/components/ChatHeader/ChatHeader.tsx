@@ -1,7 +1,7 @@
 import type { FC } from "react";
 import { Phone, Video, MoreVertical, CheckCircle } from "lucide-react";
 import type { ChatHeaderProps } from "./ChatHeader.types";
-import { Avatar } from "../../ui/Avatar";
+import { Avatar } from "../../../../components/ui/Avatar";
 import styles from "./ChatHeader.module.css";
 
 export const ChatHeader: FC<ChatHeaderProps> = ({

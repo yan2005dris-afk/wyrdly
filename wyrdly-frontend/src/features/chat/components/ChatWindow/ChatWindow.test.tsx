@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ChatWindow } from "./ChatWindow";
-import type { ChatConversation, ChatMessage } from "../../../types/chat";
+import type { ChatConversation, ChatMessage } from "../../types";
 
 const MOCK_CONV: ChatConversation = {
   id: "conv-1",

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ConversationList, ConversationItem } from "./ConversationList";
-import type { ChatConversation } from "../../../types/chat";
+import type { ChatConversation } from "../../types";
 
 const MOCK_CONVERSATIONS: ChatConversation[] = [
   {

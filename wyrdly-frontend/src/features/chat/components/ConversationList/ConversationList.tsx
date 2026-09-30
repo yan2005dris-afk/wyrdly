@@ -4,8 +4,8 @@ import type {
   ConversationListProps,
   ConversationItemProps,
 } from "./ConversationList.types";
-import { Avatar } from "../../ui/Avatar";
-import { Input } from "../../ui/Input";
+import { Avatar } from "../../../../components/ui/Avatar";
+import { Input } from "../../../../components/ui/Input";
 import styles from "./ConversationList.module.css";
 
 export const ConversationItem: FC<ConversationItemProps> = ({

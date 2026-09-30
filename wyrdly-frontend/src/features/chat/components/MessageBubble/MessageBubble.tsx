@@ -1,7 +1,7 @@
 import type { FC } from "react";
 import { Check, CheckCheck } from "lucide-react";
 import type { MessageBubbleProps } from "./MessageBubble.types";
-import { Avatar } from "../../ui/Avatar";
+import { Avatar } from "../../../../components/ui/Avatar";
 import styles from "./MessageBubble.module.css";
 
 export const MessageBubble: FC<MessageBubbleProps> = ({

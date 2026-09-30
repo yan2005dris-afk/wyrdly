@@ -1,4 +1,4 @@
-import type { ChatConversation } from "../../../types/chat";
+import type { ChatConversation } from "../../types";
 
 export interface ConversationItemProps {
   readonly conversation: ChatConversation;

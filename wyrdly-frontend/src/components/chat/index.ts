@@ -1,5 +1,2 @@
-export * from "./ConversationList";
-export * from "./MessageBubble";
-export * from "./ChatHeader";
-export * from "./ChatInputBar";
-export * from "./ChatWindow";
+// Backward-compatibility bridge pointing to features/chat
+export * from "../../features/chat";

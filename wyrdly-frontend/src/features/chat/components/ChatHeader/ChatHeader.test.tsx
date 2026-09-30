@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ChatHeader } from "./ChatHeader";
-import type { UserProfileSummary } from "../../../types/domain";
+import type { UserProfileSummary } from "../../../../types/domain";
 
 const MOCK_PARTICIPANT: UserProfileSummary = {
   id: "user-alice",

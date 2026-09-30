@@ -1,4 +1,4 @@
-import type { ChatConversation, ChatMessage } from "../../../types/chat";
+import type { ChatConversation, ChatMessage } from "../../types";
 
 export interface ChatWindowProps {
   readonly conversation: ChatConversation;
