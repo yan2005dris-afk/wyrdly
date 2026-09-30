@@ -1,14 +1,13 @@
 import type { FC } from "react";
-import { Link } from "react-router-dom";
 import { GitBranch } from "lucide-react";
 import type { GraphSuggestionsCardProps } from "./GraphSuggestionsCard.types";
-import { Avatar } from "../../ui/Avatar";
+import { UserListRow } from "../UserListRow";
 import styles from "./GraphSuggestionsCard.module.css";
 
 export const GraphSuggestionsCard: FC<GraphSuggestionsCardProps> = ({
   suggestions,
-  onFollowToggle,
   onSeeAllClick,
+  onAfterToggle,
   className = "",
 }) => {
   return (
@@ -26,43 +25,12 @@ export const GraphSuggestionsCard: FC<GraphSuggestionsCardProps> = ({
 
       <div className={styles.list}>
         {suggestions.map((user) => (
-          <div
+          <UserListRow
             key={user.id}
-            className={styles.item}
-            data-testid={`suggestion-item-${user.id}`}
-          >
-            <div className={styles.userMeta}>
-              <Link to={`/profile/${user.username}`}>
-                <Avatar src={user.avatarUrl} alt={user.fullName} size="sm" />
-              </Link>
-              <div className={styles.nameCol}>
-                <Link
-                  to={`/profile/${user.username}`}
-                  className={styles.userName}
-                  title={user.fullName}
-                >
-                  {user.fullName}
-                </Link>
-                <span
-                  className={styles.mutualSnippet}
-                  title={user.mutualConnectionSnippet}
-                >
-                  {user.mutualConnectionSnippet}
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onFollowToggle(user.id)}
-              className={`${styles.followBtn} ${
-                user.isFollowing ? styles.followingActive : ""
-              }`}
-              data-testid={`follow-btn-${user.id}`}
-            >
-              {user.isFollowing ? "Following" : "Follow"}
-            </button>
-          </div>
+            user={user}
+            subtitle={user.mutualConnectionSnippet}
+            onAfterToggle={onAfterToggle}
+          />
         ))}
       </div>
 

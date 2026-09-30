@@ -266,10 +266,10 @@ describe("FeedPage Component", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByTestId("suggestion-item-user-alice"),
+        screen.getByTestId("user-list-row-user-alice"),
       ).toBeInTheDocument();
       expect(
-        screen.getByTestId("suggestion-item-user-marcus"),
+        screen.getByTestId("user-list-row-user-marcus"),
       ).toBeInTheDocument();
     });
 
@@ -298,11 +298,13 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-alice"),
+      ).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("follow-btn-user-alice"));
+      fireEvent.click(screen.getByTestId("follow-toggle-user-alice"));
     });
 
     expect(mockedFollow).toHaveBeenCalledTimes(1);
@@ -328,11 +330,13 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-marcus")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-marcus"),
+      ).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("follow-btn-user-marcus"));
+      fireEvent.click(screen.getByTestId("follow-toggle-user-marcus"));
     });
 
     expect(mockedUnfollow).toHaveBeenCalledTimes(1);
@@ -358,11 +362,13 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-alice"),
+      ).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("follow-btn-user-alice"));
+      fireEvent.click(screen.getByTestId("follow-toggle-user-alice"));
     });
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -391,10 +397,12 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-alice"),
+      ).toBeInTheDocument();
     });
 
-    const followBtn = screen.getByTestId("follow-btn-user-alice");
+    const followBtn = screen.getByTestId("follow-toggle-user-alice");
     expect(followBtn).toHaveTextContent("Follow");
 
     await act(async () => {
@@ -403,7 +411,7 @@ describe("FeedPage Component", () => {
 
     // Immediately after click, before the awaited follow() resolves the next
     // tick, the button must already read "Following".
-    expect(screen.getByTestId("follow-btn-user-alice")).toHaveTextContent(
+    expect(screen.getByTestId("follow-toggle-user-alice")).toHaveTextContent(
       "Following",
     );
     expect(mockedFollow).toHaveBeenCalledTimes(1);
@@ -424,16 +432,18 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-alice"),
+      ).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("follow-btn-user-alice"));
+      fireEvent.click(screen.getByTestId("follow-toggle-user-alice"));
     });
 
     // The catch path must restore the Follow label.
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toHaveTextContent(
+      expect(screen.getByTestId("follow-toggle-user-alice")).toHaveTextContent(
         "Follow",
       );
     });
