@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { PostCardProps } from "./PostCard.types";
 import { Avatar } from "../../ui/Avatar";
+import { AuthImage } from "../../ui/AuthImage";
 import styles from "./PostCard.module.css";
 
 const formatCount = (count: number): string => {
@@ -90,11 +91,10 @@ export const PostCard: FC<PostCardProps> = ({
           className={styles.mediaContainer}
           data-testid="post-media-container"
         >
-          <img
+          <AuthImage
             src={post.attachments[0].url}
             alt={post.attachments[0].altText || "Post attachment"}
             className={styles.mediaImage}
-            loading="lazy"
           />
           <span className={styles.rustfsBadge} data-testid="rustfs-badge">
             RustFS S3 Bucket
