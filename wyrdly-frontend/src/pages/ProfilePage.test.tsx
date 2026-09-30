@@ -9,6 +9,9 @@ vi.mock("../api/users", () => ({
   usersApi: {
     getProfile: vi.fn(),
     updateProfile: vi.fn(),
+    getUserPosts: vi.fn(),
+    getUserFollowers: vi.fn(),
+    getUserFollowing: vi.fn(),
   },
 }));
 
@@ -36,6 +39,19 @@ const renderProfilePage = () => {
   );
 };
 
+const samplePost = {
+  id: "post-maya-1",
+  content: "Night deploys hit different...",
+  mediaUrl: "https://example.com/night-deploy.jpg",
+  createdAt: "2026-01-10T12:00:00Z",
+  author: {
+    id: "user-maya",
+    username: "maya",
+    fullName: "Maya Krishnan",
+    avatarUrl: mockProfile.avatarUrl,
+  },
+};
+
 describe("ProfilePage Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -50,6 +66,9 @@ describe("ProfilePage Component", () => {
     );
     localStorage.setItem("wyrdly_token", "fake-token");
     vi.mocked(usersApi.getProfile).mockResolvedValue(mockProfile);
+    vi.mocked(usersApi.getUserPosts).mockResolvedValue([samplePost]);
+    vi.mocked(usersApi.getUserFollowers).mockResolvedValue([]);
+    vi.mocked(usersApi.getUserFollowing).mockResolvedValue([]);
   });
 
   it("renders profile header, RustFS cover notice and post grid items", async () => {
