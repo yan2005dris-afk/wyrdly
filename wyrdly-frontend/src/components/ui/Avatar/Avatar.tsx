@@ -1,5 +1,6 @@
 import { useState, type FC } from "react";
 import type { AvatarProps, AvatarSize, AvatarShape } from "./Avatar.types";
+import { AuthImage } from "../AuthImage";
 import styles from "./Avatar.module.css";
 
 const SIZE_CLASSES: Record<AvatarSize, string> = {
@@ -70,12 +71,11 @@ export const Avatar: FC<AvatarProps> = ({
       data-testid="avatar-container"
     >
       {src && !hasError ? (
-        <img
+        <AuthImage
           src={src}
           alt={alt}
           className={`${styles.avatarImage} ${SHAPE_CLASSES[shape]}`}
           onError={() => setHasError(true)}
-          loading="lazy"
         />
       ) : (
         <div
