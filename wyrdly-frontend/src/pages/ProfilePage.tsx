@@ -311,7 +311,11 @@ const FollowersOrFollowingTab: FC<FollowersOrFollowingTabProps> = ({
             className="flex items-center gap-3 flex-1 min-w-0"
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <Avatar src={user.avatarUrl} alt={user.fullName} size="sm" />
+              <Avatar
+                src={user.avatarUrl ?? undefined}
+                alt={user.fullName}
+                size="sm"
+              />
               <div className="min-w-0">
                 <div className="font-medium text-sm text-slate-900 truncate">
                   {user.fullName}
