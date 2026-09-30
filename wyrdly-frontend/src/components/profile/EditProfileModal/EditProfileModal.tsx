@@ -267,4 +267,3 @@ export const EditProfileModal: FC<EditProfileModalProps> = ({
     </div>
   );
 };
-

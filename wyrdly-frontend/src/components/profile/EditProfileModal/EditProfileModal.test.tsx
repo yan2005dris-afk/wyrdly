@@ -20,7 +20,9 @@ const mockSummary: UserProfileSummary = {
 
 describe("EditProfileModal Component", () => {
   beforeEach(() => {
-    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-avatar-preview");
+    vi.spyOn(URL, "createObjectURL").mockReturnValue(
+      "blob:fake-avatar-preview",
+    );
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
   });
 
@@ -181,9 +183,9 @@ describe("EditProfileModal Component", () => {
     fireEvent.change(fileInput, { target: { files: [testFile] } });
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId("edit-profile-avatar-error"),
-      ).toHaveTextContent("File exceeds 10MB limit");
+      expect(screen.getByTestId("edit-profile-avatar-error")).toHaveTextContent(
+        "File exceeds 10MB limit",
+      );
     });
   });
 
