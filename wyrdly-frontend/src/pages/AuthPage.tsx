@@ -1,8 +1,12 @@
 import { useState, type FC } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
-import type { LoginCredentials, RegisterCredentials } from "../types/auth";
-import { AuthGraphHero, AuthFormCard } from "../components/auth";
+import {
+  useAuth,
+  AuthGraphHero,
+  AuthFormCard,
+  type LoginCredentials,
+  type RegisterCredentials,
+} from "../features/auth";
 
 export const AuthPage: FC = () => {
   const [error, setError] = useState<string | null>(null);

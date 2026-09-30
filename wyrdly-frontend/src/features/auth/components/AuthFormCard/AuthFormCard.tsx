@@ -1,9 +1,9 @@
 import { useState, type FC, type FormEvent } from "react";
 import { Eye, EyeOff, ArrowRight, Key, Wallet } from "lucide-react";
 import type { AuthFormCardProps, AuthMode } from "./AuthFormCard.types";
-import { Tabs } from "../../ui/Tabs";
-import { Input } from "../../ui/Input";
-import { Button } from "../../ui/Button";
+import { Tabs } from "../../../../components/ui/Tabs";
+import { Input } from "../../../../components/ui/Input";
+import { Button } from "../../../../components/ui/Button";
 import styles from "./AuthFormCard.module.css";
 
 const AUTH_TABS = [

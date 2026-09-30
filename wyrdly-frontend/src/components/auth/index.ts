@@ -1,2 +1,1 @@
-export * from "./AuthGraphHero";
-export * from "./AuthFormCard";
+export * from "../../features/auth";
