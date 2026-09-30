@@ -14,11 +14,11 @@ import type {
   ProfileHeaderCardProps,
   ProfileTabId,
 } from "./ProfileHeaderCard.types";
-import type { TabItem } from "../../ui/Tabs";
-import { Avatar } from "../../ui/Avatar";
-import { AuthImage } from "../../ui/AuthImage";
-import { Tabs } from "../../ui/Tabs";
-import { Button } from "../../ui/Button";
+import type { TabItem } from "../../../../components/ui/Tabs";
+import { Avatar } from "../../../../components/ui/Avatar";
+import { AuthImage } from "../../../../components/ui/AuthImage";
+import { Tabs } from "../../../../components/ui/Tabs";
+import { Button } from "../../../../components/ui/Button";
 import styles from "./ProfileHeaderCard.module.css";
 
 const formatCount = (count: number): string => {

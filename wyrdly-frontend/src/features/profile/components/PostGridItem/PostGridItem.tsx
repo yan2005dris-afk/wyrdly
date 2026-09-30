@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import type { PostGridItemProps } from "./PostGridItem.types";
-import { AuthImage } from "../../ui/AuthImage";
+import { AuthImage } from "../../../../components/ui/AuthImage";
 import styles from "./PostGridItem.module.css";
 
 const formatCount = (count: number): string => {

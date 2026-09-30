@@ -19,7 +19,7 @@
 ## Tasks
 
 - [x] `TASK-1`: Migrate `features/auth/` (encapsulate `AuthFormCard`, `AuthGraphHero`, `useAuth`, `auth` types, public API barrel export, update `AuthPage` and tests).
-- [ ] `TASK-2`: Migrate `features/profile/` (encapsulate `EditProfileModal`, `ProfileHeaderCard`, `PostGridItem`, `useUserProfile`, `useProfileUsers`, profile types/APIs, public API barrel, update `ProfilePage` and tests).
+- [x] `TASK-2`: Migrate `features/profile/` (encapsulate `EditProfileModal`, `ProfileHeaderCard`, `PostGridItem`, `useUserProfile`, `useProfileUsers`, profile types/APIs, public API barrel, update `ProfilePage` and tests).
 - [ ] `TASK-3`: Migrate `features/social/` (encapsulate `PostCard`, `CreatePostCard`, `GraphSuggestionsCard`, `UserListRow`, `UserSearchResultCard`, `UserSummaryCard`, `RelayHealthWidget`, social hooks/APIs, public API barrel, update `FeedPage` and tests).
 - [ ] `TASK-4`: Migrate `features/chat/` (encapsulate `ChatWindow`, `ChatInputBar`, `ConversationList`, `MessageBubble`, `ChatHeader`, chat types, public API barrel, update `ChatPage` and tests).
 - [ ] `TASK-5`: Migrate `features/notifications/` (encapsulate `NotificationPopover`, `NotificationItem`, `PushPermissionBanner`, notifications types, public API barrel, update consumers and tests).

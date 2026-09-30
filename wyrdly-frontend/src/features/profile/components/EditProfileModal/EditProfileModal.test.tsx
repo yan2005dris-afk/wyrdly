@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { EditProfileModal } from "./EditProfileModal";
-import type { UserProfileSummary } from "../../../types/domain";
+import type { UserProfileSummary } from "../../../../types/domain";
 
 const mockSummary: UserProfileSummary = {
   id: "usr_123",

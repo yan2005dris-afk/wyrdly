@@ -9,11 +9,11 @@ import {
 } from "react";
 import { X, Camera, Loader2 } from "lucide-react";
 import type { EditProfileModalProps } from "./EditProfileModal.types";
-import { Input } from "../../ui/Input";
-import { Button } from "../../ui/Button";
-import { Avatar } from "../../ui/Avatar";
-import { useMediaUpload } from "../../../hooks/useMediaUpload";
-import { ALLOWED_MIME_TYPES } from "../../../types/media";
+import { Input } from "../../../../components/ui/Input";
+import { Button } from "../../../../components/ui/Button";
+import { Avatar } from "../../../../components/ui/Avatar";
+import { useMediaUpload } from "../../../../hooks/useMediaUpload";
+import { ALLOWED_MIME_TYPES } from "../../../../types/media";
 import styles from "./EditProfileModal.module.css";
 
 const BIO_MAX_LENGTH = 250;

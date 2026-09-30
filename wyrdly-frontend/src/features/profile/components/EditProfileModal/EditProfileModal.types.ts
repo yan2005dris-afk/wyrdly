@@ -1,5 +1,5 @@
-import type { UserProfileSummary } from "../../../types/domain";
-import type { UpdateProfilePayload } from "../../../api/users";
+import type { UserProfileSummary } from "../../../../types/domain";
+import type { UpdateProfilePayload } from "../../../../api/users";
 
 export interface EditProfileModalProps {
   readonly isOpen: boolean;

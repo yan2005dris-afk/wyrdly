@@ -3,20 +3,19 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Share2, Edit3, Loader2, AlertCircle } from "lucide-react";
 import type { PostApiResponse } from "../types/feed";
 import type { UpdateProfilePayload } from "../api/users";
-import type { ProfileTabId } from "../components/profile/ProfileHeaderCard";
-import type { ProfileUserSummary } from "../types/suggestions";
-import { useAuth } from "../hooks/useAuth";
-import { useUserProfile } from "../hooks/useUserProfile";
-import { useUserPosts } from "../hooks/useUserPosts";
-import { useProfileUsers } from "../hooks/useProfileUsers";
-import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
-import { GraphSuggestionsCard } from "../components/social";
-import { UserListRow } from "../components/social/UserListRow";
+import { useAuth } from "../features/auth";
 import {
   ProfileHeaderCard,
   PostGridItem,
   EditProfileModal,
-} from "../components/profile";
+  useUserProfile,
+  useUserPosts,
+  useProfileUsers,
+  type ProfileTabId,
+} from "../features/profile";
+import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
+import { GraphSuggestionsCard } from "../components/social";
+import { UserListRow } from "../components/social/UserListRow";
 import { Button } from "../components/ui/Button";
 
 export const ProfilePage: FC = () => {
