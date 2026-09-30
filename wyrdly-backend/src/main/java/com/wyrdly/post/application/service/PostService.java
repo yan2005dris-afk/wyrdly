@@ -49,6 +49,8 @@ public class PostService implements CreatePostUseCase {
         saved.content(),
         saved.mediaUrl(),
         saved.createdAt(),
-        new AuthorDto(author.id(), author.username(), author.fullName(), author.avatarUrl()));
+        new AuthorDto(author.id(), author.username(), author.fullName(), author.avatarUrl()),
+        new PostResponse.ReactionCounts(0, 0, 0),
+        null);
   }
 }

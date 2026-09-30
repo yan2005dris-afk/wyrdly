@@ -100,17 +100,55 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     }
   }
 
+  /**
+   * Feed query combining:
+   * 1. Posts from users the caller follows
+   * 2. The caller's own posts
+   *
+   * Counts reactions (LIKE, LOVE, CELEBRATE) and returns the caller's reaction type (if any).
+   * Results ordered by createdAt DESC, with SKIP/LIMIT for pagination.
+   */
   private static final String FEED_QUERY =
-      "MATCH (me:Usuario {id: $userId})-[:SIGUE]->(author:Usuario)-[:PUBLICA]->(p:Post) "
-          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, p.createdAt AS createdAt, "
-          + "       author.id AS authorId, author.username AS authorUsername, "
-          + "       author.fullName AS authorFullName, author.avatarUrl AS authorAvatarUrl "
-          + "ORDER BY p.createdAt DESC "
-          + "SKIP $skip LIMIT $limit";
+      "MATCH (me:Usuario {id: $userId}) "
+          + "CALL { "
+          + "  WITH me "
+          + "  MATCH (me)-[:SIGUE]->(author:Usuario)-[:PUBLICA]->(p:Post) "
+          + "  RETURN p, author "
+          + "  UNION ALL "
+          + "  WITH me "
+          + "  MATCH (me)-[:PUBLICA]->(p:Post) "
+          + "  RETURN p, me AS author "
+          + "} "
+          + "OPTIONAL MATCH (p)<-[like:LIKE]-() "
+          + "OPTIONAL MATCH (p)<-[love:LOVE]-() "
+          + "OPTIONAL MATCH (p)<-[celebrate:CELEBRATE]-() "
+          + "OPTIONAL MATCH (me)-[userReaction:LIKE|LOVE|CELEBRATE]->(p) "
+          + "WITH DISTINCT p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+          + "              p.createdAt AS createdAt, author.id AS authorId, "
+          + "              author.username AS authorUsername, author.fullName AS authorFullName, "
+          + "              author.avatarUrl AS authorAvatarUrl, "
+          + "              count(DISTINCT like) AS likeCount, "
+          + "              count(DISTINCT love) AS loveCount, "
+          + "              count(DISTINCT celebrate) AS celebrateCount, "
+          + "              type(userReaction) AS userReactionType "
+          + "ORDER BY createdAt DESC "
+          + "SKIP $skip LIMIT $limit "
+          + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
+          + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
+          + "       celebrateCount, userReactionType";
 
   private static final String COUNT_FEED_QUERY =
-      "MATCH (me:Usuario {id: $userId})-[:SIGUE]->(author:Usuario)-[:PUBLICA]->(p:Post) "
-          + "RETURN count(p) AS total";
+      "MATCH (me:Usuario {id: $userId}) "
+          + "CALL { "
+          + "  WITH me "
+          + "  MATCH (me)-[:SIGUE]->(author:Usuario)-[:PUBLICA]->(p:Post) "
+          + "  RETURN p "
+          + "  UNION ALL "
+          + "  WITH me "
+          + "  MATCH (me)-[:PUBLICA]->(p:Post) "
+          + "  RETURN p "
+          + "} "
+          + "RETURN count(DISTINCT p) AS total";
 
   @Override
   public List<FeedPost> findFeedByUserId(String userId, int page, int pageSize) {
@@ -160,7 +198,17 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     String authorAvatarUrl =
         record.get("authorAvatarUrl").isNull() ? null : record.get("authorAvatarUrl").asString();
 
+    long likeCount = record.get("likeCount").asLong();
+    long loveCount = record.get("loveCount").asLong();
+    long celebrateCount = record.get("celebrateCount").asLong();
+    String userReactionType =
+        record.get("userReactionType").isNull()
+            ? null
+            : record.get("userReactionType").asString();
+
     Author author = new Author(authorId, authorUsername, authorFullName, authorAvatarUrl);
-    return new FeedPost(id, content, mediaUrl, createdAt, author);
+    return new FeedPost(
+        id, content, mediaUrl, createdAt, author, likeCount, loveCount, celebrateCount,
+        userReactionType);
   }
 }

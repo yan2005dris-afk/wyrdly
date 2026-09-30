@@ -52,7 +52,9 @@ class PostResourceTest {
             "This is a test post",
             null,
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_123", "testuser", "Test User", "http://avatar.jpg"));
+            new AuthorDto("usr_123", "testuser", "Test User", "http://avatar.jpg"),
+            new PostResponse.ReactionCounts(0, 0, 0),
+            null);
 
     when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
         .thenReturn(response);
@@ -84,7 +86,9 @@ class PostResourceTest {
             "Post with media",
             "https://example.com/image.jpg",
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_123", "testuser", "Test User", ""));
+            new AuthorDto("usr_123", "testuser", "Test User", ""),
+            new PostResponse.ReactionCounts(0, 0, 0),
+            null);
 
     when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
         .thenReturn(response);
@@ -246,7 +250,9 @@ class PostResourceTest {
             "Test post",
             "https://example.com/img.jpg",
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_123", "testuser", "Test User", "http://avatar.jpg"));
+            new AuthorDto("usr_123", "testuser", "Test User", "http://avatar.jpg"),
+            new PostResponse.ReactionCounts(0, 0, 0),
+            null);
 
     when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
         .thenReturn(response);
@@ -279,7 +285,9 @@ class PostResourceTest {
             "Test post",
             null,
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_123", "testuser", "Test User", ""));
+            new AuthorDto("usr_123", "testuser", "Test User", ""),
+            new PostResponse.ReactionCounts(0, 0, 0),
+            null);
 
     when(createPostUseCase.createPost(eq("usr_123"), any(CreatePostRequest.class)))
         .thenReturn(response);
@@ -306,7 +314,9 @@ class PostResourceTest {
             "Another user post",
             null,
             Instant.parse("2026-09-28T12:00:00Z"),
-            new AuthorDto("usr_456", "anotheruser", "Another User", ""));
+            new AuthorDto("usr_456", "anotheruser", "Another User", ""),
+            new PostResponse.ReactionCounts(0, 0, 0),
+            null);
 
     when(createPostUseCase.createPost(eq("usr_456"), any(CreatePostRequest.class)))
         .thenReturn(response);

@@ -42,7 +42,9 @@ class FeedResourceTest {
             "Feed post content",
             "https://example.com/media.webp",
             Instant.parse("2026-09-29T10:00:00Z"),
-            new AuthorDto("usr_author", "author_user", "Author User", "http://avatar.jpg"));
+            new AuthorDto("usr_author", "author_user", "Author User", "http://avatar.jpg"),
+            new PostResponse.ReactionCounts(5, 3, 1),
+            "LIKE");
 
     FeedResponseDto responseDto =
         new FeedResponseDto(List.of(post), new PaginationMeta(1, 20, 1L, 1, false));
@@ -61,6 +63,10 @@ class FeedResourceTest {
         .body("data[0].mediaUrl", equalTo("https://example.com/media.webp"))
         .body("data[0].author.id", equalTo("usr_author"))
         .body("data[0].author.username", equalTo("author_user"))
+        .body("data[0].reactionCounts.likeCount", equalTo(5))
+        .body("data[0].reactionCounts.loveCount", equalTo(3))
+        .body("data[0].reactionCounts.celebrateCount", equalTo(1))
+        .body("data[0].userReaction", equalTo("LIKE"))
         .body("meta.page", equalTo(1))
         .body("meta.pageSize", equalTo(20))
         .body("meta.totalElements", equalTo(1))

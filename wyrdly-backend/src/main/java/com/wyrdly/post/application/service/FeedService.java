@@ -61,7 +61,17 @@ public class FeedService implements GetFeedUseCase {
             feedPost.author().fullName(),
             feedPost.author().avatarUrl());
 
+    PostResponse.ReactionCounts reactionCounts =
+        new PostResponse.ReactionCounts(
+            feedPost.likeCount(), feedPost.loveCount(), feedPost.celebrateCount());
+
     return new PostResponse(
-        feedPost.id(), feedPost.content(), feedPost.mediaUrl(), feedPost.createdAt(), authorDto);
+        feedPost.id(),
+        feedPost.content(),
+        feedPost.mediaUrl(),
+        feedPost.createdAt(),
+        authorDto,
+        reactionCounts,
+        feedPost.userReaction());
   }
 }

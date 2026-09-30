@@ -2,6 +2,7 @@ package com.wyrdly.post.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -39,9 +40,9 @@ class FeedServiceTest {
 
   @Test
   void getFeed_Success_WithPosts() {
-    FeedPost post1 = new FeedPost("pst_1", "First post", null, NOW, AUTHOR);
+    FeedPost post1 = new FeedPost("pst_1", "First post", null, NOW, AUTHOR, 5, 2, 0, "LIKE");
     FeedPost post2 =
-        new FeedPost("pst_2", "Second post", "https://example.com/p.webp", NOW, AUTHOR);
+        new FeedPost("pst_2", "Second post", "https://example.com/p.webp", NOW, AUTHOR, 10, 5, 3, null);
 
     when(postRepository.findFeedByUserId("usr_me", 1, 20)).thenReturn(List.of(post1, post2));
     when(postRepository.countFeedByUserId("usr_me")).thenReturn(2L);
@@ -53,7 +54,13 @@ class FeedServiceTest {
     assertEquals("First post", response.data().get(0).content());
     assertEquals("usr_author", response.data().get(0).author().id());
     assertEquals("johndoe", response.data().get(0).author().username());
+    assertEquals(5, response.data().get(0).reactionCounts().likeCount());
+    assertEquals(2, response.data().get(0).reactionCounts().loveCount());
+    assertEquals(0, response.data().get(0).reactionCounts().celebrateCount());
+    assertEquals("LIKE", response.data().get(0).userReaction());
     assertEquals("pst_2", response.data().get(1).id());
+    assertEquals(10, response.data().get(1).reactionCounts().likeCount());
+    assertNull(response.data().get(1).userReaction());
     assertEquals(1, response.meta().page());
     assertEquals(20, response.meta().pageSize());
     assertEquals(2L, response.meta().totalElements());
@@ -76,7 +83,7 @@ class FeedServiceTest {
 
   @Test
   void getFeed_CalculatesHasNext_WhenMorePagesExist() {
-    FeedPost post = new FeedPost("pst_1", "Post", null, NOW, AUTHOR);
+    FeedPost post = new FeedPost("pst_1", "Post", null, NOW, AUTHOR, 0, 0, 0, null);
     when(postRepository.findFeedByUserId("usr_me", 1, 20)).thenReturn(List.of(post));
     when(postRepository.countFeedByUserId("usr_me")).thenReturn(25L);
 
@@ -88,7 +95,7 @@ class FeedServiceTest {
 
   @Test
   void getFeed_HasNextFalse_OnLastPage() {
-    FeedPost post = new FeedPost("pst_1", "Post", null, NOW, AUTHOR);
+    FeedPost post = new FeedPost("pst_1", "Post", null, NOW, AUTHOR, 1, 0, 0, "LOVE");
     when(postRepository.findFeedByUserId("usr_me", 2, 20)).thenReturn(List.of(post));
     when(postRepository.countFeedByUserId("usr_me")).thenReturn(25L);
 
