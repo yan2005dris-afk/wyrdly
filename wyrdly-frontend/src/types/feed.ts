@@ -40,7 +40,7 @@ export interface CreatePostPayload {
   readonly mediaUrl?: string;
 }
 
-/** Backend response for POST /api/posts. Mirrors PostResponse record. */
+/** Backend response for POST /api/posts and GET /api/feed. Mirrors PostResponse record. */
 export interface PostApiResponse {
   readonly id: NodeId;
   readonly content: string;
@@ -52,6 +52,12 @@ export interface PostApiResponse {
     readonly fullName: string;
     readonly avatarUrl: string | null;
   };
+  readonly reactionCounts: {
+    readonly likeCount: number;
+    readonly loveCount: number;
+    readonly celebrateCount: number;
+  };
+  readonly userReaction: ReactionType | null;
 }
 
 /** Payload sent to POST /api/posts. Mirrors CreatePostRequest record. */
@@ -62,8 +68,8 @@ export interface CreatePostApiPayload {
 
 /**
  * Map the backend PostResponse into the UI-facing Post shape consumed by
- * PostCard. The backend intentionally omits `reactionCounts` / `userReaction`
- * (HU09), `commentsCount` (HU10) and `visibility` (still client-side only);
+ * PostCard. Backend includes `reactionCounts` (HU08) and `userReaction` (HU08).
+ * Backend omits `commentsCount` (HU10) and `visibility` (still client-side only);
  * we fill in safe defaults so PostCard keeps rendering without changes.
  *
  * The backend `author` block is the source of truth — we do NOT reuse
@@ -103,7 +109,13 @@ export function mapPostApiResponseToPost(
           },
         ]
       : [],
-    reactions: { LIKE: 0, LOVE: 0, CELEBRATE: 0, RETWEET: 0 },
+    reactions: {
+      LIKE: response.reactionCounts.likeCount,
+      LOVE: response.reactionCounts.loveCount,
+      CELEBRATE: response.reactionCounts.celebrateCount,
+      RETWEET: 0,
+    },
+    userReaction: response.userReaction ?? undefined,
     commentsCount: 0,
     visibility,
   };

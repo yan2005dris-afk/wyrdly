@@ -23,6 +23,12 @@ const successResponse: PostApiResponse = {
     fullName: "Alice Chen",
     avatarUrl: null,
   },
+  reactionCounts: {
+    likeCount: 0,
+    loveCount: 0,
+    celebrateCount: 0,
+  },
+  userReaction: null,
 };
 
 describe("postsApi.create", () => {

@@ -47,12 +47,20 @@ vi.mock("../api/users", async () => {
   };
 });
 
+vi.mock("../api/posts", () => ({
+  postsApi: {
+    create: vi.fn(),
+    getFeed: vi.fn(),
+  },
+}));
+
 import {
   useGraphSuggestions,
   useFollow,
   useCreatePost,
 } from "../features/social";
 import { useMediaUpload } from "../hooks/useMediaUpload";
+import { postsApi } from "../api/posts";
 
 const mockedUseGraphSuggestions = vi.mocked(useGraphSuggestions);
 const mockedUseFollow = vi.mocked(useFollow);
@@ -61,6 +69,7 @@ const mockedUseMediaUpload = vi.mocked(useMediaUpload);
 
 const mockedFollow = vi.mocked(usersApi.follow);
 const mockedUnfollow = vi.mocked(usersApi.unfollow);
+const mockedGetFeed = vi.mocked(postsApi.getFeed);
 
 const suggestionAlice: GraphSuggestionUser = {
   id: "user-alice",
@@ -99,6 +108,12 @@ function buildCreatePostResponse(
       fullName: "Maya Krishnan",
       avatarUrl: null,
     },
+    reactionCounts: {
+      likeCount: 0,
+      loveCount: 0,
+      celebrateCount: 0,
+    },
+    userReaction: null,
     ...overrides,
   };
 }
@@ -124,6 +139,19 @@ describe("FeedPage Component", () => {
     mockedUseMediaUpload.mockReset();
     mockedFollow.mockReset();
     mockedUnfollow.mockReset();
+    mockedGetFeed.mockReset();
+
+    // Default: empty feed on mount
+    mockedGetFeed.mockResolvedValue({
+      data: [],
+      meta: {
+        page: 1,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
+        hasNext: false,
+      },
+    });
 
     mockedUseGraphSuggestions.mockReturnValue({
       suggestions: successResponse.data,

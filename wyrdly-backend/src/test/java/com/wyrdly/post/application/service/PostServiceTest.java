@@ -63,6 +63,10 @@ class PostServiceTest {
     assertEquals("testuser", response.author().username());
     assertEquals("Test User", response.author().fullName());
     assertEquals("https://avatar.jpg", response.author().avatarUrl());
+    assertEquals(0, response.reactionCounts().likeCount());
+    assertEquals(0, response.reactionCounts().loveCount());
+    assertEquals(0, response.reactionCounts().celebrateCount());
+    assertEquals(null, response.userReaction());
 
     verify(authorRepository).findById(userId);
     verify(postRepository).save(any(Post.class));

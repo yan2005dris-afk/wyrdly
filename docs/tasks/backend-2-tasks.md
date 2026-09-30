@@ -42,11 +42,11 @@
 ---
 
 ## 📌 HU08: Generación de Feed por Recorrido de Grafo
-- [ ] **Tarea 8.1:** Implementar consulta Cypher optimizada para feed cronológico paginado:
+- [x] **Tarea 8.1:** Implementar consulta Cypher optimizada para feed cronológico paginado:
   - `MATCH (yo:Usuario {id: $userId})-[:SIGUE]->(amigo:Usuario)-[:PUBLICA]->(post:Post)`
   - Opcional: incluir publicaciones propias.
   - Retornar posts con agregación de conteo de reacciones (`LIKE`, `LOVE`, `CELEBRATE`) y la reacción propia del usuario.
-- [ ] **Tarea 8.2:** Crear endpoint `GET /api/feed?page=1&pageSize=20` con sobre `data` y `meta`.
+- [x] **Tarea 8.2:** Crear endpoint `GET /api/feed?page=1&pageSize=20` con sobre `data` y `meta`.
 
 ---
 

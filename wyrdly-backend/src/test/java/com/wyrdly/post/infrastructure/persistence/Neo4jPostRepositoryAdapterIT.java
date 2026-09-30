@@ -230,4 +230,161 @@ class Neo4jPostRepositoryAdapterIT {
       assertEquals(1, count, "Expected exactly one [:PUBLICA] relationship");
     }
   }
+
+  private void follow(String followerId, String followedId) {
+    try (Session session = driver.session()) {
+      session.run(
+          "MATCH (a:Usuario {id: $followerId}), (b:Usuario {id: $followedId}) "
+              + "MERGE (a)-[:SIGUE {createdAt: datetime()}]->(b)",
+          Map.of("followerId", followerId, "followedId", followedId));
+    }
+  }
+
+  @Test
+  void findFeedByUserId_ReturnsPostsFromFollowedUsersOnly_InReverseChronologicalOrder() {
+    seedUser("usr_me", "myself");
+    seedUser("usr_alice", "alice");
+    seedUser("usr_bob", "bob");
+    seedUser("usr_stranger", "stranger");
+
+    follow("usr_me", "usr_alice");
+    follow("usr_me", "usr_bob");
+
+    Instant t1 = Instant.parse("2026-09-29T10:00:00Z");
+    Instant t2 = Instant.parse("2026-09-29T11:00:00Z");
+    Instant t3 = Instant.parse("2026-09-29T12:00:00Z");
+
+    adapter.save(new Post("pst_alice_1", "usr_alice", "Alice oldest post", null, t1));
+    adapter.save(new Post("pst_bob_1", "usr_bob", "Bob newer post", null, t2));
+    adapter.save(new Post("pst_stranger", "usr_stranger", "Stranger post", null, t3));
+
+    var feed = adapter.findFeedByUserId("usr_me", 1, 10);
+    long total = adapter.countFeedByUserId("usr_me");
+
+    assertEquals(2, feed.size());
+    assertEquals(2L, total);
+
+    assertEquals("pst_bob_1", feed.get(0).id());
+    assertEquals("usr_bob", feed.get(0).author().id());
+    assertEquals("bob", feed.get(0).author().username());
+    assertEquals("Bob newer post", feed.get(0).content());
+
+    assertEquals("pst_alice_1", feed.get(1).id());
+    assertEquals("usr_alice", feed.get(1).author().id());
+    assertEquals("alice", feed.get(1).author().username());
+  }
+
+  @Test
+  void findFeedByUserId_ReturnsEmpty_WhenUserFollowsNoOne() {
+    seedUser("usr_lonely", "lonely");
+    seedUser("usr_alice", "alice");
+    adapter.save(new Post("pst_alice_1", "usr_alice", "Alice post", null, Instant.now()));
+
+    var feed = adapter.findFeedByUserId("usr_lonely", 1, 10);
+    long total = adapter.countFeedByUserId("usr_lonely");
+
+    assertTrue(feed.isEmpty());
+    assertEquals(0L, total);
+  }
+
+  @Test
+  void findFeedByUserId_RespectsPaginationSkipAndLimit() {
+    seedUser("usr_me", "myself");
+    seedUser("usr_alice", "alice");
+    follow("usr_me", "usr_alice");
+
+    Instant t1 = Instant.parse("2026-09-29T08:00:00Z");
+    Instant t2 = Instant.parse("2026-09-29T09:00:00Z");
+    Instant t3 = Instant.parse("2026-09-29T10:00:00Z");
+
+    adapter.save(new Post("pst_1", "usr_alice", "Post 1", null, t1));
+    adapter.save(new Post("pst_2", "usr_alice", "Post 2", null, t2));
+    adapter.save(new Post("pst_3", "usr_alice", "Post 3", null, t3));
+
+    var page1 = adapter.findFeedByUserId("usr_me", 1, 2);
+    var page2 = adapter.findFeedByUserId("usr_me", 2, 2);
+
+    assertEquals(2, page1.size());
+    assertEquals("pst_3", page1.get(0).id());
+    assertEquals("pst_2", page1.get(1).id());
+
+    assertEquals(1, page2.size());
+    assertEquals("pst_1", page2.get(0).id());
+  }
+
+  @Test
+  void findFeedByUserId_IncludesReactionCountsAndCurrentUserReaction() {
+    seedUser("usr_me", "myself");
+    seedUser("usr_friend", "friend");
+    seedUser("usr_other", "other");
+    follow("usr_me", "usr_friend");
+
+    adapter.save(new Post("pst_friend", "usr_friend", "Great day", null, Instant.now()));
+
+    try (var session = driver.session()) {
+      session.executeWrite(
+          tx -> {
+            tx.run(
+                "MATCH (u:Usuario {id: 'usr_me'}), (p:Post {id: 'pst_friend'}) "
+                    + "CREATE (u)-[:REACCIONA {tipo: 'CELEBRATE', createdAt: datetime()}]->(p)");
+            tx.run(
+                "MATCH (u:Usuario {id: 'usr_other'}), (p:Post {id: 'pst_friend'}) "
+                    + "CREATE (u)-[:REACCIONA {tipo: 'LIKE', createdAt: datetime()}]->(p)");
+            return null;
+          });
+    }
+
+    var feed = adapter.findFeedByUserId("usr_me", 1, 10);
+    assertEquals(1, feed.size());
+    assertEquals(1L, feed.get(0).likeCount());
+    assertEquals(0L, feed.get(0).loveCount());
+    assertEquals(1L, feed.get(0).celebrateCount());
+    assertEquals("CELEBRATE", feed.get(0).userReaction());
+  }
+
+  @Test
+  void findById_And_FindByAuthor_HandleNeo4jNativeDateTimeCreatedAt() {
+    seedUser("usr_datetime", "datetime_user");
+    seedPostWithDateTime(
+        "pst_dt1", "usr_datetime", "Post with native datetime", "2026-09-24T14:00:00Z");
+
+    Optional<Post> found = adapter.findById("pst_dt1");
+    assertTrue(found.isPresent());
+    assertEquals("pst_dt1", found.get().id());
+    assertEquals(Instant.parse("2026-09-24T14:00:00Z"), found.get().createdAt());
+
+    var postsByAuthor = adapter.findByAuthor("usr_datetime", 1, 10);
+    assertEquals(1, postsByAuthor.size());
+    assertEquals("pst_dt1", postsByAuthor.get(0).id());
+    assertEquals(Instant.parse("2026-09-24T14:00:00Z"), postsByAuthor.get(0).createdAt());
+  }
+
+  @Test
+  void findFeedByUserId_HandlesNeo4jNativeDateTimeCreatedAt() {
+    seedUser("usr_reader", "reader");
+    seedUser("usr_author", "author");
+    follow("usr_reader", "usr_author");
+    seedPostWithDateTime(
+        "pst_dt2", "usr_author", "Feed post with native datetime", "2026-09-24T15:00:00Z");
+
+    var feed = adapter.findFeedByUserId("usr_reader", 1, 10);
+    assertEquals(1, feed.size());
+    assertEquals("pst_dt2", feed.get(0).id());
+    assertEquals(Instant.parse("2026-09-24T15:00:00Z"), feed.get(0).createdAt());
+  }
+
+  private void seedPostWithDateTime(
+      String postId, String authorId, String content, String createdAtIso) {
+    try (Session session = driver.session()) {
+      session.run(
+          "MATCH (author:Usuario {id: $authorId}) "
+              + "CREATE (p:Post {id: $id, content: $content, createdAt: datetime($createdAt)}) "
+              + "CREATE (author)-[:PUBLICA {createdAt: datetime($createdAt)}]->(p)",
+          Map.of(
+              "id", postId,
+              "authorId", authorId,
+              "content", content,
+              "createdAt", createdAtIso));
+    }
+  }
 }
