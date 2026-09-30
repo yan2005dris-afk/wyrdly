@@ -1,4 +1,4 @@
-import type { GraphSuggestionUser } from "../../../types/domain";
+import type { GraphSuggestionUser } from "../../../types/suggestions";
 
 export interface GraphSuggestionsCardProps {
   readonly suggestions: readonly GraphSuggestionUser[];
