@@ -103,7 +103,8 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     try (Session session = driver.session()) {
       return session.executeRead(
           tx ->
-              tx.run(
+              tx
+                  .run(
                       "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
                           + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
                           + "       p.createdAt AS createdAt, author.id AS userId "
@@ -128,8 +129,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                   .toList());
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Posts by author: %s", authorId);
-      throw new PostPersistenceException(
-          "Failed to query Posts by authorId=" + authorId, e);
+      throw new PostPersistenceException("Failed to query Posts by authorId=" + authorId, e);
     }
   }
 }

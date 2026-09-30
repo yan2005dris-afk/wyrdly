@@ -19,16 +19,15 @@ public interface UserProfileRepository {
   void validateUserExists(String userId);
 
   /**
-   * Return the users who follow {@code userId}, paginated. The returned
-   * records are bare summaries suitable for follower / following lists.
-   * If {@code viewerId} is non-null, each row carries a boolean
-   * indicating whether the viewer also follows that user back.
+   * Return the users who follow {@code userId}, paginated. The returned records are bare summaries
+   * suitable for follower / following lists. If {@code viewerId} is non-null, each row carries a
+   * boolean indicating whether the viewer also follows that user back.
    */
   List<FollowerSummary> findFollowers(String userId, String viewerId, int page, int pageSize);
 
   /**
-   * Return the users that {@code userId} follows, paginated. Mirrors
-   * {@link #findFollowers} for the other direction.
+   * Return the users that {@code userId} follows, paginated. Mirrors {@link #findFollowers} for the
+   * other direction.
    */
   List<FollowerSummary> findFollowing(String userId, String viewerId, int page, int pageSize);
 

@@ -26,8 +26,7 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
       UserProfileRepository userProfileRepository, PostRepository postRepository) {
     this.userProfileRepository =
         Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
-    this.postRepository =
-        Objects.requireNonNull(postRepository, "postRepository must not be null");
+    this.postRepository = Objects.requireNonNull(postRepository, "postRepository must not be null");
   }
 
   @Override
@@ -51,10 +50,9 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
   }
 
   /**
-   * Resolve {@code username} to the underlying user id and list the
-   * posts that user has published, most recent first. Throws
-   * {@link UserProfileNotFoundException} when the username does not
-   * exist so the resource layer can return a clean 404.
+   * Resolve {@code username} to the underlying user id and list the posts that user has published,
+   * most recent first. Throws {@link UserProfileNotFoundException} when the username does not exist
+   * so the resource layer can return a clean 404.
    */
   public List<PostResponse> getUserPosts(String username, int page, int pageSize) {
     UserProfile profile =
@@ -72,19 +70,15 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
                     post.mediaUrl(),
                     post.createdAt(),
                     new PostResponse.AuthorDto(
-                        profile.id(),
-                        profile.username(),
-                        profile.fullName(),
-                        profile.avatarUrl())))
+                        profile.id(), profile.username(), profile.fullName(), profile.avatarUrl())))
         .toList();
   }
 
   /**
-   * List the users who follow {@code username}. Each row is a
-   * {@link UserSearchResultDto} so the frontend can reuse the existing
-   * suggestion-card component. {@code viewerId} is optional — when
-   * non-null, each row carries an isFollowing flag computed against the
-   * viewer; when null, that flag is false everywhere.
+   * List the users who follow {@code username}. Each row is a {@link UserSearchResultDto} so the
+   * frontend can reuse the existing suggestion-card component. {@code viewerId} is optional — when
+   * non-null, each row carries an isFollowing flag computed against the viewer; when null, that
+   * flag is false everywhere.
    */
   public List<UserSearchResultDto> getUserFollowers(
       String username, String viewerId, int page, int pageSize) {
@@ -108,9 +102,7 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
         .toList();
   }
 
-  /**
-   * Symmetric to {@link #getUserFollowers} for the following direction.
-   */
+  /** Symmetric to {@link #getUserFollowers} for the following direction. */
   public List<UserSearchResultDto> getUserFollowing(
       String username, String viewerId, int page, int pageSize) {
     UserProfile profile =

@@ -7,13 +7,13 @@ import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
 import com.wyrdly.user.application.dto.UserSearchResponseDto;
 import com.wyrdly.user.application.dto.UserSearchResultDto;
+import com.wyrdly.user.application.service.UserProfileService;
 import com.wyrdly.user.application.usecase.FollowUserUseCase;
 import com.wyrdly.user.application.usecase.GetSuggestionsUseCase;
 import com.wyrdly.user.application.usecase.GetUserProfileUseCase;
 import com.wyrdly.user.application.usecase.SearchUsersUseCase;
 import com.wyrdly.user.application.usecase.UnfollowUserUseCase;
 import com.wyrdly.user.application.usecase.UpdateUserProfileUseCase;
-import com.wyrdly.user.application.service.UserProfileService;
 import com.wyrdly.user.infrastructure.security.OptionalJwtSubjectExtractor;
 import io.quarkus.security.Authenticated;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -116,9 +116,9 @@ public class UserResource {
   }
 
   /**
-   * Paginated list of posts authored by the user whose username is in
-   * the path. Returns 404 when the username does not exist (mapped
-   * from {@link com.wyrdly.user.domain.exception.UserProfileNotFoundException}).
+   * Paginated list of posts authored by the user whose username is in the path. Returns 404 when
+   * the username does not exist (mapped from {@link
+   * com.wyrdly.user.domain.exception.UserProfileNotFoundException}).
    */
   @GET
   @Path("/{username}/posts")
@@ -131,9 +131,8 @@ public class UserResource {
   }
 
   /**
-   * Paginated list of users following {@code username}. The viewer
-   * (taken from the Authorization header if present) controls the
-   * per-row isFollowing flag.
+   * Paginated list of users following {@code username}. The viewer (taken from the Authorization
+   * header if present) controls the per-row isFollowing flag.
    */
   @GET
   @Path("/{username}/followers")
@@ -148,9 +147,7 @@ public class UserResource {
     return Response.ok(followers).build();
   }
 
-  /**
-   * Paginated list of users that {@code username} follows.
-   */
+  /** Paginated list of users that {@code username} follows. */
   @GET
   @Path("/{username}/following")
   public Response getUserFollowing(

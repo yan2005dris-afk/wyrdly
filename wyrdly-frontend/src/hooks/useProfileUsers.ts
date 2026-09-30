@@ -31,7 +31,9 @@ export function useProfileUsers(
   const [error, setError] = useState<string | null>(null);
 
   const fetcher =
-    direction === "followers" ? usersApi.getUserFollowers : usersApi.getUserFollowing;
+    direction === "followers"
+      ? usersApi.getUserFollowers
+      : usersApi.getUserFollowing;
 
   const fetchUsers = useCallback(async () => {
     if (!username) {

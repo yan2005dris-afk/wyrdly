@@ -25,7 +25,6 @@ import io.quarkus.test.security.jwt.Claim;
 import io.quarkus.test.security.jwt.JwtSecurity;
 import io.restassured.http.ContentType;
 import java.time.Instant;
-import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
