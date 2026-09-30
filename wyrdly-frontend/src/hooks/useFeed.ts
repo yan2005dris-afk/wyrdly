@@ -25,7 +25,6 @@ export function useFeed(): UseFeedReturn {
   const [posts, setPosts] = useState<readonly Post[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const refetch = useCallback(async (page: number = 1): Promise<void> => {
     setIsLoading(true);
@@ -37,7 +36,6 @@ export function useFeed(): UseFeedReturn {
         mapPostApiResponseToPost(postApiResponse),
       );
       setPosts(mappedPosts);
-      setCurrentPage(page);
     } catch (err) {
       setError("Failed to load feed");
       console.error("Feed fetch error:", err);
