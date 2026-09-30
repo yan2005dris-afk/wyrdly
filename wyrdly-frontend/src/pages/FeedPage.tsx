@@ -34,14 +34,7 @@ export const FeedPage: FC = () => {
   const { upload: uploadMediaFile, isUploading: isUploadingMedia } =
     useMediaUpload();
 
-  const suggestions = apiSuggestions.map((s) => ({
-    id: s.id,
-    username: s.username,
-    fullName: s.fullName,
-    avatarUrl: s.avatarUrl ?? undefined,
-    mutualConnectionSnippet: s.mutualConnectionSnippet,
-    isFollowing: s.isFollowing,
-  }));
+  const suggestions = apiSuggestions;
 
   const currentUserSummary: UserProfileSummary = {
     id: user?.id || "usr-current",
