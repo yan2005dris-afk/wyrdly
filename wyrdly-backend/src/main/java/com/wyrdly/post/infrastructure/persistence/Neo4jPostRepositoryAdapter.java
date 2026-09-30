@@ -44,9 +44,9 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                       "MATCH (author:Usuario {id: $userId}) "
                           + "MERGE (p:Post {id: $id}) "
                           + "ON CREATE SET p.content = $content, p.mediaUrl = $mediaUrl, "
-                          + "               p.createdAt = $createdAt "
+                          + "               p.createdAt = datetime($createdAt) "
                           + "MERGE (author)-[r:PUBLICA]->(p) "
-                          + "ON CREATE SET r.createdAt = $createdAt",
+                          + "ON CREATE SET r.createdAt = datetime($createdAt)",
                       Values.parameters(
                           "id", post.id(),
                           "userId", post.userId(),
@@ -181,6 +181,65 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     } catch (Exception e) {
       Log.errorf(e, "Failed to count feed for userId: %s", userId);
       throw new PostPersistenceException("Failed to count feed for userId=" + userId, e);
+    }
+  }
+
+  private static final String FEED_CURSOR_QUERY =
+      "MATCH (me:Usuario {id: $userId}) "
+          + "CALL { "
+          + "  WITH me "
+          + "  MATCH (me)-[:SIGUE]->(author:Usuario)-[:PUBLICA]->(p:Post) "
+          + "  RETURN p, author "
+          + "  UNION ALL "
+          + "  WITH me "
+          + "  MATCH (me)-[:PUBLICA]->(p:Post) "
+          + "  RETURN p, me AS author "
+          + "} "
+          + "WITH DISTINCT p, author, me "
+          + "WHERE ($cursor IS NULL OR p.createdAt < datetime($cursor)) "
+          + "ORDER BY p.createdAt DESC "
+          + "LIMIT $limit "
+          + "OPTIONAL MATCH (p)<-[r:REACCIONA]-() "
+          + "OPTIONAL MATCH (p)<-[legacyLike:LIKE]-() "
+          + "OPTIONAL MATCH (p)<-[legacyLove:LOVE]-() "
+          + "OPTIONAL MATCH (p)<-[legacyCelebrate:CELEBRATE]-() "
+          + "OPTIONAL MATCH (me)-[userR:REACCIONA]->(p) "
+          + "OPTIONAL MATCH (me)-[legacyUserR:LIKE|LOVE|CELEBRATE]->(p) "
+          + "WITH p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+          + "     p.createdAt AS createdAt, author.id AS authorId, "
+          + "     author.username AS authorUsername, author.fullName AS authorFullName, "
+          + "     author.avatarUrl AS authorAvatarUrl, "
+          + "     count(DISTINCT CASE WHEN r.tipo = 'LIKE' THEN r END) + count(DISTINCT legacyLike) AS likeCount, "
+          + "     count(DISTINCT CASE WHEN r.tipo = 'LOVE' THEN r END) + count(DISTINCT legacyLove) AS loveCount, "
+          + "     count(DISTINCT CASE WHEN r.tipo = 'CELEBRATE' THEN r END) + count(DISTINCT legacyCelebrate) AS celebrateCount, "
+          + "     CASE "
+          + "       WHEN userR IS NOT NULL THEN userR.tipo "
+          + "       WHEN legacyUserR IS NOT NULL THEN type(legacyUserR) "
+          + "       ELSE null "
+          + "     END AS userReactionType "
+          + "ORDER BY createdAt DESC "
+          + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
+          + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
+          + "       celebrateCount, userReactionType";
+
+  @Override
+  public List<FeedPost> findFeedByUserIdWithCursor(
+      String userId, Instant cursorCreatedAt, int limit) {
+    String cursorParam = cursorCreatedAt != null ? cursorCreatedAt.toString() : null;
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx.run(
+                      FEED_CURSOR_QUERY,
+                      Values.parameters(
+                          "userId", userId,
+                          "cursor", cursorParam,
+                          "limit", limit))
+                  .list(this::mapRecordToFeedPost));
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query feed with cursor for userId: %s", userId);
+      throw new PostPersistenceException(
+          "Failed to query feed with cursor for userId=" + userId, e);
     }
   }
 

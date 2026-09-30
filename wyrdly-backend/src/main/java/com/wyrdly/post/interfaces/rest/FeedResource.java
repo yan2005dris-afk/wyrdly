@@ -32,9 +32,16 @@ public class FeedResource {
   @GET
   @Authenticated
   public Response getFeed(
+      @QueryParam("cursor") String cursor,
+      @QueryParam("limit") Integer limit,
       @QueryParam("page") @DefaultValue("1") int page,
       @QueryParam("pageSize") @DefaultValue("20") int pageSize) {
     String userId = jwt.getSubject();
+    if (cursor != null || limit != null) {
+      int effectiveLimit = limit != null ? limit : pageSize;
+      FeedResponseDto response = getFeedUseCase.getFeedWithCursor(userId, cursor, effectiveLimit);
+      return Response.ok(response).build();
+    }
     FeedResponseDto response = getFeedUseCase.getFeed(userId, page, pageSize);
     return Response.ok(response).build();
   }

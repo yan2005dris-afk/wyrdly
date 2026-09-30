@@ -9,6 +9,9 @@ import com.wyrdly.post.domain.model.FeedPost;
 import com.wyrdly.post.domain.repository.PostRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -47,10 +50,76 @@ public class FeedService implements GetFeedUseCase {
     List<PostResponse> postResponses =
         feedPosts.stream().map(this::toPostResponse).collect(Collectors.toList());
 
+    String nextCursor = null;
+    if (hasNext && !feedPosts.isEmpty()) {
+      Instant lastCreatedAt = feedPosts.get(feedPosts.size() - 1).createdAt();
+      nextCursor = encodeCursor(lastCreatedAt);
+    }
+
     PaginationMeta meta =
-        new PaginationMeta(effectivePage, effectivePageSize, totalElements, totalPages, hasNext);
+        new PaginationMeta(
+            effectivePage,
+            effectivePageSize,
+            totalElements,
+            totalPages,
+            hasNext,
+            nextCursor,
+            hasNext);
 
     return new FeedResponseDto(postResponses, meta);
+  }
+
+  @Override
+  public FeedResponseDto getFeedWithCursor(String userId, String cursor, int limit) {
+    if (userId == null || userId.isBlank()) {
+      throw new IllegalArgumentException("userId must not be blank");
+    }
+
+    int effectiveLimit = limit < 1 ? DEFAULT_PAGE_SIZE : Math.min(limit, MAX_PAGE_SIZE);
+
+    Instant cursorInstant = decodeCursor(cursor);
+
+    List<FeedPost> rawPosts =
+        postRepository.findFeedByUserIdWithCursor(userId, cursorInstant, effectiveLimit + 1);
+
+    boolean hasMore = rawPosts.size() > effectiveLimit;
+    List<FeedPost> pagePosts = hasMore ? rawPosts.subList(0, effectiveLimit) : rawPosts;
+
+    String nextCursor = null;
+    if (hasMore && !pagePosts.isEmpty()) {
+      Instant lastCreatedAt = pagePosts.get(pagePosts.size() - 1).createdAt();
+      nextCursor = encodeCursor(lastCreatedAt);
+    }
+
+    List<PostResponse> postResponses =
+        pagePosts.stream().map(this::toPostResponse).collect(Collectors.toList());
+
+    PaginationMeta meta =
+        new PaginationMeta(1, effectiveLimit, pagePosts.size(), 1, hasMore, nextCursor, hasMore);
+
+    return new FeedResponseDto(postResponses, meta);
+  }
+
+  private Instant decodeCursor(String cursor) {
+    if (cursor == null || cursor.isBlank()) {
+      return null;
+    }
+    try {
+      String decoded = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
+      return Instant.parse(decoded);
+    } catch (Exception e) {
+      try {
+        return Instant.parse(cursor);
+      } catch (Exception ex2) {
+        throw new IllegalArgumentException("Invalid cursor format: " + cursor);
+      }
+    }
+  }
+
+  private String encodeCursor(Instant instant) {
+    return Base64.getUrlEncoder()
+        .withoutPadding()
+        .encodeToString(instant.toString().getBytes(StandardCharsets.UTF_8));
   }
 
   private PostResponse toPostResponse(FeedPost feedPost) {

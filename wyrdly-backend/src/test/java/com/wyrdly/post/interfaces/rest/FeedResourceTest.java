@@ -116,4 +116,27 @@ class FeedResourceTest {
 
     verify(getFeedUseCase).getFeed(eq("usr_123"), eq(3), eq(10));
   }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void getFeed_WithCursorAndLimit_DelegatesToGetFeedWithCursor() {
+    FeedResponseDto responseDto =
+        new FeedResponseDto(List.of(), new PaginationMeta(1, 15, 0L, 0, true, "next_token", true));
+
+    when(getFeedUseCase.getFeedWithCursor(eq("usr_123"), eq("cur_abc"), eq(15)))
+        .thenReturn(responseDto);
+
+    given()
+        .queryParam("cursor", "cur_abc")
+        .queryParam("limit", 15)
+        .when()
+        .get("/api/feed")
+        .then()
+        .statusCode(200)
+        .body("meta.nextCursor", equalTo("next_token"))
+        .body("meta.hasMore", equalTo(true));
+
+    verify(getFeedUseCase).getFeedWithCursor(eq("usr_123"), eq("cur_abc"), eq(15));
+  }
 }
