@@ -1,10 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
-import { AuthProvider } from "../../../context/AuthContext";
+import { AuthProvider } from "../../../../features/auth";
 import { UserListRow } from "./UserListRow";
-import * as usersApi from "../../../api/users";
-import type { ProfileUserSummary } from "../../../types/suggestions";
+import * as usersApi from "../../../../api/users";
+import type { ProfileUserSummary } from "../../../../types/suggestions";
 
 const ALLISON: ProfileUserSummary = {
   id: "usr_allison_04",

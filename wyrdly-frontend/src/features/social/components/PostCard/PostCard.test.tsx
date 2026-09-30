@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { PostCard } from "./PostCard";
-import type { Post } from "../../../types/feed";
+import type { Post } from "../../../../types/feed";
 
 const MOCK_POST: Post = {
   id: "post-1",

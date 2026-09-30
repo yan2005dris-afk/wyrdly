@@ -1,4 +1,4 @@
-import type { Post, ReactionType } from "../../../types/feed";
+import type { Post, ReactionType } from "../../../../types/feed";
 
 export interface PostCardProps {
   readonly post: Post;

@@ -1,10 +1,10 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
-import { AuthProvider } from "../../../context/AuthContext";
-import * as usersApi from "../../../api/users";
+import { AuthProvider } from "../../../../features/auth";
+import * as usersApi from "../../../../api/users";
 import { GraphSuggestionsCard } from "./GraphSuggestionsCard";
-import type { GraphSuggestionUser } from "../../../types/domain";
+import type { GraphSuggestionUser } from "../../../../types/domain";
 
 const MOCK_SUGGESTIONS: GraphSuggestionUser[] = [
   {

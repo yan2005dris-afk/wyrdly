@@ -13,9 +13,11 @@ import {
   useProfileUsers,
   type ProfileTabId,
 } from "../features/profile";
-import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
-import { GraphSuggestionsCard } from "../components/social";
-import { UserListRow } from "../components/social/UserListRow";
+import {
+  GraphSuggestionsCard,
+  UserListRow,
+  useGraphSuggestions,
+} from "../features/social";
 import { Button } from "../components/ui/Button";
 
 export const ProfilePage: FC = () => {

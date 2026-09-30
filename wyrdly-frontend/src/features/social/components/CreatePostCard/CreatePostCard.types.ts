@@ -1,5 +1,5 @@
-import type { UserProfileSummary } from "../../../types/domain";
-import type { PostVisibility } from "../../../types/feed";
+import type { UserProfileSummary } from "../../../../types/domain";
+import type { PostVisibility } from "../../../../types/feed";
 
 export interface CreatePostCardProps {
   readonly currentUser?: UserProfileSummary;

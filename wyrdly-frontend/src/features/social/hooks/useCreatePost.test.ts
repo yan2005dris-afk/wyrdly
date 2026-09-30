@@ -1,10 +1,10 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { postsApi } from "../api/posts";
+import { postsApi } from "../../../api/posts";
 import { useCreatePost } from "./useCreatePost";
-import type { PostApiResponse } from "../types/feed";
+import type { PostApiResponse } from "../../../types/feed";
 
-vi.mock("../api/posts", () => ({
+vi.mock("../../../api/posts", () => ({
   postsApi: {
     create: vi.fn(),
   },

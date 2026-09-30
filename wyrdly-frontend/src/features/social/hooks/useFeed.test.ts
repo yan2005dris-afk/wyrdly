@@ -1,7 +1,7 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { useFeed } from "./useFeed";
-import type { Post } from "../types/feed";
+import type { Post } from "../../../types/feed";
 
 function buildPost(id: string, content: string): Post {
   return {

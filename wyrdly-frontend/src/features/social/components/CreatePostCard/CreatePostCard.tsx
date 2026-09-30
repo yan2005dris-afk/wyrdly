@@ -7,9 +7,9 @@ import {
 } from "react";
 import { Image, BarChart2, Globe, X } from "lucide-react";
 import type { CreatePostCardProps } from "./CreatePostCard.types";
-import type { PostVisibility } from "../../../types/feed";
-import { Avatar } from "../../ui/Avatar";
-import { Button } from "../../ui/Button";
+import type { PostVisibility } from "../../../../types/feed";
+import { Avatar } from "../../../../components/ui/Avatar";
+import { Button } from "../../../../components/ui/Button";
 import styles from "./CreatePostCard.module.css";
 
 export const CreatePostCard: FC<CreatePostCardProps> = ({

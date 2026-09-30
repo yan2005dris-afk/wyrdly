@@ -1,9 +1,9 @@
 import { useState, type FC } from "react";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import type { ProfileUserSummary } from "../../../types/suggestions";
-import { Avatar } from "../../ui/Avatar";
-import { useFollow } from "../../../hooks/useFollow";
+import type { ProfileUserSummary } from "../../../../types/suggestions";
+import { Avatar } from "../../../../components/ui/Avatar";
+import { useFollow } from "../../hooks/useFollow";
 import styles from "./UserListRow.module.css";
 
 export interface UserListRowProps {

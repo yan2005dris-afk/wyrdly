@@ -9,8 +9,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 import type { PostCardProps } from "./PostCard.types";
-import { Avatar } from "../../ui/Avatar";
-import { AuthImage } from "../../ui/AuthImage";
+import { Avatar } from "../../../../components/ui/Avatar";
+import { AuthImage } from "../../../../components/ui/AuthImage";
 import styles from "./PostCard.module.css";
 
 const formatCount = (count: number): string => {

@@ -17,17 +17,18 @@ import type {
 import type { PostApiResponse } from "../types/feed";
 import type { MediaUploadResponse } from "../types/media";
 
-vi.mock("../hooks/useGraphSuggestions", () => ({
-  useGraphSuggestions: vi.fn(),
-}));
-
-vi.mock("../hooks/useFollow", () => ({
-  useFollow: vi.fn(),
-}));
-
-vi.mock("../hooks/useCreatePost", () => ({
-  useCreatePost: vi.fn(),
-}));
+vi.mock("../features/social", async () => {
+  const actual =
+    await vi.importActual<typeof import("../features/social")>(
+      "../features/social",
+    );
+  return {
+    ...actual,
+    useGraphSuggestions: vi.fn(),
+    useFollow: vi.fn(),
+    useCreatePost: vi.fn(),
+  };
+});
 
 vi.mock("../hooks/useMediaUpload", () => ({
   useMediaUpload: vi.fn(),
@@ -46,9 +47,11 @@ vi.mock("../api/users", async () => {
   };
 });
 
-import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
-import { useFollow } from "../hooks/useFollow";
-import { useCreatePost } from "../hooks/useCreatePost";
+import {
+  useGraphSuggestions,
+  useFollow,
+  useCreatePost,
+} from "../features/social";
 import { useMediaUpload } from "../hooks/useMediaUpload";
 
 const mockedUseGraphSuggestions = vi.mocked(useGraphSuggestions);

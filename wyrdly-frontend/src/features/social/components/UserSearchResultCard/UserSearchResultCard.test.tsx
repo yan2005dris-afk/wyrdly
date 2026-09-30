@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { UserSearchResultCard } from "./UserSearchResultCard";
-import type { UserSearchResult } from "../../../types/userSearch";
+import type { UserSearchResult } from "../../../../types/userSearch";
 
 const baseResult: UserSearchResult = {
   id: "usr_alice",

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { UserSummaryCard } from "./UserSummaryCard";
-import type { UserProfileSummary } from "../../../types/domain";
+import type { UserProfileSummary } from "../../../../types/domain";
 
 const MOCK_USER: UserProfileSummary = {
   id: "user-1",

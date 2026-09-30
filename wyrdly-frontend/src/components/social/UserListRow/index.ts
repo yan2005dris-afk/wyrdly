@@ -1,2 +1,2 @@
-export { UserListRow } from "./UserListRow";
-export type { UserListRowProps } from "./UserListRow";
+export { UserListRow } from "../../../features/social";
+export type { UserListRowProps } from "../../../features/social";

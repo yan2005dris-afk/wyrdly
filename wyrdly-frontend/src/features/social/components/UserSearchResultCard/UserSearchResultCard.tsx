@@ -1,7 +1,7 @@
 import { type FC, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
-import { Avatar } from "../../ui/Avatar";
-import { Button } from "../../ui/Button";
+import { Avatar } from "../../../../components/ui/Avatar";
+import { Button } from "../../../../components/ui/Button";
 import type { UserSearchResultCardProps } from "./UserSearchResultCard.types";
 import styles from "./UserSearchResultCard.module.css";
 

@@ -2,17 +2,17 @@ import { useCallback, useState, type FC } from "react";
 import type { CreatePostPayload, ReactionType } from "../types/feed";
 import { mapPostApiResponseToPost } from "../types/feed";
 import type { UserProfileSummary } from "../types/domain";
-import { useAuth } from "../hooks/useAuth";
-import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
-import { useCreatePost } from "../hooks/useCreatePost";
-import { useFeed } from "../hooks/useFeed";
-import { useMediaUpload } from "../hooks/useMediaUpload";
+import { useAuth } from "../features/auth";
 import {
   CreatePostCard,
   PostCard,
   GraphSuggestionsCard,
   RelayHealthWidget,
-} from "../components/social";
+  useGraphSuggestions,
+  useCreatePost,
+  useFeed,
+} from "../features/social";
+import { useMediaUpload } from "../hooks/useMediaUpload";
 import { Tabs, type TabItem } from "../components/ui/Tabs";
 
 type FeedFilter = "for_you" | "latest" | "relays";

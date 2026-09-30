@@ -2,7 +2,7 @@ import type { FC } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
 import type { UserSummaryCardProps } from "./UserSummaryCard.types";
-import { Avatar } from "../../ui/Avatar";
+import { Avatar } from "../../../../components/ui/Avatar";
 import styles from "./UserSummaryCard.module.css";
 
 const formatStatNumber = (num: number): string => {

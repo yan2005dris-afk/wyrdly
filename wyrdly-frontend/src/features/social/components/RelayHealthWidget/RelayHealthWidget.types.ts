@@ -1,4 +1,4 @@
-import type { RelayHealthStatus } from "../../../types/relay";
+import type { RelayHealthStatus } from "../../../../types/relay";
 
 export interface RelayHealthWidgetProps {
   readonly health?: RelayHealthStatus;

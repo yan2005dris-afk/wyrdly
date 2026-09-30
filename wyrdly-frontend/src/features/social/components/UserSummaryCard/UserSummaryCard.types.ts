@@ -1,4 +1,4 @@
-import type { UserProfileSummary } from "../../../types/domain";
+import type { UserProfileSummary } from "../../../../types/domain";
 
 export interface UserSummaryCardProps {
   readonly user: UserProfileSummary;

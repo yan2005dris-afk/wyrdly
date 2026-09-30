@@ -1,2 +1,2 @@
-export { UserSummaryCard } from "./UserSummaryCard";
-export type { UserSummaryCardProps } from "./UserSummaryCard.types";
+export { UserSummaryCard } from "../../../features/social";
+export type { UserSummaryCardProps } from "../../../features/social";

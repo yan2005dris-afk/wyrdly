@@ -1,13 +1,13 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { usersApi } from "../api/users";
+import { usersApi } from "../../../api/users";
 import { useGraphSuggestions } from "./useGraphSuggestions";
 import type {
   GraphSuggestionUser,
   GraphSuggestionsResponse,
-} from "../types/suggestions";
+} from "../../../types/suggestions";
 
-vi.mock("../api/users", () => ({
+vi.mock("../../../api/users", () => ({
   usersApi: {
     getSuggestions: vi.fn(),
   },

@@ -1,10 +1,10 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { usersApi } from "../api/users";
+import { usersApi } from "../../../api/users";
 import { useFollow } from "./useFollow";
-import type { FollowActionResponse } from "../types/suggestions";
+import type { FollowActionResponse } from "../../../types/suggestions";
 
-vi.mock("../api/users", () => ({
+vi.mock("../../../api/users", () => ({
   usersApi: {
     follow: vi.fn(),
     unfollow: vi.fn(),
