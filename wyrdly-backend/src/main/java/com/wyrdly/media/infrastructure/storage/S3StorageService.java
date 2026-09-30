@@ -5,7 +5,10 @@ import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
@@ -22,6 +25,11 @@ public class S3StorageService {
     this.bucketName = bucketName;
   }
 
+  /**
+   * Upload bytes to the configured bucket under {@code storageKey} with the given {@code mimeType}.
+   * The returned value is just the key — callers (MediaService) build the public-facing URL
+   * themselves so the bucket can stay 100% private.
+   */
   public String uploadFile(String storageKey, byte[] fileContent, String mimeType) {
     try {
       PutObjectRequest putObjectRequest =
@@ -39,10 +47,37 @@ public class S3StorageService {
       Log.infof(
           "File uploaded to S3: bucket=%s, key=%s, eTag=%s",
           bucketName, storageKey, response.eTag());
-      return String.format("s3://%s/%s", bucketName, storageKey);
+      return storageKey;
     } catch (Exception e) {
       Log.errorf(e, "Failed to upload file to S3: storageKey=%s", storageKey);
       throw new MediaUploadException("Failed to upload file to S3", e);
     }
   }
+
+  /**
+   * Open a streaming body from S3 for {@code storageKey}. The returned stream is owned by the
+   * caller and must be closed (try-with-resources) once the body has been drained.
+   */
+  public StoredObject downloadFile(String storageKey) {
+    try {
+      GetObjectRequest getObjectRequest =
+          GetObjectRequest.builder().bucket(bucketName).key(storageKey).build();
+      ResponseInputStream<GetObjectResponse> stream = s3Client.getObject(getObjectRequest);
+      GetObjectResponse metadata = stream.response();
+      return new StoredObject(
+          stream,
+          metadata.contentType(),
+          metadata.contentLength() != null ? metadata.contentLength() : -1L);
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to read from S3: storageKey=%s", storageKey);
+      throw new MediaUploadException("Failed to read media from storage", e);
+    }
+  }
+
+  /**
+   * Tuple of an open streaming body plus the S3-supplied Content-Type and Content-Length. Callers
+   * must close the stream.
+   */
+  public record StoredObject(
+      ResponseInputStream<GetObjectResponse> stream, String contentType, long contentLength) {}
 }

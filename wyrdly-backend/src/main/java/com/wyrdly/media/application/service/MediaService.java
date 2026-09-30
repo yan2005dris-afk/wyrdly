@@ -20,17 +20,23 @@ public class MediaService implements UploadMediaUseCase {
   private final MediaRepository mediaRepository;
   private final long maxFileSize;
   private final String allowedMimeTypes;
+  private final String publicBaseUrl;
 
   @Inject
   public MediaService(
       S3StorageService s3StorageService,
       MediaRepository mediaRepository,
       @ConfigProperty(name = "media.max-file-size") long maxFileSize,
-      @ConfigProperty(name = "media.allowed-mime-types") String allowedMimeTypes) {
+      @ConfigProperty(name = "media.allowed-mime-types") String allowedMimeTypes,
+      @ConfigProperty(name = "app.public-base-url") String publicBaseUrl) {
     this.s3StorageService = s3StorageService;
     this.mediaRepository = mediaRepository;
     this.maxFileSize = maxFileSize;
     this.allowedMimeTypes = allowedMimeTypes;
+    this.publicBaseUrl =
+        publicBaseUrl.endsWith("/")
+            ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1)
+            : publicBaseUrl;
   }
 
   @Override
@@ -41,15 +47,17 @@ public class MediaService implements UploadMediaUseCase {
     validateMimeType(mimeType);
 
     String storageKey = generateStorageKey();
+    s3StorageService.uploadFile(storageKey, fileContent, mimeType);
 
-    String fileUrl = s3StorageService.uploadFile(storageKey, fileContent, mimeType);
+    String mediaId = UUID.randomUUID().toString();
+    String publicFileUrl = buildPublicFileUrl(mediaId);
 
     MediaFile mediaFile =
         new MediaFile(
-            UUID.randomUUID().toString(),
+            mediaId,
             userId,
             storageKey,
-            fileUrl,
+            publicFileUrl,
             mimeType,
             fileContent.length,
             Instant.now());
@@ -58,6 +66,15 @@ public class MediaService implements UploadMediaUseCase {
 
     Log.infof("Media uploaded successfully: userId=%s, id=%s", userId, saved.id());
     return MediaUploadResponse.fromDomain(saved);
+  }
+
+  /**
+   * Public URL points at the backend proxy endpoint so the bucket can stay private. Must be an
+   * absolute http(s) URL because CreatePostRequest validates mediaUrl with @URL + @Pattern
+   * "^https?://.*".
+   */
+  private String buildPublicFileUrl(String mediaId) {
+    return publicBaseUrl + "/api/media/" + mediaId;
   }
 
   private String detectMimeType(byte[] fileContent) {
