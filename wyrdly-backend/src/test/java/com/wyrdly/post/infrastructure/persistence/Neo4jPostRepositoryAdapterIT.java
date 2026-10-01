@@ -373,6 +373,30 @@ class Neo4jPostRepositoryAdapterIT {
     assertEquals(Instant.parse("2026-09-24T15:00:00Z"), feed.get(0).createdAt());
   }
 
+  @Test
+  void findFeedByUserIdWithCursor_PaginatesCorrectlyAcrossPages() {
+    seedUser("usr_cur_me", "cur_me");
+    seedUser("usr_cur_author", "cur_author");
+    follow("usr_cur_me", "usr_cur_author");
+
+    Instant t1 = Instant.parse("2026-09-29T10:00:00Z");
+    Instant t2 = Instant.parse("2026-09-29T11:00:00Z");
+    Instant t3 = Instant.parse("2026-09-29T12:00:00Z");
+
+    adapter.save(new Post("pst_cur_1", "usr_cur_author", "Post 1", null, t1));
+    adapter.save(new Post("pst_cur_2", "usr_cur_author", "Post 2", null, t2));
+    adapter.save(new Post("pst_cur_3", "usr_cur_author", "Post 3", null, t3));
+
+    var page1 = adapter.findFeedByUserIdWithCursor("usr_cur_me", null, 2);
+    assertEquals(2, page1.size());
+    assertEquals("pst_cur_3", page1.get(0).id());
+    assertEquals("pst_cur_2", page1.get(1).id());
+
+    var page2 = adapter.findFeedByUserIdWithCursor("usr_cur_me", page1.get(1).createdAt(), 2);
+    assertEquals(1, page2.size());
+    assertEquals("pst_cur_1", page2.get(0).id());
+  }
+
   private void seedPostWithDateTime(
       String postId, String authorId, String content, String createdAtIso) {
     try (Session session = driver.session()) {

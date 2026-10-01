@@ -12,6 +12,9 @@ public interface PostRepository {
 
   List<FeedPost> findFeedByUserId(String userId, int page, int pageSize);
 
+  List<FeedPost> findFeedByUserIdWithCursor(
+      String userId, java.time.Instant cursorCreatedAt, int limit);
+
   long countFeedByUserId(String userId);
 
   List<Post> findByAuthor(String authorId, int page, int pageSize);

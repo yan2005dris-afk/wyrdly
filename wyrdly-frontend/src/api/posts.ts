@@ -9,7 +9,16 @@ export interface FeedResponseDto {
     readonly totalElements: number;
     readonly totalPages: number;
     readonly hasNext: boolean;
+    readonly nextCursor?: string | null;
+    readonly hasMore?: boolean;
   };
+}
+
+export interface GetFeedOptions {
+  readonly page?: number;
+  readonly pageSize?: number;
+  readonly cursor?: string | null;
+  readonly limit?: number;
 }
 
 export const postsApi = {
@@ -22,11 +31,25 @@ export const postsApi = {
   },
 
   async getFeed(
-    page: number = 1,
-    pageSize: number = 20,
+    pageOrOptions?: number | GetFeedOptions,
+    pageSizeArg?: number,
   ): Promise<FeedResponseDto> {
+    let params: Record<string, unknown>;
+    if (typeof pageOrOptions === "object" && pageOrOptions !== null) {
+      params = {
+        cursor: pageOrOptions.cursor ?? undefined,
+        limit: pageOrOptions.limit ?? pageOrOptions.pageSize ?? 20,
+        page: pageOrOptions.page,
+        pageSize: pageOrOptions.pageSize,
+      };
+    } else {
+      params = {
+        page: pageOrOptions ?? 1,
+        pageSize: pageSizeArg ?? 20,
+      };
+    }
     const response = await apiClient.get<FeedResponseDto>("/api/feed", {
-      params: { page, pageSize },
+      params,
     });
     return response.data;
   },
