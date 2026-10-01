@@ -80,7 +80,16 @@ describe("postsApi.getFeed", () => {
 
   it("calls /api/feed with page and pageSize", async () => {
     mockedGet.mockResolvedValueOnce({
-      data: { data: [], meta: { page: 1, pageSize: 20, totalElements: 0, totalPages: 0, hasNext: false } },
+      data: {
+        data: [],
+        meta: {
+          page: 1,
+          pageSize: 20,
+          totalElements: 0,
+          totalPages: 0,
+          hasNext: false,
+        },
+      },
     });
 
     await postsApi.getFeed(2, 10);
@@ -92,13 +101,29 @@ describe("postsApi.getFeed", () => {
 
   it("calls /api/feed with cursor and limit when options object is passed", async () => {
     mockedGet.mockResolvedValueOnce({
-      data: { data: [], meta: { page: 1, pageSize: 20, totalElements: 0, totalPages: 0, hasNext: false, nextCursor: "abc", hasMore: true } },
+      data: {
+        data: [],
+        meta: {
+          page: 1,
+          pageSize: 20,
+          totalElements: 0,
+          totalPages: 0,
+          hasNext: false,
+          nextCursor: "abc",
+          hasMore: true,
+        },
+      },
     });
 
     await postsApi.getFeed({ cursor: "abc", limit: 15 });
 
     expect(mockedGet).toHaveBeenCalledWith("/api/feed", {
-      params: { cursor: "abc", limit: 15, page: undefined, pageSize: undefined },
+      params: {
+        cursor: "abc",
+        limit: 15,
+        page: undefined,
+        pageSize: undefined,
+      },
     });
   });
 });
