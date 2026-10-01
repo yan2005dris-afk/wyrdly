@@ -5,6 +5,7 @@ import com.yaga.chat.application.dto.MessageRequest;
 import com.yaga.chat.application.dto.MessageResponse;
 import com.yaga.chat.application.service.ChatService;
 import com.yaga.chat.application.service.JwtValidationService;
+import com.yaga.chat.infrastructure.ratelimit.WebSocketRateLimiter;
 import com.yaga.chat.infrastructure.websocket.ChatSessionRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -34,6 +35,8 @@ public class ChatWebSocketEndpoint {
   @Inject ChatService chatService;
 
   @Inject JwtValidationService jwtValidationService;
+
+  @Inject WebSocketRateLimiter rateLimiter;
 
   @OnOpen
   public void onOpen(Session session) {
@@ -89,7 +92,6 @@ public class ChatWebSocketEndpoint {
       }
     } catch (Exception e) {
       LOGGER.warning("Error processing message: " + e.getMessage());
-      e.printStackTrace();
       try {
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("action", "ERROR");
@@ -115,6 +117,14 @@ public class ChatWebSocketEndpoint {
 
   private void handleSendMessage(String senderId, MessageRequest request, Session session)
       throws IOException {
+    if (!rateLimiter.allowMessage(senderId)) {
+      Map<String, Object> errorResponse = new HashMap<>();
+      errorResponse.put("action", "ERROR");
+      errorResponse.put("message", "Rate limit exceeded. Max 10 messages per second");
+      sendJson(session, errorResponse);
+      return;
+    }
+
     try {
       MessageResponse response =
           chatService.sendMessage(senderId, request.getRecipientId(), request.getContent());
@@ -143,6 +153,10 @@ public class ChatWebSocketEndpoint {
 
   private void handleTyping(String senderId, String recipientId, Session session)
       throws IOException {
+    if (!rateLimiter.allowTyping(senderId)) {
+      return; // Silently drop typing events that exceed rate limit
+    }
+
     Map<String, Object> typingNotification = new HashMap<>();
     typingNotification.put("action", "USER_TYPING");
     typingNotification.put("userId", senderId);

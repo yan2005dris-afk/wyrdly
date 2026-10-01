@@ -10,10 +10,11 @@ import static org.mockito.Mockito.when;
 import com.yaga.chat.application.port.FollowValidationPort;
 import com.yaga.chat.application.dto.ChatHistoryPage;
 import com.yaga.chat.domain.repository.DirectMessageRepository;
+import com.yaga.chat.infrastructure.jwt.JwtTestTokenGenerator;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.security.TestSecurity;
 import io.restassured.http.ContentType;
+import jakarta.inject.Inject;
 import java.util.ArrayList;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,21 +22,27 @@ import org.junit.jupiter.api.Test;
 @QuarkusTest
 class ChatResourceTest {
 
+  @Inject JwtTestTokenGenerator tokenGenerator;
+
   @InjectMock
   FollowValidationPort followValidationPort;
 
   @InjectMock
   DirectMessageRepository directMessageRepository;
 
+  private String user1Token;
+  private String user2Token;
+  private static final String USER_1_ID = "user1-uuid";
+  private static final String USER_2_ID = "user2-uuid";
+
   @BeforeEach
   void setUp() {
-    when(followValidationPort.areMutualFollowers("user1", "user2")).thenReturn(true);
-    when(followValidationPort.areMutualFollowers("user2", "user1")).thenReturn(true);
+    user1Token = tokenGenerator.generateToken(USER_1_ID, "user1");
+    user2Token = tokenGenerator.generateToken(USER_2_ID, "user2");
 
-    ChatHistoryPage emptyHistory = new ChatHistoryPage(
-        new ArrayList<>(),
-        new ChatHistoryPage.ChatHistoryMeta(0, 1, 50)
-    );
+    when(followValidationPort.areMutualFollowers(USER_1_ID, USER_2_ID)).thenReturn(true);
+    when(followValidationPort.areMutualFollowers(USER_2_ID, USER_1_ID)).thenReturn(true);
+
     when(directMessageRepository.findBetweenUsers(anyString(), anyString(), anyInt(), anyInt()))
         .thenReturn(new ArrayList<>());
     when(directMessageRepository.countBetweenUsers(anyString(), anyString()))
@@ -43,12 +50,12 @@ class ChatResourceTest {
   }
 
   @Test
-  @TestSecurity(user = "user1", roles = "user")
   void shouldReturnChatHistoryWithAuthentication() {
     given()
         .contentType(ContentType.JSON)
+        .header("Authorization", "Bearer " + user1Token)
         .when()
-        .get("/api/chat/user2/history?page=1&pageSize=50")
+        .get("/api/chat/" + USER_2_ID + "/history?page=1&pageSize=50")
         .then()
         .statusCode(200)
         .body("meta.total", notNullValue())
@@ -62,18 +69,18 @@ class ChatResourceTest {
     given()
         .contentType(ContentType.JSON)
         .when()
-        .get("/api/chat/user2/history?page=1&pageSize=50")
+        .get("/api/chat/" + USER_2_ID + "/history?page=1&pageSize=50")
         .then()
         .statusCode(401);
   }
 
   @Test
-  @TestSecurity(user = "user1", roles = "user")
   void shouldRejectInvalidPageSize() {
     given()
         .contentType(ContentType.JSON)
+        .header("Authorization", "Bearer " + user1Token)
         .when()
-        .get("/api/chat/user2/history?page=1&pageSize=200")
+        .get("/api/chat/" + USER_2_ID + "/history?page=1&pageSize=200")
         .then()
         .statusCode(200)
         .body("meta.pageSize", equalTo(50));

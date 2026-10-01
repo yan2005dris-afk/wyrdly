@@ -27,7 +27,7 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
   public void save(DirectMessage message) {
     String cypher =
         """
-        CREATE (msg:Message {
+        CREATE (msg:Mensaje {
           id: $id,
           senderId: $senderId,
           recipientId: $recipientId,
@@ -62,11 +62,11 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
   public List<DirectMessage> findBetweenUsers(String userId1, String userId2, int skip, int limit) {
     String cypher =
         """
-        MATCH (msg:Message)
+        MATCH (msg:Mensaje)
         WHERE (msg.senderId = $userId1 AND msg.recipientId = $userId2)
           OR (msg.senderId = $userId2 AND msg.recipientId = $userId1)
-        RETURN msg
         ORDER BY msg.sentAt DESC
+        RETURN msg
         SKIP $skip
         LIMIT $limit
         """;
@@ -97,7 +97,7 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
   public long countBetweenUsers(String userId1, String userId2) {
     String cypher =
         """
-        MATCH (msg:Message)
+        MATCH (msg:Mensaje)
         WHERE (msg.senderId = $userId1 AND msg.recipientId = $userId2)
           OR (msg.senderId = $userId2 AND msg.recipientId = $userId1)
         RETURN count(msg) AS total
@@ -112,6 +112,83 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
             }
             return 0L;
           });
+    }
+  }
+
+  public ChatHistoryWithTotal findBetweenUsersWithTotal(
+      String userId1, String userId2, int skip, int limit) {
+    String cypher =
+        """
+        MATCH (msg:Mensaje)
+        WHERE (msg.senderId = $userId1 AND msg.recipientId = $userId2)
+          OR (msg.senderId = $userId2 AND msg.recipientId = $userId1)
+        WITH msg, count(msg) OVER() AS total
+        ORDER BY msg.sentAt DESC
+        RETURN msg, total
+        SKIP $skip
+        LIMIT $limit
+        """;
+
+    List<DirectMessage> messages = new ArrayList<>();
+    long total = 0;
+
+    try (Session session = driver.session()) {
+      session.executeRead(
+          tx -> {
+            Result result =
+                tx.run(
+                    cypher,
+                    Map.of(
+                        "userId1", userId1,
+                        "userId2", userId2,
+                        "skip", (long) skip,
+                        "limit", (long) limit));
+            while (result.hasNext()) {
+              Record record = result.next();
+              messages.add(mapRecordToMessage(record.get("msg")));
+            }
+            return null;
+          });
+    }
+
+    try (Session session = driver.session()) {
+      total =
+          session.executeRead(
+              tx -> {
+                String countQuery =
+                    """
+                    MATCH (msg:Mensaje)
+                    WHERE (msg.senderId = $userId1 AND msg.recipientId = $userId2)
+                      OR (msg.senderId = $userId2 AND msg.recipientId = $userId1)
+                    RETURN count(msg) AS total
+                    """;
+                Result result =
+                    tx.run(countQuery, Map.of("userId1", userId1, "userId2", userId2));
+                if (result.hasNext()) {
+                  return result.next().get("total").asLong();
+                }
+                return 0L;
+              });
+    }
+
+    return new ChatHistoryWithTotal(messages, total);
+  }
+
+  public static class ChatHistoryWithTotal {
+    public List<DirectMessage> messages;
+    public long total;
+
+    public ChatHistoryWithTotal(List<DirectMessage> messages, long total) {
+      this.messages = messages;
+      this.total = total;
+    }
+
+    public List<DirectMessage> getMessages() {
+      return messages;
+    }
+
+    public long getTotal() {
+      return total;
     }
   }
 

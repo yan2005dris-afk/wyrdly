@@ -29,15 +29,14 @@ class ChatWebSocketEndpointTest {
 
   @Test
   void shouldExtractUserIdFromToken() throws Exception {
-    // Mock JWT: {"sub":"user123","iat":1234567890}
-    String validToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-            + "eyJzdWIiOiJ1c2VyMTIzIiwiaWF0IjoxMjM0NTY3ODkwfQ."
-            + "TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ";
+    // Token simple para test: será validado por JwtValidationServiceTestMock
+    String validToken = "user123";
 
     Session mockSession = Mockito.mock(Session.class);
     Mockito.when(mockSession.getQueryString()).thenReturn("token=" + validToken);
     Mockito.when(mockSession.getId()).thenReturn("session-123");
+    Mockito.when(mockSession.isOpen()).thenReturn(true);
+    Mockito.when(mockSession.getAsyncRemote()).thenReturn(Mockito.mock(jakarta.websocket.RemoteEndpoint.Async.class));
 
     endpoint.onOpen(mockSession);
 
@@ -47,7 +46,7 @@ class ChatWebSocketEndpointTest {
   @Test
   void shouldHandleInvalidToken() throws IOException {
     Session mockSession = Mockito.mock(Session.class);
-    Mockito.when(mockSession.getQueryString()).thenReturn("token=invalid.token");
+    Mockito.when(mockSession.getQueryString()).thenReturn("token=invalid");
     Mockito.when(mockSession.getId()).thenReturn("session-123");
 
     endpoint.onOpen(mockSession);

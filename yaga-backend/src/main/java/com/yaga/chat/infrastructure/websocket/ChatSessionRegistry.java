@@ -2,10 +2,10 @@ package com.yaga.chat.infrastructure.websocket;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.websocket.Session;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -17,7 +17,7 @@ public class ChatSessionRegistry {
   private final Map<String, String> sessionToUser = new ConcurrentHashMap<>();
 
   public void register(String userId, Session session) {
-    userSessions.computeIfAbsent(userId, k -> new ArrayList<>()).add(session);
+    userSessions.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>()).add(session);
     sessionToUser.put(session.getId(), userId);
     LOGGER.info("Registered session " + session.getId() + " for user " + userId);
   }
@@ -72,6 +72,17 @@ public class ChatSessionRegistry {
         } catch (Exception e) {
           LOGGER.warning("Failed to send message to session " + session.getId() + ": " + e.getMessage());
         }
+      }
+    }
+  }
+
+  public void cleanup() {
+    for (var entry : userSessions.entrySet()) {
+      List<Session> sessions = entry.getValue();
+      sessions.removeIf(session -> !session.isOpen());
+      if (sessions.isEmpty()) {
+        userSessions.remove(entry.getKey());
+        LOGGER.fine("Cleaned up stale sessions for user: " + entry.getKey());
       }
     }
   }

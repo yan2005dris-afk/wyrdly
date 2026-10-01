@@ -2,6 +2,7 @@ package com.yaga.chat.interfaces.rest;
 
 import com.yaga.chat.application.dto.ChatHistoryPage;
 import com.yaga.chat.application.usecase.GetChatHistoryUseCase;
+import com.yaga.chat.infrastructure.ratelimit.RestApiRateLimiter;
 import io.quarkus.security.Authenticated;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -27,6 +28,9 @@ public class ChatResource {
   GetChatHistoryUseCase getChatHistoryUseCase;
 
   @Inject
+  RestApiRateLimiter rateLimiter;
+
+  @Inject
   JsonWebToken jwt;
 
   @GET
@@ -36,10 +40,22 @@ public class ChatResource {
       @PathParam("recipientId") String recipientId,
       @QueryParam("page") @DefaultValue("1") int page,
       @QueryParam("pageSize") @DefaultValue("50") int pageSize) {
-    String userId = jwt.getName();
+    String userId = jwt.getSubject();
     if (userId == null || userId.isEmpty()) {
       return Response.status(Response.Status.UNAUTHORIZED)
           .entity(new ErrorResponse("Unable to identify user"))
+          .build();
+    }
+
+    if (!rateLimiter.allowHistoryRequest(userId)) {
+      return Response.status(429) // Too Many Requests
+          .entity(new ErrorResponse("Rate limit exceeded. Max 60 requests per minute."))
+          .build();
+    }
+
+    if (recipientId == null || recipientId.trim().isEmpty()) {
+      return Response.status(Response.Status.BAD_REQUEST)
+          .entity(new ErrorResponse("Recipient ID is required"))
           .build();
     }
 
@@ -50,8 +66,6 @@ public class ChatResource {
       page = 1;
     }
 
-    // ✅ Fix #3: Remover catch genérico
-    // ExceptionMappers manejan excepciones específicas automáticamente
     ChatHistoryPage history =
         getChatHistoryUseCase.execute(userId, recipientId, page, pageSize);
 

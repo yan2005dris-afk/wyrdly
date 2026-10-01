@@ -9,6 +9,7 @@ import com.yaga.chat.domain.repository.DirectMessageRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -52,8 +53,7 @@ public class GetChatHistoryUseCaseImpl implements GetChatHistoryUseCase {
 
   private void validateFollowRelationship(String userId, String recipientId) {
     if (!followValidationPort.areMutualFollowers(userId, recipientId)) {
-      throw new UsersNotFollowingException(
-          "Ambos usuarios deben seguirse mutuamente para ver el historial de chat");
+      throw new UsersNotFollowingException("Access denied");
     }
   }
 }
