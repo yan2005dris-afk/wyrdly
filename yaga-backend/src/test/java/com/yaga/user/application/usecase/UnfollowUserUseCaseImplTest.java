@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.yaga.chat.application.port.FollowValidationPort;
 import com.yaga.user.application.dto.FollowActionResponse;
 import com.yaga.user.domain.exception.UserProfileNotFoundException;
 import com.yaga.user.domain.repository.UserProfileRepository;
@@ -14,12 +15,14 @@ import org.junit.jupiter.api.Test;
 class UnfollowUserUseCaseImplTest {
 
   private UserProfileRepository userProfileRepository;
+  private FollowValidationPort followValidationPort;
   private UnfollowUserUseCase unfollowUserUseCase;
 
   @BeforeEach
   void setUp() {
     userProfileRepository = mock(UserProfileRepository.class);
-    unfollowUserUseCase = new UnfollowUserUseCaseImpl(userProfileRepository);
+    followValidationPort = mock(FollowValidationPort.class);
+    unfollowUserUseCase = new UnfollowUserUseCaseImpl(userProfileRepository, followValidationPort);
   }
 
   @Test

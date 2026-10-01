@@ -1,5 +1,6 @@
 package com.yaga.user.application.usecase;
 
+import com.yaga.chat.application.port.FollowValidationPort;
 import com.yaga.user.application.dto.FollowActionResponse;
 import com.yaga.user.domain.repository.UserProfileRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -10,16 +11,23 @@ import java.util.Objects;
 public class UnfollowUserUseCaseImpl implements UnfollowUserUseCase {
 
   private final UserProfileRepository repository;
+  private final FollowValidationPort followValidationPort;
 
   @Inject
-  public UnfollowUserUseCaseImpl(UserProfileRepository repository) {
+  public UnfollowUserUseCaseImpl(
+      UserProfileRepository repository, FollowValidationPort followValidationPort) {
     this.repository = Objects.requireNonNull(repository, "repository must not be null");
+    this.followValidationPort =
+        Objects.requireNonNull(followValidationPort, "followValidationPort must not be null");
   }
 
   @Override
   public FollowActionResponse unfollow(String userId, String targetUserId) {
     repository.validateUserExists(targetUserId);
     repository.unfollowUser(userId, targetUserId);
+
+    // ✅ Invalidar cache cuando cambia relación follow
+    followValidationPort.invalidateCache(userId, targetUserId);
 
     return new FollowActionResponse("Se dejó de seguir al usuario.", targetUserId, false);
   }

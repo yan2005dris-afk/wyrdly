@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.yaga.chat.application.port.FollowValidationPort;
 import com.yaga.user.application.dto.FollowActionResponse;
 import com.yaga.user.domain.exception.SelfFollowNotAllowedException;
 import com.yaga.user.domain.exception.UserProfileNotFoundException;
@@ -16,12 +17,14 @@ import org.junit.jupiter.api.Test;
 class FollowUserUseCaseImplTest {
 
   private UserProfileRepository userProfileRepository;
+  private FollowValidationPort followValidationPort;
   private FollowUserUseCase followUserUseCase;
 
   @BeforeEach
   void setUp() {
     userProfileRepository = mock(UserProfileRepository.class);
-    followUserUseCase = new FollowUserUseCaseImpl(userProfileRepository);
+    followValidationPort = mock(FollowValidationPort.class);
+    followUserUseCase = new FollowUserUseCaseImpl(userProfileRepository, followValidationPort);
   }
 
   @Test
