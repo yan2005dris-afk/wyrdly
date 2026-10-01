@@ -17,3 +17,7 @@ coverage/
 *.pem
 *.key
 jwt/
+
+# Local tooling artifacts (not for committing)
+.atl/
+.codegraph/

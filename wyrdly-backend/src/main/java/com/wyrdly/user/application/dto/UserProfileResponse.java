@@ -1,0 +1,31 @@
+package com.wyrdly.user.application.dto;
+
+import com.wyrdly.user.domain.model.UserProfile;
+import java.time.Instant;
+
+public record UserProfileResponse(
+    String id,
+    String username,
+    String fullName,
+    String bio,
+    String avatarUrl,
+    long followersCount,
+    long followingCount,
+    long postsCount,
+    boolean isFollowing,
+    Instant createdAt) {
+
+  public static UserProfileResponse fromDomain(UserProfile profile) {
+    return new UserProfileResponse(
+        profile.id(),
+        profile.username(),
+        profile.fullName(),
+        profile.bio(),
+        profile.avatarUrl(),
+        profile.followersCount(),
+        profile.followingCount(),
+        profile.postsCount(),
+        profile.isFollowing(),
+        profile.createdAt());
+  }
+}

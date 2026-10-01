@@ -4,12 +4,12 @@ on:
   push:
     branches: [develop, main]
     paths:
-      - 'yaga-backend/**'
+      - 'wyrdly-backend/**'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches: [develop, main]
     paths:
-      - 'yaga-backend/**'
+      - 'wyrdly-backend/**'
       - '.github/workflows/backend-ci.yml'
 
 concurrency:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: yaga-backend
+        working-directory: wyrdly-backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -52,7 +52,7 @@ jobs:
           --health-retries 5
     defaults:
       run:
-        working-directory: yaga-backend
+        working-directory: wyrdly-backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -84,7 +84,7 @@ jobs:
           --health-retries 5
     defaults:
       run:
-        working-directory: yaga-backend
+        working-directory: wyrdly-backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -116,7 +116,7 @@ jobs:
           --health-retries 5
     defaults:
       run:
-        working-directory: yaga-backend
+        working-directory: wyrdly-backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: yaga-backend
+        working-directory: wyrdly-backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

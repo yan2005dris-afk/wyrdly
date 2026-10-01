@@ -1,0 +1,143 @@
+package com.wyrdly.media.application.service;
+
+import com.wyrdly.media.application.dto.MediaUploadResponse;
+import com.wyrdly.media.application.usecase.UploadMediaUseCase;
+import com.wyrdly.media.domain.exception.MediaUploadException;
+import com.wyrdly.media.domain.model.MediaFile;
+import com.wyrdly.media.domain.repository.MediaRepository;
+import com.wyrdly.media.infrastructure.storage.S3StorageService;
+import io.quarkus.logging.Log;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import java.time.Instant;
+import java.util.UUID;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+@ApplicationScoped
+public class MediaService implements UploadMediaUseCase {
+
+  private final S3StorageService s3StorageService;
+  private final MediaRepository mediaRepository;
+  private final long maxFileSize;
+  private final String allowedMimeTypes;
+  private final String publicBaseUrl;
+
+  @Inject
+  public MediaService(
+      S3StorageService s3StorageService,
+      MediaRepository mediaRepository,
+      @ConfigProperty(name = "media.max-file-size") long maxFileSize,
+      @ConfigProperty(name = "media.allowed-mime-types") String allowedMimeTypes,
+      @ConfigProperty(name = "app.public-base-url") String publicBaseUrl) {
+    this.s3StorageService = s3StorageService;
+    this.mediaRepository = mediaRepository;
+    this.maxFileSize = maxFileSize;
+    this.allowedMimeTypes = allowedMimeTypes;
+    this.publicBaseUrl =
+        publicBaseUrl.endsWith("/")
+            ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1)
+            : publicBaseUrl;
+  }
+
+  @Override
+  public MediaUploadResponse upload(String userId, byte[] fileContent) {
+    validateFileSize(fileContent.length);
+
+    String mimeType = detectMimeType(fileContent);
+    validateMimeType(mimeType);
+
+    String storageKey = generateStorageKey();
+    s3StorageService.uploadFile(storageKey, fileContent, mimeType);
+
+    String mediaId = UUID.randomUUID().toString();
+    String publicFileUrl = buildPublicFileUrl(mediaId);
+
+    MediaFile mediaFile =
+        new MediaFile(
+            mediaId,
+            userId,
+            storageKey,
+            publicFileUrl,
+            mimeType,
+            fileContent.length,
+            Instant.now());
+
+    MediaFile saved = mediaRepository.save(mediaFile);
+
+    Log.infof("Media uploaded successfully: userId=%s, id=%s", userId, saved.id());
+    return MediaUploadResponse.fromDomain(saved);
+  }
+
+  /**
+   * Public URL points at the backend proxy endpoint so the bucket can stay private. Must be an
+   * absolute http(s) URL because CreatePostRequest validates mediaUrl with @URL + @Pattern
+   * "^https?://.*".
+   */
+  private String buildPublicFileUrl(String mediaId) {
+    return publicBaseUrl + "/api/media/" + mediaId;
+  }
+
+  private String detectMimeType(byte[] fileContent) {
+    if (fileContent.length < 4) {
+      return "application/octet-stream";
+    }
+
+    byte[] header = new byte[Math.min(12, fileContent.length)];
+    System.arraycopy(fileContent, 0, header, 0, header.length);
+
+    // JPEG
+    if (header[0] == (byte) 0xFF && header[1] == (byte) 0xD8) {
+      return "image/jpeg";
+    }
+
+    // PNG
+    if (header[0] == (byte) 0x89 && header[1] == 'P' && header[2] == 'N' && header[3] == 'G') {
+      return "image/png";
+    }
+
+    // WebP
+    if (header[0] == 'R'
+        && header[1] == 'I'
+        && header[2] == 'F'
+        && header[3] == 'F'
+        && header[8] == 'W'
+        && header[9] == 'E'
+        && header[10] == 'B'
+        && header[11] == 'P') {
+      return "image/webp";
+    }
+
+    // MP4
+    if (header[4] == 'f' && header[5] == 't' && header[6] == 'y' && header[7] == 'p') {
+      return "video/mp4";
+    }
+
+    return "application/octet-stream";
+  }
+
+  private void validateMimeType(String mimeType) {
+    String[] allowed = allowedMimeTypes.split(",");
+    for (String pattern : allowed) {
+      pattern = pattern.trim();
+      if (mimeType.matches(pattern.replace("*", ".*"))) {
+        return;
+      }
+    }
+    throw new MediaUploadException(
+        String.format(
+            "MIME type '%s' is not allowed. Allowed types: %s", mimeType, allowedMimeTypes));
+  }
+
+  private void validateFileSize(long fileSizeBytes) {
+    if (fileSizeBytes > maxFileSize) {
+      throw new MediaUploadException(
+          String.format(
+              "File size %d bytes exceeds maximum allowed size of %d bytes",
+              fileSizeBytes, maxFileSize));
+    }
+  }
+
+  private String generateStorageKey() {
+    return String.format("posts/img_%s.webp", UUID.randomUUID());
+  }
+}
