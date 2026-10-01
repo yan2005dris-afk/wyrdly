@@ -4,6 +4,7 @@ import com.yaga.chat.application.port.FollowValidationPort;
 import com.yaga.user.application.dto.FollowActionResponse;
 import com.yaga.user.domain.exception.SelfFollowNotAllowedException;
 import com.yaga.user.domain.repository.UserProfileRepository;
+import com.yaga.user.infrastructure.qualifier.ResilientNeo4j;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Objects;
@@ -16,7 +17,7 @@ public class FollowUserUseCaseImpl implements FollowUserUseCase {
 
   @Inject
   public FollowUserUseCaseImpl(
-      UserProfileRepository repository, FollowValidationPort followValidationPort) {
+      @ResilientNeo4j UserProfileRepository repository, FollowValidationPort followValidationPort) {
     this.repository = Objects.requireNonNull(repository, "repository must not be null");
     this.followValidationPort =
         Objects.requireNonNull(followValidationPort, "followValidationPort must not be null");

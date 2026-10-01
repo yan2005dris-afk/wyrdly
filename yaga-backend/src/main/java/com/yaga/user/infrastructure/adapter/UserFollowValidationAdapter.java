@@ -2,38 +2,51 @@ package com.yaga.user.infrastructure.adapter;
 
 import com.yaga.chat.application.port.FollowValidationPort;
 import com.yaga.user.domain.repository.UserProfileRepository;
+import com.yaga.user.infrastructure.qualifier.ResilientNeo4j;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-/**
- * Adapter que implementa FollowValidationPort usando UserProfileRepository.
- * Incluye cache local con TTL para optimizar performance.
- * Reduce carga en BD en ~95% para aplicaciones con alta frecuencia de mensajes.
- */
 @ApplicationScoped
 public class UserFollowValidationAdapter implements FollowValidationPort {
 
   private static final Logger LOGGER =
       Logger.getLogger(UserFollowValidationAdapter.class.getName());
 
-  private static final long CACHE_TTL_MS = TimeUnit.MINUTES.toMillis(5);
   private final ConcurrentHashMap<String, CachedFollowRelation> cache =
       new ConcurrentHashMap<>();
+  private final Counter cacheHits;
+  private final Counter cacheMisses;
 
-  @Inject UserProfileRepository userProfileRepository;
+  @Inject @ResilientNeo4j UserProfileRepository userProfileRepository;
+
+  @ConfigProperty(name = "yaga.cache.follow.ttl.seconds", defaultValue = "300")
+  long cacheTtlSeconds;
+
+  @Inject
+  public UserFollowValidationAdapter(MeterRegistry meterRegistry) {
+    this.cacheHits = Counter.builder("follow.cache.hits").register(meterRegistry);
+    this.cacheMisses = Counter.builder("follow.cache.misses").register(meterRegistry);
+  }
 
   @Override
   public boolean areMutualFollowers(String userId1, String userId2) {
     String key = createSymmetricKey(userId1, userId2);
+    long cacheTtlMs = TimeUnit.SECONDS.toMillis(cacheTtlSeconds);
 
     CachedFollowRelation cached = cache.get(key);
-    if (cached != null && !cached.isExpired()) {
+    if (cached != null && !cached.isExpired(cacheTtlMs)) {
+      cacheHits.increment();
+      LOGGER.fine("Follow cache HIT: " + key);
       return cached.areMutual;
     }
 
+    cacheMisses.increment();
     boolean senderFollows = userProfileRepository.isFollowing(userId1, userId2);
     boolean recipientFollows = userProfileRepository.isFollowing(userId2, userId1);
     boolean areMutual = senderFollows && recipientFollows;
@@ -47,7 +60,9 @@ public class UserFollowValidationAdapter implements FollowValidationPort {
             + userId2
             + " = "
             + areMutual
-            + " (cached)");
+            + " (cached for "
+            + cacheTtlSeconds
+            + "s)");
     return areMutual;
   }
 
@@ -73,8 +88,8 @@ public class UserFollowValidationAdapter implements FollowValidationPort {
       this.cachedAt = cachedAt;
     }
 
-    boolean isExpired() {
-      return System.currentTimeMillis() - cachedAt > CACHE_TTL_MS;
+    boolean isExpired(long cacheTtlMs) {
+      return System.currentTimeMillis() - cachedAt > cacheTtlMs;
     }
   }
 }

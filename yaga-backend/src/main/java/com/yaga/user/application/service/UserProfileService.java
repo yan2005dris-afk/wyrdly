@@ -7,6 +7,7 @@ import com.yaga.user.application.usecase.UpdateUserProfileUseCase;
 import com.yaga.user.domain.exception.UserProfileNotFoundException;
 import com.yaga.user.domain.model.UserProfile;
 import com.yaga.user.domain.repository.UserProfileRepository;
+import com.yaga.user.infrastructure.qualifier.ResilientNeo4j;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Objects;
@@ -17,7 +18,7 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
   private final UserProfileRepository userProfileRepository;
 
   @Inject
-  public UserProfileService(UserProfileRepository userProfileRepository) {
+  public UserProfileService(@ResilientNeo4j UserProfileRepository userProfileRepository) {
     this.userProfileRepository =
         Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
   }

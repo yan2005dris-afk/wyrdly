@@ -3,6 +3,7 @@ package com.yaga.user.infrastructure.persistence;
 import com.yaga.user.domain.exception.UserProfileNotFoundException;
 import com.yaga.user.domain.model.UserProfile;
 import com.yaga.user.domain.repository.UserProfileRepository;
+import com.yaga.user.infrastructure.qualifier.Neo4jDirect;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
@@ -17,6 +18,7 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.Value;
 
 @ApplicationScoped
+@Neo4jDirect
 public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository {
 
   private static final String PROFILE_COUNTS_RETURN =
@@ -129,8 +131,8 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
   @Override
   public boolean isFollowing(String followerId, String followingId) {
     String cypher =
-        "MATCH (follower:Usuario {id: $followerId}), (following:Usuario {id: $followingId}) "
-            + "RETURN EXISTS { (follower)-[r:SIGUE]->(following) } AS following";
+        "OPTIONAL MATCH (follower:Usuario {id: $followerId})-[r:SIGUE]->(following:Usuario {id: $followingId}) "
+            + "RETURN r IS NOT NULL AS following";
 
     Map<String, Object> params = new HashMap<>();
     params.put("followerId", followerId);
