@@ -1,20 +1,16 @@
 package com.yaga.chat.application.service;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.logging.Logger;
-import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-/**
- * Servicio para validar JWT con firma criptográfica.
- * ✅ Fix #1: Previene JWT tamperizado.
- *
- * Valida:
- * - Firma criptográfica (usando secret key configurado)
- * - Presencia de claims requeridos (sub, iat)
- * - Expiración del token
- */
 @ApplicationScoped
 public class JwtValidationService {
 
@@ -22,107 +18,78 @@ public class JwtValidationService {
       Logger.getLogger(JwtValidationService.class.getName());
 
   @Inject
-  @ConfigProperty(name = "mp.jwt.verify.publickey.location", defaultValue = "")
+  @ConfigProperty(name = "mp.jwt.verify.publickey.location")
   String jwtPublicKeyLocation;
 
-  /**
-   * Valida JWT manualmente y extrae userId del claim "sub".
-   * Simula validación de firma usando estructura JWT.
-   *
-   * ⚠️ NOTA: En WebSocket, la validación total se hace en request HTTP inicial.
-   * Esta validación actúa como verificación secundaria de integridad.
-   *
-   * @param token JWT token
-   * @return userId si token es válido, null si inválido
-   */
+  @Inject
+  @ConfigProperty(name = "mp.jwt.verify.issuer")
+  String expectedIssuer;
+
   public String validateAndExtractUserId(String token) {
     try {
       if (token == null || token.isEmpty()) {
-        LOGGER.warning("JWT: token vacío");
+        LOGGER.warning("JWT validation failed: token is empty");
         return null;
       }
 
-      String[] parts = token.split("\\.");
-      if (parts.length != 3) {
-        LOGGER.warning("JWT: formato inválido (esperado 3 partes)");
+      PublicKey key = loadPublicKey();
+      if (key == null) {
+        LOGGER.severe("JWT public key not available");
         return null;
       }
 
-      // Decodificar payload
-      String payload = parts[1];
-      byte[] decodedBytes = java.util.Base64.getUrlDecoder().decode(payload);
-      String decodedPayload = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
+      Claims claims = Jwts.parser()
+          .verifyWith(key)
+          .requireIssuer(expectedIssuer)
+          .build()
+          .parseSignedClaims(token)
+          .getPayload();
 
-      // Parsear JSON sin dependencias externas
-      String userId = extractClaimFromJson(decodedPayload, "sub");
+      String userId = claims.getSubject();
       if (userId == null || userId.isEmpty()) {
-        LOGGER.warning("JWT: missing 'sub' claim");
+        LOGGER.warning("JWT validation failed: missing 'sub' claim");
         return null;
-      }
-
-      String iat = extractClaimFromJson(decodedPayload, "iat");
-      if (iat == null) {
-        LOGGER.warning("JWT: missing 'iat' claim");
-        return null;
-      }
-
-      String exp = extractClaimFromJson(decodedPayload, "exp");
-      if (exp != null) {
-        long expTime = Long.parseLong(exp) * 1000; // Convert seconds to ms
-        if (System.currentTimeMillis() > expTime) {
-          LOGGER.warning("JWT: token expirado");
-          return null;
-        }
       }
 
       LOGGER.fine("JWT validated successfully for userId: " + userId);
       return userId;
 
-    } catch (IllegalArgumentException e) {
-      LOGGER.warning("JWT: decode error (posible firma falsa): " + e.getMessage());
+    } catch (JwtException e) {
+      LOGGER.warning("JWT validation failed: " + e.getMessage());
       return null;
     } catch (Exception e) {
-      LOGGER.warning("JWT: validation error: " + e.getMessage());
+      LOGGER.warning("JWT validation error: " + e.getMessage());
       return null;
     }
   }
 
-  /**
-   * Extrae valor de claim desde JSON payload decodificado.
-   * Uso simple sin parser JSON externo.
-   *
-   * @param jsonPayload payload decodificado (JSON string)
-   * @param claimName nombre del claim (ej: "sub", "iat", "exp")
-   * @return valor del claim o null si no existe
-   */
-  private String extractClaimFromJson(String jsonPayload, String claimName) {
+  private PublicKey loadPublicKey() {
     try {
-      String searchPattern = "\"" + claimName + "\":";
-      int startIndex = jsonPayload.indexOf(searchPattern);
-      if (startIndex == -1) {
-        return null;
+      String keyPath = jwtPublicKeyLocation;
+      if (keyPath.startsWith("classpath:")) {
+        keyPath = keyPath.replace("classpath:", "");
       }
 
-      startIndex += searchPattern.length();
-      char nextChar = jsonPayload.charAt(startIndex);
-
-      if (nextChar == '"') {
-        startIndex++;
-        int endIndex = jsonPayload.indexOf('"', startIndex);
-        if (endIndex == -1) {
+      byte[] keyBytes;
+      try (var is = Thread.currentThread().getContextClassLoader().getResourceAsStream(keyPath)) {
+        if (is == null) {
+          LOGGER.warning("JWT public key not found in classpath: " + keyPath);
           return null;
         }
-        return jsonPayload.substring(startIndex, endIndex);
-      } else {
-        int endIndex = startIndex;
-        while (endIndex < jsonPayload.length()
-            && Character.isDigit(jsonPayload.charAt(endIndex))) {
-          endIndex++;
-        }
-        return jsonPayload.substring(startIndex, endIndex);
+        keyBytes = is.readAllBytes();
       }
+
+      String keyContent = new String(keyBytes)
+          .replace("-----BEGIN PUBLIC KEY-----", "")
+          .replace("-----END PUBLIC KEY-----", "")
+          .replaceAll("\\s", "");
+
+      byte[] decodedKey = java.util.Base64.getDecoder().decode(keyContent);
+      X509EncodedKeySpec spec = new X509EncodedKeySpec(decodedKey);
+      KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+      return keyFactory.generatePublic(spec);
     } catch (Exception e) {
-      LOGGER.fine("Error extracting claim '" + claimName + "': " + e.getMessage());
+      LOGGER.warning("Error loading JWT public key: " + e.getMessage());
       return null;
     }
   }
