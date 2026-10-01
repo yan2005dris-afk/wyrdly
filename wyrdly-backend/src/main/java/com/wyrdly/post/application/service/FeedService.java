@@ -4,6 +4,9 @@ import com.wyrdly.post.application.dto.FeedResponseDto;
 import com.wyrdly.post.application.dto.FeedResponseDto.PaginationMeta;
 import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.post.application.dto.PostResponse.AuthorDto;
+import com.wyrdly.post.application.pagination.CursorFeedPagination;
+import com.wyrdly.post.application.pagination.FeedPaginationRequest;
+import com.wyrdly.post.application.pagination.OffsetFeedPagination;
 import com.wyrdly.post.application.usecase.GetFeedUseCase;
 import com.wyrdly.post.domain.model.FeedPost;
 import com.wyrdly.post.domain.repository.PostRepository;
@@ -19,10 +22,6 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class FeedService implements GetFeedUseCase {
 
-  private static final int DEFAULT_PAGE = 1;
-  private static final int DEFAULT_PAGE_SIZE = 20;
-  private static final int MAX_PAGE_SIZE = 50;
-
   private final PostRepository postRepository;
 
   @Inject
@@ -31,13 +30,31 @@ public class FeedService implements GetFeedUseCase {
   }
 
   @Override
-  public FeedResponseDto getFeed(String userId, int page, int pageSize) {
+  public FeedResponseDto getFeed(String userId, FeedPaginationRequest pagination) {
     if (userId == null || userId.isBlank()) {
       throw new IllegalArgumentException("userId must not be blank");
     }
+    Objects.requireNonNull(pagination, "pagination must not be null");
 
-    int effectivePage = page < 1 ? DEFAULT_PAGE : page;
-    int effectivePageSize = pageSize < 1 ? DEFAULT_PAGE_SIZE : Math.min(pageSize, MAX_PAGE_SIZE);
+    return switch (pagination) {
+      case CursorFeedPagination cursorStrategy -> executeCursorStrategy(userId, cursorStrategy);
+      case OffsetFeedPagination offsetStrategy -> executeOffsetStrategy(userId, offsetStrategy);
+    };
+  }
+
+  @Override
+  public FeedResponseDto getFeed(String userId, int page, int pageSize) {
+    return getFeed(userId, new OffsetFeedPagination(page, pageSize));
+  }
+
+  @Override
+  public FeedResponseDto getFeedWithCursor(String userId, String cursor, int limit) {
+    return getFeed(userId, new CursorFeedPagination(cursor, limit));
+  }
+
+  private FeedResponseDto executeOffsetStrategy(String userId, OffsetFeedPagination pagination) {
+    int effectivePage = pagination.page();
+    int effectivePageSize = pagination.pageSize();
 
     List<FeedPost> feedPosts =
         postRepository.findFeedByUserId(userId, effectivePage, effectivePageSize);
@@ -69,15 +86,9 @@ public class FeedService implements GetFeedUseCase {
     return new FeedResponseDto(postResponses, meta);
   }
 
-  @Override
-  public FeedResponseDto getFeedWithCursor(String userId, String cursor, int limit) {
-    if (userId == null || userId.isBlank()) {
-      throw new IllegalArgumentException("userId must not be blank");
-    }
-
-    int effectiveLimit = limit < 1 ? DEFAULT_PAGE_SIZE : Math.min(limit, MAX_PAGE_SIZE);
-
-    Instant cursorInstant = decodeCursor(cursor);
+  private FeedResponseDto executeCursorStrategy(String userId, CursorFeedPagination pagination) {
+    int effectiveLimit = pagination.limit();
+    Instant cursorInstant = decodeCursor(pagination.cursor());
 
     List<FeedPost> rawPosts =
         postRepository.findFeedByUserIdWithCursor(userId, cursorInstant, effectiveLimit + 1);
