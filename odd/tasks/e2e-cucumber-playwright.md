@@ -31,11 +31,11 @@ Cucumber permite expresar los criterios de aceptación en Gherkin legible por ne
 
 ## Tareas
 
-- [x] **TASK-01**: Infraestructura & Dependencias - Configurar `@cucumber/cucumber`, `playwright`, `tsx`, `cucumber.json` y `e2e/tsconfig.json`.
-- [x] **TASK-02**: Support & Hooks - Implementar `CustomWorld` y hooks con captura de capturas y manejo de browser context.
-- [x] **TASK-03**: Features Gherkin - Escribir `e2e/features/auth.feature` y `e2e/features/post-and-feed.feature`.
-- [x] **TASK-04**: Step Definitions - Implementar `e2e/steps/auth.steps.ts` y `e2e/steps/post.steps.ts`.
-- [x] **TASK-05**: NPM Scripts & Verificación - Configurar `pnpm test:e2e` y verificar ejecución de la suite.
+- [x] **TASK-01**: Infraestructura & Dependencias - Configurar `@cucumber/cucumber`, `playwright`, `tsx`, `cucumber.json` y `e2e/tsconfig.json`. (Commit: `2043c8a`)
+- [x] **TASK-02**: Support & Hooks - Implementar `CustomWorld` y hooks con captura de capturas y manejo de browser context. (Commit: `2043c8a`)
+- [x] **TASK-03**: Features Gherkin - Escribir `e2e/features/auth.feature` y `e2e/features/post-and-feed.feature`. (Commit: `2043c8a`)
+- [x] **TASK-04**: Step Definitions - Implementar `e2e/steps/auth.steps.ts` y `e2e/steps/post.steps.ts`. (Commit: `2043c8a`)
+- [x] **TASK-05**: NPM Scripts & Verificación - Configurar `pnpm test:e2e` y verificar ejecución de la suite. (Commit: `2043c8a`)
 
 ## Evidencia de Verificación
 - **Dependencias**: `@cucumber/cucumber@^13.2.1`, `@playwright/test@^1.63.0`, `playwright@^1.63.0`, `tsx@^4.23.15` instaladas y vinculadas.
