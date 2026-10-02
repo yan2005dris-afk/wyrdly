@@ -83,11 +83,7 @@ export function useReaction(): UseReactionReturn {
       callbacks.onOptimistic?.(type);
 
       try {
-        const response = await postsApi.react(
-          postId,
-          type,
-          controller.signal,
-        );
+        const response = await postsApi.react(postId, type, controller.signal);
         callbacks.onServerResult?.(response);
         // Only mutate state if we are still the active controller for this
         // postId. A newer react() call will manage its own lifecycle.

@@ -37,7 +37,9 @@ const MOCK_POST: Post = {
   visibility: "PUBLIC",
 };
 
-const renderCard = (props: Partial<React.ComponentProps<typeof PostCard>> = {}) =>
+const renderCard = (
+  props: Partial<React.ComponentProps<typeof PostCard>> = {},
+) =>
   render(
     <BrowserRouter>
       <PostCard post={MOCK_POST} {...props} />
