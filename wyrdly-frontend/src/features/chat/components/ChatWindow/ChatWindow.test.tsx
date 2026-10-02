@@ -62,4 +62,41 @@ describe("ChatWindow Component", () => {
       screen.getByText("Today • E2E Encrypted over WebSocket"),
     ).toBeInTheDocument();
   });
+
+  it("renders skeleton placeholders when isLoadingMessages is true", () => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
+
+    render(
+      <ChatWindow
+        conversation={MOCK_CONV}
+        currentUserId="user-maya"
+        messages={MOCK_MESSAGES}
+        isLoadingMessages={true}
+        onSendMessage={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("chat-messages-loading")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Hey! Did you see the new relay map?"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders empty state when messages array is empty", () => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
+
+    render(
+      <ChatWindow
+        conversation={MOCK_CONV}
+        currentUserId="user-maya"
+        messages={[]}
+        onSendMessage={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("chat-messages-empty")).toBeInTheDocument();
+    expect(
+      screen.getByText("No messages yet in this conversation."),
+    ).toBeInTheDocument();
+  });
 });
