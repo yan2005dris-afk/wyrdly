@@ -13,6 +13,8 @@
     "test": "echo 'Run pnpm ci from the repo root, or pnpm test from wyrdly-frontend/, or ./mvnw test from wyrdly-backend/.'",
     "test:e2e": "cucumber-js",
     "test:e2e:headed": "HEADLESS=false cucumber-js",
+    "test:load": "k6 run scripts/k6/feed-load-test.js",
+    "test:load:smoke": "k6 run --vus 1 --duration 5s scripts/k6/feed-load-test.js",
     "lint": "echo 'Run pnpm ci from the repo root, or pnpm lint from wyrdly-frontend/.'"
   },
   "devDependencies": {
