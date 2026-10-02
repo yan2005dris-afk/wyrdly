@@ -1,13 +1,10 @@
 package com.wyrdly.chat.application.dto;
 
-public class SendMessageRequest {
-  public String recipientId;
-  public String content;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
-  public SendMessageRequest() {}
-
-  public SendMessageRequest(String recipientId, String content) {
-    this.recipientId = recipientId;
-    this.content = content;
-  }
-}
+public record SendMessageRequest(
+    @NotBlank(message = "Recipient ID is required") String recipientId,
+    @NotBlank(message = "Message content cannot be blank")
+        @Size(max = 5000, message = "Message content cannot exceed 5000 characters")
+        String content) {}

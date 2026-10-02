@@ -68,47 +68,7 @@ public class ChatResource {
     return Response.ok(history).build();
   }
 
-  public static class UserStatusResponse {
-    public String userId;
-    public boolean isOnline;
+  public record UserStatusResponse(String userId, boolean isOnline) {}
 
-    public UserStatusResponse() {}
-
-    public UserStatusResponse(String userId, boolean isOnline) {
-      this.userId = userId;
-      this.isOnline = isOnline;
-    }
-
-    public String getUserId() {
-      return userId;
-    }
-
-    public void setUserId(String userId) {
-      this.userId = userId;
-    }
-
-    public boolean isOnline() {
-      return isOnline;
-    }
-
-    public void setOnline(boolean online) {
-      isOnline = online;
-    }
-  }
-
-  public static class ErrorResponse {
-    public String error;
-
-    public ErrorResponse(String error) {
-      this.error = error;
-    }
-
-    public String getError() {
-      return error;
-    }
-
-    public void setError(String error) {
-      this.error = error;
-    }
-  }
+  public record ErrorResponse(String error) {}
 }

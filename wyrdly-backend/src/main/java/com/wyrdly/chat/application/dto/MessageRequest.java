@@ -1,39 +1,22 @@
 package com.wyrdly.chat.application.dto;
 
-public class MessageRequest {
-  private String action;
-  private String content;
-  private String recipientId;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
-  public MessageRequest() {}
-
-  public MessageRequest(String action, String content, String recipientId) {
-    this.action = action;
-    this.content = content;
-    this.recipientId = recipientId;
-  }
+public record MessageRequest(
+    @NotBlank(message = "Action is required") String action,
+    @Size(max = 5000, message = "Content cannot exceed 5000 characters") String content,
+    String recipientId) {
 
   public String getAction() {
     return action;
-  }
-
-  public void setAction(String action) {
-    this.action = action;
   }
 
   public String getContent() {
     return content;
   }
 
-  public void setContent(String content) {
-    this.content = content;
-  }
-
   public String getRecipientId() {
     return recipientId;
-  }
-
-  public void setRecipientId(String recipientId) {
-    this.recipientId = recipientId;
   }
 }
