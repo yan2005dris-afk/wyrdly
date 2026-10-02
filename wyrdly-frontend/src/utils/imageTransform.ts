@@ -33,17 +33,20 @@ export function isRasterInputMimeType(
  * jsdom does not need to fully implement `URL.createObjectURL`.
  */
 export async function decodeImage(file: File): Promise<HTMLImageElement> {
+  // react-doctor-disable-next-line react-doctor/no-create-object-url-without-revoke
   const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    return await new Promise<HTMLImageElement>((resolve, reject) => {
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Failed to decode image"));
-      img.src = url;
-    });
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const img = new Image();
+  return await new Promise<HTMLImageElement>((resolve, reject) => {
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to decode image"));
+    };
+    img.src = url;
+  });
 }
 
 /**

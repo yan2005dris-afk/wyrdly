@@ -102,7 +102,7 @@ export const CreatePostCard: FC<CreatePostCardProps> = ({
               <div className={styles.attachmentPreviews}>
                 {selectedFiles.map((file, idx) => (
                   <span
-                    key={`${file.name}-${idx}`}
+                    key={`${file.name}-${file.size}-${file.lastModified}`}
                     className={styles.previewPill}
                   >
                     <span>{file.name}</span>

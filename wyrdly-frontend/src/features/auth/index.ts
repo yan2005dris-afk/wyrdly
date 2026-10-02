@@ -6,7 +6,8 @@ export type { AuthGraphHeroProps } from "./components/AuthGraphHero";
 export { ProtectedRoute } from "./components/ProtectedRoute";
 
 // Context & Provider
-export { AuthContext, AuthProvider } from "./context/AuthContext";
+export { AuthContext } from "./context/authContextInstance";
+export { AuthProvider } from "./context/AuthContext";
 
 // Hooks
 export { useAuth } from "./hooks/useAuth";

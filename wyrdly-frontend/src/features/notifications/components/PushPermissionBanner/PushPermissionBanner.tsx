@@ -10,8 +10,7 @@ export const PushPermissionBanner: FC<PushPermissionBannerProps> = ({
   className = "",
 }) => {
   return (
-    <div
-      role="banner"
+    <header
       className={`${styles.banner} ${className}`}
       data-testid="push-permission-banner"
     >
@@ -46,6 +45,6 @@ export const PushPermissionBanner: FC<PushPermissionBannerProps> = ({
           Not now
         </button>
       </div>
-    </div>
+    </header>
   );
 };
