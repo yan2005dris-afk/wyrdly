@@ -1,57 +1,33 @@
 package com.wyrdly.chat.interfaces.rest;
 
-import com.wyrdly.chat.domain.exception.ChatSessionNotFoundException;
 import com.wyrdly.chat.domain.exception.InvalidMessageException;
 import com.wyrdly.chat.domain.exception.UsersNotFollowingException;
-import jakarta.ws.rs.core.MediaType;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.ext.ExceptionMapper;
-import jakarta.ws.rs.ext.Provider;
-import java.util.HashMap;
+import java.time.Instant;
 import java.util.Map;
+import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
-@Provider
+@ApplicationScoped
 public class ChatExceptionMappers {
 
-  @Provider
-  public static class InvalidMessageExceptionMapper
-      implements ExceptionMapper<InvalidMessageException> {
-    @Override
-    public Response toResponse(InvalidMessageException exception) {
-      Map<String, String> error = new HashMap<>();
-      error.put("error", exception.getMessage());
-      return Response.status(Response.Status.BAD_REQUEST)
-          .entity(error)
-          .type(MediaType.APPLICATION_JSON)
-          .build();
-    }
+  @ServerExceptionMapper
+  public Response handleInvalidMessage(InvalidMessageException ex) {
+    return buildResponse(Response.Status.BAD_REQUEST, ex.getMessage());
   }
 
-  @Provider
-  public static class ChatSessionNotFoundExceptionMapper
-      implements ExceptionMapper<ChatSessionNotFoundException> {
-    @Override
-    public Response toResponse(ChatSessionNotFoundException exception) {
-      Map<String, String> error = new HashMap<>();
-      error.put("error", exception.getMessage());
-      return Response.status(Response.Status.NOT_FOUND)
-          .entity(error)
-          .type(MediaType.APPLICATION_JSON)
-          .build();
-    }
+  @ServerExceptionMapper
+  public Response handleUsersNotFollowing(UsersNotFollowingException ex) {
+    return buildResponse(Response.Status.FORBIDDEN, ex.getMessage());
   }
 
-  @Provider
-  public static class UsersNotFollowingExceptionMapper
-      implements ExceptionMapper<UsersNotFollowingException> {
-    @Override
-    public Response toResponse(UsersNotFollowingException exception) {
-      Map<String, String> error = new HashMap<>();
-      error.put("error", exception.getMessage());
-      return Response.status(Response.Status.FORBIDDEN)
-          .entity(error)
-          .type(MediaType.APPLICATION_JSON)
-          .build();
-    }
+  private Response buildResponse(Response.Status status, String message) {
+    Map<String, Object> body =
+        Map.of(
+            "status", status.getStatusCode(),
+            "error", status.getReasonPhrase(),
+            "message", message != null ? message : "",
+            "timestamp", Instant.now().toString());
+    return Response.status(status).entity(body).build();
   }
 }

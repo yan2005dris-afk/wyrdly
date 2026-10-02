@@ -2,8 +2,8 @@ package com.wyrdly.chat.interfaces.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wyrdly.chat.application.dto.MessageResponse;
-import com.wyrdly.chat.application.service.ChatService;
 import com.wyrdly.chat.application.service.JwtValidationService;
+import com.wyrdly.chat.application.usecase.SendMessageUseCase;
 import com.wyrdly.chat.infrastructure.websocket.ChatSessionRegistry;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -22,7 +22,7 @@ class ChatWebSocketEndpointTest {
 
   @InjectMock ChatSessionRegistry sessionRegistry;
 
-  @InjectMock ChatService chatService;
+  @InjectMock SendMessageUseCase sendMessageUseCase;
 
   @InjectMock JwtValidationService jwtValidationService;
 
@@ -81,13 +81,13 @@ class ChatWebSocketEndpointTest {
 
     MessageResponse mockResponse =
         new MessageResponse("msg-1", "user1", "user2", "Hello", Instant.now());
-    Mockito.when(chatService.sendMessage("user1", "user2", "Hello")).thenReturn(mockResponse);
+    Mockito.when(sendMessageUseCase.execute("user1", "user2", "Hello")).thenReturn(mockResponse);
 
     String payload =
         "{\"action\":\"SEND_MESSAGE\",\"recipientId\":\"user2\",\"content\":\"Hello\"}";
     endpoint.onMessage(payload, mockSession);
 
-    Mockito.verify(chatService).sendMessage("user1", "user2", "Hello");
+    Mockito.verify(sendMessageUseCase).execute("user1", "user2", "Hello");
     Mockito.verify(sessionRegistry).broadcast(Mockito.eq("user2"), Mockito.contains("NEW_MESSAGE"));
   }
 }

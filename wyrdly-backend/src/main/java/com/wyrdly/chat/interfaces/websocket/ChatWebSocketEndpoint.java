@@ -3,8 +3,9 @@ package com.wyrdly.chat.interfaces.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wyrdly.chat.application.dto.MessageRequest;
 import com.wyrdly.chat.application.dto.MessageResponse;
-import com.wyrdly.chat.application.service.ChatService;
 import com.wyrdly.chat.application.service.JwtValidationService;
+import com.wyrdly.chat.application.usecase.SendMessageUseCase;
+import com.wyrdly.chat.domain.model.MessageAction;
 import com.wyrdly.chat.infrastructure.websocket.ChatSessionRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -31,7 +32,7 @@ public class ChatWebSocketEndpoint {
 
   @Inject ChatSessionRegistry sessionRegistry;
 
-  @Inject ChatService chatService;
+  @Inject SendMessageUseCase sendMessageUseCase;
 
   @Inject JwtValidationService jwtValidationService;
 
@@ -90,9 +91,9 @@ public class ChatWebSocketEndpoint {
 
       MessageRequest request = objectMapper.readValue(message, MessageRequest.class);
 
-      if ("SEND_MESSAGE".equals(request.getAction())) {
+      if (MessageAction.SEND_MESSAGE.name().equals(request.getAction())) {
         handleSendMessage(userId, request, session);
-      } else if ("TYPING".equals(request.getAction())) {
+      } else if (MessageAction.TYPING.name().equals(request.getAction())) {
         handleTyping(userId, request.getRecipientId(), session);
       }
     } catch (Exception e) {
@@ -126,7 +127,7 @@ public class ChatWebSocketEndpoint {
       throws IOException {
     try {
       MessageResponse response =
-          chatService.sendMessage(senderId, request.getRecipientId(), request.getContent());
+          sendMessageUseCase.execute(senderId, request.getRecipientId(), request.getContent());
 
       Map<String, Object> msgResponse = new HashMap<>();
       msgResponse.put("action", "MESSAGE_SENT");

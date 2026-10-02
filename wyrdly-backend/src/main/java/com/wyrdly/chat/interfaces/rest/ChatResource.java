@@ -24,11 +24,19 @@ public class ChatResource {
 
   private static final Logger LOGGER = Logger.getLogger(ChatResource.class.getName());
 
-  @Inject GetChatHistoryUseCase getChatHistoryUseCase;
+  private final GetChatHistoryUseCase getChatHistoryUseCase;
+  private final ChatSessionRegistry sessionRegistry;
+  private final JsonWebToken jwt;
 
-  @Inject ChatSessionRegistry sessionRegistry;
-
-  @Inject JsonWebToken jwt;
+  @Inject
+  public ChatResource(
+      GetChatHistoryUseCase getChatHistoryUseCase,
+      ChatSessionRegistry sessionRegistry,
+      JsonWebToken jwt) {
+    this.getChatHistoryUseCase = getChatHistoryUseCase;
+    this.sessionRegistry = sessionRegistry;
+    this.jwt = jwt;
+  }
 
   @GET
   @Path("/{targetUserId}/status")
@@ -46,29 +54,22 @@ public class ChatResource {
       @QueryParam("page") @DefaultValue("1") int page,
       @QueryParam("pageSize") @DefaultValue("50") int pageSize) {
     String userId = jwt.getSubject();
-    if (userId == null || userId.isEmpty()) {
-      return Response.status(Response.Status.UNAUTHORIZED)
-          .entity(new ErrorResponse("Unable to identify user"))
-          .build();
-    }
 
-    if (pageSize < 1 || pageSize > 100) {
-      pageSize = 50;
-    }
-    if (page < 1) {
-      page = 1;
-    }
+    int validatedPageSize = (pageSize < 1 || pageSize > 100) ? 50 : pageSize;
+    int validatedPage = (page < 1) ? 1 : page;
 
-    // ✅ Fix #3: Remover catch genérico
-    // ExceptionMappers manejan excepciones específicas automáticamente
-    ChatHistoryPage history = getChatHistoryUseCase.execute(userId, recipientId, page, pageSize);
+    ChatHistoryPage history =
+        getChatHistoryUseCase.execute(userId, recipientId, validatedPage, validatedPageSize);
 
     LOGGER.info(
-        "Retrieved chat history for user: " + userId + " with " + recipientId + " page: " + page);
+        "Retrieved chat history for user: "
+            + userId
+            + " with "
+            + recipientId
+            + " page: "
+            + validatedPage);
     return Response.ok(history).build();
   }
 
   public record UserStatusResponse(String userId, boolean isOnline) {}
-
-  public record ErrorResponse(String error) {}
 }
