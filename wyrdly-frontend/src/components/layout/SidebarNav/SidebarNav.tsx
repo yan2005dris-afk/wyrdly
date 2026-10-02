@@ -1,14 +1,6 @@
 import type { FC } from "react";
 import { NavLink } from "react-router-dom";
-import {
-  Home,
-  Compass,
-  MessageSquare,
-  User,
-  Bell,
-  Plus,
-  LogOut,
-} from "lucide-react";
+import { Home, Compass, MessageSquare, Bell, Plus, LogOut } from "lucide-react";
 import type { SidebarNavProps, NavItemConfig } from "./SidebarNav.types";
 import { Button } from "../../ui/Button";
 import styles from "./SidebarNav.module.css";
@@ -41,12 +33,6 @@ export const SidebarNav: FC<SidebarNavProps> = ({
       path: "/chat",
       icon: <MessageSquare className="w-4 h-4" />,
       count: unreadMessagesCount,
-    },
-    {
-      id: "profile",
-      label: "Profile",
-      path: "/profile",
-      icon: <User className="w-4 h-4" />,
     },
     {
       id: "alerts",

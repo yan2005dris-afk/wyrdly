@@ -1,5 +1,5 @@
 import { useState, type FC } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import type { MainLayoutProps } from "./MainLayout.types";
 import type { UserProfileSummary } from "../../../types/domain";
 import {
@@ -54,7 +54,20 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const location = useLocation();
+  const searchParamQ =
+    location.pathname === "/explore"
+      ? (new URLSearchParams(location.search).get("q") ?? "")
+      : "";
+
+  const [lastSyncedQ, setLastSyncedQ] = useState(searchParamQ);
+  const [searchQuery, setSearchQuery] = useState(searchParamQ);
+
+  if (lastSyncedQ !== searchParamQ) {
+    setLastSyncedQ(searchParamQ);
+    setSearchQuery(searchParamQ);
+  }
+
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<
     readonly SocialNotification[]
@@ -79,6 +92,15 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
 
   const unreadAlertsCount = notifications.filter((n) => !n.isRead).length;
 
+  const handleSearchSubmit = (query: string) => {
+    const trimmed = query.trim();
+    if (trimmed) {
+      navigate(`/explore?q=${encodeURIComponent(trimmed)}`);
+    } else {
+      navigate("/explore");
+    }
+  };
+
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
@@ -93,6 +115,7 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
         currentUser={currentUserSummary}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        onSearchSubmit={handleSearchSubmit}
         statusVariant="federated"
         statusText="Federated • Live"
         unreadNotificationsCount={unreadAlertsCount}
