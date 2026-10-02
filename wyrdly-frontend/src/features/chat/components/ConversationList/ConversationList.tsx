@@ -6,7 +6,29 @@ import type {
 } from "./ConversationList.types";
 import { Avatar } from "../../../../components/ui/Avatar";
 import { Input } from "../../../../components/ui/Input";
+import { Skeleton } from "../../../../components/ui/Skeleton";
 import styles from "./ConversationList.module.css";
+
+export const ConversationItemSkeleton: FC<{ className?: string }> = ({
+  className = "",
+}) => (
+  <div
+    className={`${styles.item} ${className}`}
+    data-testid="conversation-item-skeleton"
+    aria-hidden="true"
+  >
+    <div className={styles.leftCol}>
+      <Skeleton variant="circular" width={40} height={40} />
+      <div className={styles.textCol} style={{ minWidth: "120px" }}>
+        <Skeleton variant="text" width={110} height={14} />
+        <Skeleton variant="text" width={150} height={11} className="mt-1" />
+      </div>
+    </div>
+    <div className={styles.rightCol}>
+      <Skeleton variant="text" width={28} height={10} />
+    </div>
+  </div>
+);
 
 export const ConversationItem: FC<ConversationItemProps> = ({
   conversation,
@@ -62,6 +84,7 @@ export const ConversationList: FC<ConversationListProps> = ({
   conversations,
   activeConversationId,
   searchQuery = "",
+  isLoading = false,
   onSearchChange,
   onSelectConversation,
   className = "",
@@ -96,7 +119,16 @@ export const ConversationList: FC<ConversationListProps> = ({
       </div>
 
       <div className={styles.scrollArea}>
-        {filteredConversations.length > 0 ? (
+        {isLoading ? (
+          <div
+            data-testid="conversation-list-loading"
+            className="flex flex-col gap-1"
+          >
+            {Array.from({ length: 4 }).map((_, i) => (
+              <ConversationItemSkeleton key={i} />
+            ))}
+          </div>
+        ) : filteredConversations.length > 0 ? (
           filteredConversations.map((conv) => (
             <ConversationItem
               key={conv.id}
