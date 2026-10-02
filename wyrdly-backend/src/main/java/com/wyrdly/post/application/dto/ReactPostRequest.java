@@ -1,5 +1,6 @@
 package com.wyrdly.post.application.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wyrdly.post.domain.model.ReactionType;
 import jakarta.validation.constraints.NotNull;
 
@@ -8,4 +9,5 @@ import jakarta.validation.constraints.NotNull;
  * and Jackson rejects unknown enum values automatically (returning {@code 400} via the framework's
  * default error handler).
  */
-public record ReactPostRequest(@NotNull ReactionType type) {}
+public record ReactPostRequest(
+    @JsonProperty(value = "type", required = true) @NotNull ReactionType type) {}

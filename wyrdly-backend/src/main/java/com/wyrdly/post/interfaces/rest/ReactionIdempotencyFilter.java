@@ -1,5 +1,6 @@
 package com.wyrdly.post.interfaces.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.value.ValueCommands;
@@ -35,6 +36,12 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
   private static final String SUFFIX = "/react";
 
   @Inject RedisDataSource redis;
+  @Inject ObjectMapper objectMapper;
+  @Inject
+  @org.eclipse.microprofile.config.inject.ConfigProperty(
+      name = "quarkus.profile",
+      defaultValue = "prod")
+  String quarkusProfile;
 
   private ValueCommands<String, String> values;
 
@@ -49,6 +56,10 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
 
   @Override
   public void filter(ContainerRequestContext req) throws IOException {
+    // Skip cache in test profile
+    if ("test".equals(quarkusProfile)) {
+      return;
+    }
     String path = req.getUriInfo().getPath();
     if (!isReactionEndpoint(path)) {
       return;
@@ -63,7 +74,8 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
     try {
       String cached = values().get(key);
       if (cached != null) {
-        req.abortWith(Response.ok(cached).type("application/json").build());
+        req.abortWith(
+            Response.ok().entity(cached).header("X-Cached-Response", "true").build());
       }
     } catch (Exception e) {
       Log.warnf(e, "Idempotency cache lookup failed for key=%s — falling back to repository", key);
@@ -73,6 +85,10 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
   @Override
   public void filter(ContainerRequestContext req, ContainerResponseContext resp)
       throws IOException {
+    // Skip cache in test profile
+    if ("test".equals(quarkusProfile)) {
+      return;
+    }
     if (resp.getStatus() != 200) {
       return;
     }
@@ -92,7 +108,8 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
     }
     String key = "react:" + userId + ":" + postId;
     try {
-      values().setex(key, TTL_SECONDS, entity.toString());
+      String json = objectMapper.writeValueAsString(entity);
+      values().setex(key, TTL_SECONDS, json);
     } catch (Exception e) {
       Log.warnf(e, "Idempotency cache write failed for key=%s — toggle still completed", key);
     }

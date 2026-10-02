@@ -4,10 +4,14 @@ import com.wyrdly.post.domain.exception.PostNotFoundException;
 import com.wyrdly.post.domain.exception.PostPersistenceException;
 import com.wyrdly.post.domain.exception.PostValidationException;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.core.Response;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.faulttolerance.exceptions.CircuitBreakerOpenException;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
@@ -42,6 +46,43 @@ public class PostExceptionMappers {
         Response.Status.SERVICE_UNAVAILABLE,
         "DEPENDENCY_DOWN",
         "Servicio temporalmente no disponible. Reintenta en unos segundos.");
+  }
+
+  @ServerExceptionMapper
+  public Response handleConstraintViolation(ConstraintViolationException ex) {
+    String violations =
+        ex.getConstraintViolations().stream()
+            .map(ConstraintViolation::getMessage)
+            .collect(Collectors.joining(", "));
+    return buildResponse(Response.Status.BAD_REQUEST, "VALIDATION_ERROR", violations);
+  }
+
+  @ServerExceptionMapper
+  public Response handleBadRequest(BadRequestException ex) {
+    String message = ex.getMessage() != null ? ex.getMessage() : "Invalid request";
+    return buildResponse(Response.Status.BAD_REQUEST, "VALIDATION_ERROR", message);
+  }
+
+  @ServerExceptionMapper
+  public Response handleJsonMappingException(com.fasterxml.jackson.databind.JsonMappingException ex) {
+    String message = ex.getOriginalMessage() != null ? ex.getOriginalMessage() : "Invalid request";
+    return buildResponse(Response.Status.BAD_REQUEST, "VALIDATION_ERROR", message);
+  }
+
+  @ServerExceptionMapper
+  public Response handleJsonParseException(com.fasterxml.jackson.core.JsonParseException ex) {
+    String message = ex.getOriginalMessage() != null ? ex.getOriginalMessage() : "Invalid JSON";
+    return buildResponse(Response.Status.BAD_REQUEST, "VALIDATION_ERROR", message);
+  }
+
+  @ServerExceptionMapper
+  public Response handleIOException(java.io.IOException ex) {
+    String message = ex.getMessage() != null ? ex.getMessage() : "Invalid request";
+    if (message.contains("type") || message.contains("enum") || message.contains("missing") || message.contains("required")) {
+      return buildResponse(Response.Status.BAD_REQUEST, "VALIDATION_ERROR", message);
+    }
+    // If it's another IO error, re-throw (or return 500)
+    throw new RuntimeException(ex);
   }
 
   private Response buildResponse(Response.Status status, String code, String message) {
