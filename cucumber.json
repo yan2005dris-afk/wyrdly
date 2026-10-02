@@ -1,0 +1,16 @@
+{
+  "default": {
+    "paths": ["e2e/features/**/*.feature"],
+    "import": [
+      "tsx",
+      "e2e/support/**/*.ts",
+      "e2e/steps/**/*.ts"
+    ],
+    "format": [
+      "summary",
+      "progress-bar"
+    ],
+    "parallel": 1,
+    "publishQuiet": true
+  }
+}

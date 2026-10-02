@@ -11,6 +11,14 @@
     "ci:frontend": "bash scripts/ci-local.sh --frontend-only",
     "ci:backend": "bash scripts/ci-local.sh --backend-only",
     "test": "echo 'Run pnpm ci from the repo root, or pnpm test from wyrdly-frontend/, or ./mvnw test from wyrdly-backend/.'",
+    "test:e2e": "cucumber-js",
+    "test:e2e:headed": "HEADLESS=false cucumber-js",
     "lint": "echo 'Run pnpm ci from the repo root, or pnpm lint from wyrdly-frontend/.'"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^13.2.1",
+    "@playwright/test": "^1.63.0",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.15"
   }
 }
