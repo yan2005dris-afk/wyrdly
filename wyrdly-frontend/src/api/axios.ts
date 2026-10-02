@@ -70,7 +70,7 @@ apiClient.interceptors.response.use(
       try {
         const response = await axios.post(
           `${API_BASE_URL}/api/auth/refresh`,
-          {},
+          undefined,
           { withCredentials: true },
         );
         const { token: newToken } = response.data;
