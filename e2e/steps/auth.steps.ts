@@ -44,8 +44,11 @@ Then("el sistema debe redirigirlo al feed principal", async function (this: Cust
 
 Then("el usuario debe estar autenticado en la sesión", async function (this: CustomWorld) {
   if (!this.page) throw new Error("Page not initialized");
-  const token = await this.page.evaluate(() => localStorage.getItem("wyrdly_token"));
-  expect(token).toBeTruthy();
+  const user = await this.page.evaluate(() => localStorage.getItem("wyrdly_user"));
+  expect(user).toBeTruthy();
+  const cookies = await this.page.context().cookies();
+  const refreshCookie = cookies.find((c) => c.name === "refreshToken");
+  expect(refreshCookie).toBeTruthy();
 });
 
 Given("que selecciona la pestaña de inicio de sesión", async function (this: CustomWorld) {
@@ -67,6 +70,8 @@ When("ingresa sus credenciales válidas", async function (this: CustomWorld) {
         username: this.currentUsername,
         email: this.currentEmail,
         password: "PasswordSeguro123!",
+        bio: "",
+        avatarUrl: "",
       },
     });
   }
