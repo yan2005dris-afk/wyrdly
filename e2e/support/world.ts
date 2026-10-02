@@ -17,7 +17,7 @@ export class CustomWorld extends World<CustomWorldParameters> {
 
   constructor(options: IWorldOptions<CustomWorldParameters>) {
     super(options);
-    this.baseUrl = process.env.BASE_URL || options.parameters?.baseUrl || "http://localhost:5173";
+    this.baseUrl = process.env.BASE_URL || options.parameters?.baseUrl || "http://localhost:3000";
   }
 }
 

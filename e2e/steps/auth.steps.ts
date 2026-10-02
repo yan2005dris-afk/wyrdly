@@ -10,7 +10,7 @@ Given("que el usuario navega a la página de autenticación", async function (th
 
 Given("que selecciona la pestaña de registro", async function (this: CustomWorld) {
   if (!this.page) throw new Error("Page not initialized");
-  const signUpTab = this.page.getByRole("button", { name: "Sign Up" });
+  const signUpTab = this.page.getByRole("tab", { name: "Sign Up" });
   await signUpTab.click();
   await expect(this.page.getByTestId("input-fullname")).toBeVisible();
 });
@@ -50,18 +50,29 @@ Then("el usuario debe estar autenticado en la sesión", async function (this: Cu
 
 Given("que selecciona la pestaña de inicio de sesión", async function (this: CustomWorld) {
   if (!this.page) throw new Error("Page not initialized");
-  const signInTab = this.page.getByRole("button", { name: "Sign In" });
+  const signInTab = this.page.getByRole("tab", { name: "Sign In" });
   await signInTab.click();
   await expect(this.page.getByTestId("input-username")).toBeVisible();
 });
 
 When("ingresa sus credenciales válidas", async function (this: CustomWorld) {
   if (!this.page) throw new Error("Page not initialized");
-  // Use registered user from previous step if present, otherwise fallback to seed user
-  const username = this.currentUsername || "maya";
-  const password = "PasswordSeguro123!";
+  if (!this.currentUsername) {
+    const uniqueId = Date.now().toString().slice(-6);
+    this.currentUsername = `user_${uniqueId}`;
+    this.currentEmail = `user_${uniqueId}@example.com`;
+    await this.page.request.post("http://localhost:8080/api/auth/register", {
+      data: {
+        fullName: `Test User ${uniqueId}`,
+        username: this.currentUsername,
+        email: this.currentEmail,
+        password: "PasswordSeguro123!",
+      },
+    });
+  }
 
-  await this.page.getByTestId("input-username").fill(username);
+  const password = "PasswordSeguro123!";
+  await this.page.getByTestId("input-username").fill(this.currentUsername);
   await this.page.getByTestId("input-password").fill(password);
 });
 
@@ -74,7 +85,7 @@ When(
   "ingresa un usuario existente con una contraseña incorrecta",
   async function (this: CustomWorld) {
     if (!this.page) throw new Error("Page not initialized");
-    await this.page.getByTestId("input-username").fill("maya");
+    await this.page.getByTestId("input-username").fill("yandris");
     await this.page.getByTestId("input-password").fill("ContraseñaTotalmenteErronea999!");
   }
 );

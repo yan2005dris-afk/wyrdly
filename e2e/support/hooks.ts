@@ -1,6 +1,8 @@
-import { BeforeAll, AfterAll, Before, After, Status } from "@cucumber/cucumber";
+import { BeforeAll, AfterAll, Before, After, Status, setDefaultTimeout } from "@cucumber/cucumber";
 import { chromium, type Browser } from "playwright";
 import type { CustomWorld } from "./world.js";
+
+setDefaultTimeout(30 * 1000);
 
 let globalBrowser: Browser | null = null;
 

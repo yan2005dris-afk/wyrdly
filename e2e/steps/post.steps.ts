@@ -12,10 +12,8 @@ Given("que existe un usuario autenticado en la sesión", async function (this: C
   await this.page.goto(`${this.baseUrl}/register`);
   await expect(this.page.getByTestId("auth-form-card")).toBeVisible({ timeout: 10000 });
 
-  const signUpTab = this.page.getByRole("button", { name: "Sign Up" });
-  if (await signUpTab.isVisible()) {
-    await signUpTab.click();
-  }
+  const signUpTab = this.page.getByRole("tab", { name: "Sign Up" });
+  await signUpTab.click();
 
   await this.page.getByTestId("input-fullname").fill(`Poster User ${uniqueId}`);
   await this.page.getByTestId("input-username").fill(username);

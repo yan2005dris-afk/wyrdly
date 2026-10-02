@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Wyrdly — Red social distribuida (monorepo root). See wyrdly-frontend/ and wyrdly-backend/.",
+  "type": "module",
   "scripts": {
     "ci": "bash scripts/ci-local.sh",
     "ci:fix": "bash scripts/ci-local.sh --fix",
