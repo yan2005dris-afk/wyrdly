@@ -8,14 +8,14 @@ const renderWithRouter = (ui: React.ReactElement) => {
 };
 
 describe("SidebarNav Component", () => {
-  it("renders all navigation links", () => {
+  it("renders all navigation links without redundant profile item", () => {
     renderWithRouter(<SidebarNav />);
 
     expect(screen.getByText("Feed")).toBeInTheDocument();
     expect(screen.getByText("Explore")).toBeInTheDocument();
     expect(screen.getByText("Messages")).toBeInTheDocument();
-    expect(screen.getByText("Profile")).toBeInTheDocument();
     expect(screen.getByText("Alerts")).toBeInTheDocument();
+    expect(screen.queryByTestId("nav-link-profile")).not.toBeInTheDocument();
   });
 
   it("renders message and alert badge counts", () => {
