@@ -1,11 +1,11 @@
 package com.wyrdly.post.interfaces.rest;
 
 import com.wyrdly.post.application.dto.FeedResponseDto;
-import com.wyrdly.post.application.pagination.FeedPaginationRequest;
 import com.wyrdly.post.application.usecase.GetFeedUseCase;
 import io.quarkus.security.Authenticated;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -32,14 +32,10 @@ public class FeedResource {
   @GET
   @Authenticated
   public Response getFeed(
-      @QueryParam("cursor") String cursor,
-      @QueryParam("limit") Integer limit,
-      @QueryParam("page") Integer page,
-      @QueryParam("pageSize") Integer pageSize) {
+      @QueryParam("page") @DefaultValue("1") int page,
+      @QueryParam("pageSize") @DefaultValue("20") int pageSize) {
     String userId = jwt.getSubject();
-    FeedPaginationRequest pagination =
-        FeedPaginationRequest.fromParams(cursor, limit, page, pageSize);
-    FeedResponseDto response = getFeedUseCase.getFeed(userId, pagination);
+    FeedResponseDto response = getFeedUseCase.getFeed(userId, page, pageSize);
     return Response.ok(response).build();
   }
 }

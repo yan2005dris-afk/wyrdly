@@ -8,7 +8,7 @@ vi.mock("./axios", () => ({
 }));
 
 import { apiClient } from "./axios";
-import { postsApi } from "./posts";
+import { postsApi, type ReactPostResponse } from "./posts";
 import type { PostApiResponse } from "../types/feed";
 
 const mockedPost = vi.mocked(apiClient.post);
@@ -125,5 +125,83 @@ describe("postsApi.getFeed", () => {
         pageSize: undefined,
       },
     });
+  });
+});
+
+describe("postsApi.react (HU09)", () => {
+  beforeEach(() => {
+    mockedPost.mockReset();
+  });
+
+  const baseReactResponse: ReactPostResponse = {
+    status: "ADDED",
+    reactionType: "LIKE",
+    totalReactions: 1,
+  };
+
+  it("POSTs to /api/posts/{postId}/react with the type in the body", async () => {
+    mockedPost.mockResolvedValueOnce({ data: baseReactResponse });
+
+    const result = await postsApi.react("post-abc", "LIKE");
+
+    expect(mockedPost).toHaveBeenCalledTimes(1);
+    expect(mockedPost).toHaveBeenCalledWith(
+      "/api/posts/post-abc/react",
+      { type: "LIKE" },
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Idempotency-Key": expect.any(String) as string,
+        }),
+      }),
+    );
+    expect(result).toEqual(baseReactResponse);
+  });
+
+  it("forwards an AbortSignal in the axios config when provided", async () => {
+    mockedPost.mockResolvedValueOnce({ data: baseReactResponse });
+    const controller = new AbortController();
+
+    await postsApi.react("post-abc", "LOVE", controller.signal);
+
+    const callArgs = mockedPost.mock.calls[0];
+    expect(callArgs).toBeDefined();
+    const config = callArgs?.[2] as { signal?: AbortSignal } | undefined;
+    expect(config?.signal).toBe(controller.signal);
+  });
+
+  it("sends a fresh Idempotency-Key on every call", async () => {
+    mockedPost.mockResolvedValueOnce({ data: baseReactResponse });
+    mockedPost.mockResolvedValueOnce({
+      data: { ...baseReactResponse, totalReactions: 2 },
+    });
+
+    await postsApi.react("post-abc", "LIKE");
+    await postsApi.react("post-abc", "LIKE");
+
+    const firstCall = mockedPost.mock.calls[0];
+    const secondCall = mockedPost.mock.calls[1];
+    const firstKey = (firstCall?.[2] as { headers?: Record<string, string> })
+      ?.headers?.["Idempotency-Key"];
+    const secondKey = (secondCall?.[2] as { headers?: Record<string, string> })
+      ?.headers?.["Idempotency-Key"];
+
+    expect(firstKey).toBeDefined();
+    expect(secondKey).toBeDefined();
+    expect(firstKey).not.toBe(secondKey);
+  });
+
+  it("returns the server response shape unchanged", async () => {
+    const removed: ReactPostResponse = {
+      status: "REMOVED",
+      reactionType: null,
+      totalReactions: 0,
+    };
+    mockedPost.mockResolvedValueOnce({ data: removed });
+
+    const result = await postsApi.react("post-abc", "LIKE");
+
+    expect(result.status).toBe("REMOVED");
+    expect(result.reactionType).toBeNull();
+    expect(result.totalReactions).toBe(0);
   });
 });

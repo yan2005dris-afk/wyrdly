@@ -12,6 +12,7 @@ import {
   useGraphSuggestions,
   useCreatePost,
   useFeed,
+  useReaction,
 } from "../features/social";
 import { useMediaUpload } from "../hooks/useMediaUpload";
 import { Tabs, type TabItem } from "../components/ui/Tabs";
@@ -37,6 +38,7 @@ export const FeedPage: FC = () => {
   const { createPost } = useCreatePost();
   const { upload: uploadMediaFile, isUploading: isUploadingMedia } =
     useMediaUpload();
+  const { react: reactToPost, isPending: isReactionPending } = useReaction();
 
   const suggestions = apiSuggestions;
 
@@ -77,18 +79,28 @@ export const FeedPage: FC = () => {
     addPost(newPost);
   };
 
-  // Optimistic reaction counter until HU09 wires the real API.
+  // HU09: wire the real reactions API. Optimistic update on click, rollback
+  // on failure, server-truth refetch on success.
   const handleReaction = (postId: string, reaction: ReactionType) => {
     const target = posts.find((p) => p.id === postId);
     if (!target) return;
+
     const currentActive = target.userReaction === reaction;
     const diff = currentActive ? -1 : 1;
-    replacePost({
+    const optimistic = {
       ...target,
       userReaction: currentActive ? undefined : reaction,
       reactions: {
         ...target.reactions,
         [reaction]: Math.max(0, target.reactions[reaction] + diff),
+      },
+    };
+    replacePost(optimistic);
+
+    void reactToPost(postId, reaction, {
+      onRollback: () => {
+        // Restore the snapshot captured at click time.
+        replacePost(target);
       },
     });
   };
@@ -143,7 +155,12 @@ export const FeedPage: FC = () => {
             </div>
           ) : (
             posts.map((post) => (
-              <PostCard key={post.id} post={post} onReaction={handleReaction} />
+              <PostCard
+                key={post.id}
+                post={post}
+                onReaction={handleReaction}
+                isReactionPending={isReactionPending(post.id)}
+              />
             ))
           )}
         </div>

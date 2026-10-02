@@ -2,6 +2,8 @@ import type { FC } from "react";
 import { Link } from "react-router-dom";
 import {
   Heart,
+  Sparkles,
+  PartyPopper,
   Repeat,
   MessageCircle,
   Share2,
@@ -9,6 +11,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import type { PostCardProps } from "./PostCard.types";
+import type { ReactionType } from "../../../../types/feed";
 import { Avatar } from "../../../../components/ui/Avatar";
 import { AuthImage } from "../../../../components/ui/AuthImage";
 import { Skeleton } from "../../../../components/ui/Skeleton";
@@ -55,14 +58,55 @@ const formatCount = (count: number): string => {
   return count.toString();
 };
 
+/** Icon + active-class metadata for each reaction button. */
+interface ReactionMeta {
+  readonly type: ReactionType;
+  readonly testId: string;
+  readonly ariaLabel: string;
+  readonly Icon: typeof Heart;
+  readonly activeClass: string;
+  readonly activeIconClass: string;
+  readonly inactiveIconClass: string;
+}
+
+const REACTION_BUTTONS: readonly ReactionMeta[] = [
+  {
+    type: "LIKE",
+    testId: "like-btn",
+    ariaLabel: "Like",
+    Icon: Heart,
+    activeClass: styles.actionButtonLiked,
+    activeIconClass: "fill-rose-500 text-rose-500",
+    inactiveIconClass: "",
+  },
+  {
+    type: "LOVE",
+    testId: "love-btn",
+    ariaLabel: "Love",
+    Icon: Sparkles,
+    activeClass: styles.actionButtonLoved,
+    activeIconClass: "fill-pink-500 text-pink-500",
+    inactiveIconClass: "",
+  },
+  {
+    type: "CELEBRATE",
+    testId: "celebrate-btn",
+    ariaLabel: "Celebrate",
+    Icon: PartyPopper,
+    activeClass: styles.actionButtonCelebrated,
+    activeIconClass: "fill-amber-500 text-amber-500",
+    inactiveIconClass: "",
+  },
+];
+
 export const PostCard: FC<PostCardProps> = ({
   post,
   onReaction,
   onCommentClick,
   onShareClick,
   className = "",
+  isReactionPending = false,
 }) => {
-  const isLiked = post.userReaction === "LIKE" || post.userReaction === "LOVE";
   const isBoosted = post.userReaction === "RETWEET";
 
   const authorProfileUrl = `/profile/${post.author.username}`;
@@ -136,23 +180,38 @@ export const PostCard: FC<PostCardProps> = ({
 
       {/* Post Interaction Toolbar */}
       <div className={styles.toolbar}>
-        <button
-          type="button"
-          onClick={() => onReaction?.(post.id, "LIKE")}
-          className={`${styles.actionButton} ${isLiked ? styles.actionButtonLiked : ""}`}
-          data-testid="like-btn"
-        >
-          <Heart
-            className={`w-3.5 h-3.5 ${isLiked ? "fill-rose-500 text-rose-500" : ""}`}
-          />
-          <span>{formatCount(post.reactions.LIKE)}</span>
-        </button>
+        {REACTION_BUTTONS.map(
+          ({ type, testId, ariaLabel, Icon, activeClass, activeIconClass }) => {
+            const isActive = post.userReaction === type;
+            const count = post.reactions[type] ?? 0;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => onReaction?.(post.id, type)}
+                disabled={isReactionPending}
+                aria-pressed={isActive}
+                aria-busy={isReactionPending || undefined}
+                aria-label={ariaLabel}
+                className={`${styles.actionButton} ${isActive ? activeClass : ""}`}
+                data-testid={testId}
+              >
+                <Icon
+                  className={`w-3.5 h-3.5 ${isActive ? activeIconClass : ""}`}
+                />
+                <span>{formatCount(count)}</span>
+              </button>
+            );
+          },
+        )}
 
         <button
           type="button"
           onClick={() => onReaction?.(post.id, "RETWEET")}
+          disabled={isReactionPending}
           className={`${styles.actionButton} ${isBoosted ? styles.actionButtonBoosted : ""}`}
           data-testid="boost-btn"
+          aria-label="Boost"
         >
           <Repeat className="w-3.5 h-3.5" />
           <span>{formatCount(post.reactions.RETWEET)}</span>
@@ -163,6 +222,7 @@ export const PostCard: FC<PostCardProps> = ({
           onClick={() => onCommentClick?.(post.id)}
           className={styles.actionButton}
           data-testid="comment-btn"
+          aria-label="Comments"
         >
           <MessageCircle className="w-3.5 h-3.5" />
           <span>{formatCount(post.commentsCount)}</span>
@@ -173,6 +233,7 @@ export const PostCard: FC<PostCardProps> = ({
           onClick={() => onShareClick?.(post.id)}
           className={styles.actionButton}
           data-testid="share-btn"
+          aria-label="Share"
         >
           <Share2 className="w-3.5 h-3.5" />
           <span>Share</span>

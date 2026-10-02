@@ -11,8 +11,6 @@ import com.wyrdly.post.application.dto.FeedResponseDto;
 import com.wyrdly.post.application.dto.FeedResponseDto.PaginationMeta;
 import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.post.application.dto.PostResponse.AuthorDto;
-import com.wyrdly.post.application.pagination.CursorFeedPagination;
-import com.wyrdly.post.application.pagination.OffsetFeedPagination;
 import com.wyrdly.post.application.usecase.GetFeedUseCase;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -51,8 +49,7 @@ class FeedResourceTest {
     FeedResponseDto responseDto =
         new FeedResponseDto(List.of(post), new PaginationMeta(1, 20, 1L, 1, false));
 
-    when(getFeedUseCase.getFeed(eq("usr_123"), eq(new CursorFeedPagination(null, 20))))
-        .thenReturn(responseDto);
+    when(getFeedUseCase.getFeed(eq("usr_123"), eq(1), eq(20))).thenReturn(responseDto);
 
     given()
         .contentType(ContentType.JSON)
@@ -76,7 +73,7 @@ class FeedResourceTest {
         .body("meta.totalPages", equalTo(1))
         .body("meta.hasNext", equalTo(false));
 
-    verify(getFeedUseCase).getFeed(eq("usr_123"), eq(new CursorFeedPagination(null, 20)));
+    verify(getFeedUseCase).getFeed(eq("usr_123"), eq(1), eq(20));
   }
 
   @Test
@@ -86,8 +83,7 @@ class FeedResourceTest {
     FeedResponseDto responseDto =
         new FeedResponseDto(List.of(), new PaginationMeta(1, 20, 0L, 0, false));
 
-    when(getFeedUseCase.getFeed(eq("usr_123"), eq(new CursorFeedPagination(null, 20))))
-        .thenReturn(responseDto);
+    when(getFeedUseCase.getFeed(eq("usr_123"), eq(1), eq(20))).thenReturn(responseDto);
 
     given()
         .contentType(ContentType.JSON)
@@ -108,8 +104,7 @@ class FeedResourceTest {
     FeedResponseDto responseDto =
         new FeedResponseDto(List.of(), new PaginationMeta(3, 10, 0L, 0, false));
 
-    when(getFeedUseCase.getFeed(eq("usr_123"), eq(new OffsetFeedPagination(3, 10))))
-        .thenReturn(responseDto);
+    when(getFeedUseCase.getFeed(eq("usr_123"), eq(3), eq(10))).thenReturn(responseDto);
 
     given()
         .queryParam("page", 3)
@@ -119,29 +114,6 @@ class FeedResourceTest {
         .then()
         .statusCode(200);
 
-    verify(getFeedUseCase).getFeed(eq("usr_123"), eq(new OffsetFeedPagination(3, 10)));
-  }
-
-  @Test
-  @TestSecurity(user = "usr_123")
-  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
-  void getFeed_WithCursorAndLimit_DelegatesToGetFeedWithCursor() {
-    FeedResponseDto responseDto =
-        new FeedResponseDto(List.of(), new PaginationMeta(1, 15, 0L, 0, true, "next_token", true));
-
-    when(getFeedUseCase.getFeed(eq("usr_123"), eq(new CursorFeedPagination("cur_abc", 15))))
-        .thenReturn(responseDto);
-
-    given()
-        .queryParam("cursor", "cur_abc")
-        .queryParam("limit", 15)
-        .when()
-        .get("/api/feed")
-        .then()
-        .statusCode(200)
-        .body("meta.nextCursor", equalTo("next_token"))
-        .body("meta.hasMore", equalTo(true));
-
-    verify(getFeedUseCase).getFeed(eq("usr_123"), eq(new CursorFeedPagination("cur_abc", 15)));
+    verify(getFeedUseCase).getFeed(eq("usr_123"), eq(3), eq(10));
   }
 }

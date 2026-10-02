@@ -1,9 +1,13 @@
 package com.wyrdly.post.infrastructure.persistence;
 
+import com.wyrdly.post.domain.exception.PostNotFoundException;
 import com.wyrdly.post.domain.exception.PostPersistenceException;
 import com.wyrdly.post.domain.model.Author;
 import com.wyrdly.post.domain.model.FeedPost;
 import com.wyrdly.post.domain.model.Post;
+import com.wyrdly.post.domain.model.ReactionResult;
+import com.wyrdly.post.domain.model.ReactionStatus;
+import com.wyrdly.post.domain.model.ReactionType;
 import com.wyrdly.post.domain.repository.PostRepository;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -71,6 +75,14 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
    * PostPersistenceException} for any infrastructure-level failure so callers can distinguish "not
    * found" from "Neo4j unavailable".
    */
+  /**
+   * Looks up a post by id, traversing {@code (:Usuario)-[:PUBLICA]->(:Post)} to also return the
+   * author id.
+   *
+   * <p>Returns {@link Optional#empty()} when no post matches. Throws {@link
+   * PostPersistenceException} for any infrastructure-level failure so callers can distinguish "not
+   * found" from "Neo4j unavailable".
+   */
   @Override
   public Optional<Post> findById(String id) {
     try (Session session = driver.session()) {
@@ -80,12 +92,24 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                   .run(
                       "MATCH (author:Usuario)-[:PUBLICA]->(p:Post {id: $id}) "
                           + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
-                          + "       p.createdAt AS createdAt, author.id AS userId",
+                          + "       p.createdAt AS createdAt, author.id AS authorId",
                       Values.parameters("id", id))
                   .list()
                   .stream()
                   .findFirst()
-                  .map(this::mapRecordToPost));
+                  .map(
+                      record -> {
+                        String postId = record.get("id").asString();
+                        String content = record.get("content").asString();
+                        String mediaUrl =
+                            record.get("mediaUrl").isNull()
+                                ? null
+                                : record.get("mediaUrl").asString();
+                        Instant createdAt = parseInstant(record.get("createdAt"));
+                        String authorId = record.get("authorId").asString();
+
+                        return new Post(postId, authorId, content, mediaUrl, createdAt);
+                      }));
 
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Post by id: %s", id);
@@ -99,6 +123,13 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
    * <p>Counts reactions (LIKE, LOVE, CELEBRATE) and returns the caller's reaction type (if any).
    * Results ordered by createdAt DESC, with SKIP/LIMIT for pagination.
    */
+  /**
+   * Feed query combining: 1. Posts from users the caller follows 2. The caller's own posts
+   *
+   * <p>Counts reactions via the unified {@code [:REACCIONA {tipo}]} relationship introduced in HU09
+   * (post V100 migration; legacy {@code [:LIKE|:LOVE|:CELEBRATE]} relationships have been migrated
+   * and are no longer present in the graph).
+   */
   private static final String FEED_QUERY =
       "MATCH (me:Usuario {id: $userId}) "
           + "CALL { "
@@ -110,25 +141,18 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "  MATCH (me)-[:PUBLICA]->(p:Post) "
           + "  RETURN p, me AS author "
           + "} "
-          + "WITH DISTINCT p, author, me "
-          + "OPTIONAL MATCH (p)<-[r:REACCIONA]-() "
-          + "OPTIONAL MATCH (p)<-[legacyLike:LIKE]-() "
-          + "OPTIONAL MATCH (p)<-[legacyLove:LOVE]-() "
-          + "OPTIONAL MATCH (p)<-[legacyCelebrate:CELEBRATE]-() "
-          + "OPTIONAL MATCH (me)-[userR:REACCIONA]->(p) "
-          + "OPTIONAL MATCH (me)-[legacyUserR:LIKE|LOVE|CELEBRATE]->(p) "
-          + "WITH p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
-          + "     p.createdAt AS createdAt, author.id AS authorId, "
-          + "     author.username AS authorUsername, author.fullName AS authorFullName, "
-          + "     author.avatarUrl AS authorAvatarUrl, "
-          + "     count(DISTINCT CASE WHEN r.tipo = 'LIKE' THEN r END) + count(DISTINCT legacyLike) AS likeCount, "
-          + "     count(DISTINCT CASE WHEN r.tipo = 'LOVE' THEN r END) + count(DISTINCT legacyLove) AS loveCount, "
-          + "     count(DISTINCT CASE WHEN r.tipo = 'CELEBRATE' THEN r END) + count(DISTINCT legacyCelebrate) AS celebrateCount, "
-          + "     CASE "
-          + "       WHEN userR IS NOT NULL THEN userR.tipo "
-          + "       WHEN legacyUserR IS NOT NULL THEN type(legacyUserR) "
-          + "       ELSE null "
-          + "     END AS userReactionType "
+          + "OPTIONAL MATCH (p)<-[rlike:REACCIONA {tipo: 'LIKE'}]-() "
+          + "OPTIONAL MATCH (p)<-[rlove:REACCIONA {tipo: 'LOVE'}]-() "
+          + "OPTIONAL MATCH (p)<-[rceleb:REACCIONA {tipo: 'CELEBRATE'}]-() "
+          + "OPTIONAL MATCH (me)-[ur:REACCIONA]->(p) "
+          + "WITH DISTINCT p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+          + "              p.createdAt AS createdAt, author.id AS authorId, "
+          + "              author.username AS authorUsername, author.fullName AS authorFullName, "
+          + "              author.avatarUrl AS authorAvatarUrl, "
+          + "              count(DISTINCT rlike) AS likeCount, "
+          + "              count(DISTINCT rlove) AS loveCount, "
+          + "              count(DISTINCT rceleb) AS celebrateCount, "
+          + "              ur.tipo AS userReactionType "
           + "ORDER BY createdAt DESC "
           + "SKIP $skip LIMIT $limit "
           + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
@@ -147,6 +171,41 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "  RETURN p "
           + "} "
           + "RETURN count(DISTINCT p) AS total";
+
+  /**
+   * Atomically toggles the {@code (:Usuario)-[:REACCIONA]->(:Post)} relationship for the supplied
+   * {@code (userId, postId)} pair. Detects the existing state, then runs the matching {@code
+   * FOREACH} branch to either remove, update, or create the relationship. Counts the resulting
+   * total reactions for the post.
+   *
+   * <p>If the post does not exist (the {@code MATCH} for {@code (:Post {id: $postId})} returns 0
+   * rows), this query returns no record and the caller surfaces a {@link PostNotFoundException}.
+   */
+  private static final String REACT_QUERY =
+      "MATCH (u:Usuario {id: $userId}) "
+          + "MATCH (p:Post {id: $postId}) "
+          + "OPTIONAL MATCH (u)-[existing:REACCIONA]->(p) "
+          + "WITH u, p, existing, "
+          + "     CASE "
+          + "       WHEN existing IS NULL              THEN 'ADDED' "
+          + "       WHEN existing.tipo = $tipo         THEN 'REMOVED' "
+          + "       ELSE                                    'UPDATED' "
+          + "     END AS status "
+          + "FOREACH (_ IN CASE WHEN status = 'REMOVED' THEN [1] ELSE [] END | "
+          + "  DELETE existing "
+          + ") "
+          + "FOREACH (_ IN CASE WHEN status = 'UPDATED' THEN [1] ELSE [] END | "
+          + "  SET existing.tipo = $tipo, existing.updatedAt = datetime() "
+          + ") "
+          + "FOREACH (_ IN CASE WHEN status = 'ADDED' THEN [1] ELSE [] END | "
+          + "  CREATE (u)-[r:REACCIONA {tipo: $tipo, createdAt: datetime(), updatedAt: datetime()}]->(p) "
+          + ") "
+          + "WITH p, status "
+          + "OPTIONAL MATCH (p)<-[allR:REACCIONA]-() "
+          + "WITH p, status, count(allR) AS totalReactions "
+          + "RETURN status, "
+          + "       CASE WHEN status = 'REMOVED' THEN null ELSE $tipo END AS reactionType, "
+          + "       totalReactions";
 
   @Override
   public List<FeedPost> findFeedByUserId(String userId, int page, int pageSize) {
@@ -184,102 +243,11 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     }
   }
 
-  private static final String FEED_CURSOR_QUERY =
-      "MATCH (me:Usuario {id: $userId}) "
-          + "CALL { "
-          + "  WITH me "
-          + "  MATCH (me)-[:SIGUE]->(author:Usuario)-[:PUBLICA]->(p:Post) "
-          + "  RETURN p, author "
-          + "  UNION ALL "
-          + "  WITH me "
-          + "  MATCH (me)-[:PUBLICA]->(p:Post) "
-          + "  RETURN p, me AS author "
-          + "} "
-          + "WITH DISTINCT p, author, me "
-          + "WHERE ($cursor IS NULL OR p.createdAt < datetime($cursor)) "
-          + "ORDER BY p.createdAt DESC "
-          + "LIMIT $limit "
-          + "OPTIONAL MATCH (p)<-[r:REACCIONA]-() "
-          + "OPTIONAL MATCH (p)<-[legacyLike:LIKE]-() "
-          + "OPTIONAL MATCH (p)<-[legacyLove:LOVE]-() "
-          + "OPTIONAL MATCH (p)<-[legacyCelebrate:CELEBRATE]-() "
-          + "OPTIONAL MATCH (me)-[userR:REACCIONA]->(p) "
-          + "OPTIONAL MATCH (me)-[legacyUserR:LIKE|LOVE|CELEBRATE]->(p) "
-          + "WITH p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
-          + "     p.createdAt AS createdAt, author.id AS authorId, "
-          + "     author.username AS authorUsername, author.fullName AS authorFullName, "
-          + "     author.avatarUrl AS authorAvatarUrl, "
-          + "     count(DISTINCT CASE WHEN r.tipo = 'LIKE' THEN r END) + count(DISTINCT legacyLike) AS likeCount, "
-          + "     count(DISTINCT CASE WHEN r.tipo = 'LOVE' THEN r END) + count(DISTINCT legacyLove) AS loveCount, "
-          + "     count(DISTINCT CASE WHEN r.tipo = 'CELEBRATE' THEN r END) + count(DISTINCT legacyCelebrate) AS celebrateCount, "
-          + "     CASE "
-          + "       WHEN userR IS NOT NULL THEN userR.tipo "
-          + "       WHEN legacyUserR IS NOT NULL THEN type(legacyUserR) "
-          + "       ELSE null "
-          + "     END AS userReactionType "
-          + "ORDER BY createdAt DESC "
-          + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
-          + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
-          + "       celebrateCount, userReactionType";
-
-  @Override
-  public List<FeedPost> findFeedByUserIdWithCursor(
-      String userId, Instant cursorCreatedAt, int limit) {
-    String cursorParam = cursorCreatedAt != null ? cursorCreatedAt.toString() : null;
-    try (Session session = driver.session()) {
-      return session.executeRead(
-          tx ->
-              tx.run(
-                      FEED_CURSOR_QUERY,
-                      Values.parameters(
-                          "userId", userId,
-                          "cursor", cursorParam,
-                          "limit", limit))
-                  .list(this::mapRecordToFeedPost));
-    } catch (Exception e) {
-      Log.errorf(e, "Failed to query feed with cursor for userId: %s", userId);
-      throw new PostPersistenceException(
-          "Failed to query feed with cursor for userId=" + userId, e);
-    }
-  }
-
-  @Override
-  public List<Post> findByAuthor(String authorId, int page, int pageSize) {
-    int skip = Math.max(0, (page - 1) * pageSize);
-    try (Session session = driver.session()) {
-      return session.executeRead(
-          tx ->
-              tx.run(
-                      "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
-                          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
-                          + "       p.createdAt AS createdAt, author.id AS userId "
-                          + "ORDER BY p.createdAt DESC "
-                          + "SKIP $skip LIMIT $limit",
-                      Values.parameters(
-                          "authorId", authorId,
-                          "skip", skip,
-                          "limit", pageSize))
-                  .list(this::mapRecordToPost));
-    } catch (Exception e) {
-      Log.errorf(e, "Failed to query posts by author: %s", authorId);
-      throw new PostPersistenceException("Failed to query posts by author=" + authorId, e);
-    }
-  }
-
-  private Post mapRecordToPost(Record record) {
-    return new Post(
-        record.get("id").asString(),
-        record.get("userId").asString(),
-        record.get("content").asString(),
-        record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString(),
-        readCreatedAt(record));
-  }
-
   private FeedPost mapRecordToFeedPost(Record record) {
     String id = record.get("id").asString();
     String content = record.get("content").asString();
     String mediaUrl = record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString();
-    Instant createdAt = readCreatedAt(record);
+    Instant createdAt = parseInstant(record.get("createdAt"));
 
     String authorId = record.get("authorId").asString();
     String authorUsername = record.get("authorUsername").asString();
@@ -306,18 +274,128 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         userReactionType);
   }
 
-  private Instant readCreatedAt(Record record) {
-    Value createdVal = record.get("createdAt");
-    if (createdVal == null || createdVal.isNull()) {
+  /**
+   * Finds all posts published by a specific author, with pagination.
+   *
+   * <p>Query: (:Usuario {id: authorId})-[:PUBLICA]->(:Post) traversal. Returns basic post info
+   * without reaction counts (used for user profile page).
+   */
+  @Override
+  public List<Post> findByAuthor(String authorId, int page, int pageSize) {
+    int skip = Math.max(0, (page - 1) * pageSize);
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx.run(
+                      "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
+                          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+                          + "       p.createdAt AS createdAt, author.id AS authorId "
+                          + "ORDER BY p.createdAt DESC "
+                          + "SKIP $skip LIMIT $limit",
+                      Values.parameters(
+                          "authorId", authorId,
+                          "skip", skip,
+                          "limit", pageSize))
+                  .list(this::mapRecordToPost));
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query posts by author: %s", authorId);
+      throw new PostPersistenceException("Failed to query posts for authorId=" + authorId, e);
+    }
+  }
+
+  /** Counts total posts published by a specific author. */
+  @Override
+  public long countByAuthor(String authorId) {
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx -> {
+            var result =
+                tx.run(
+                    "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
+                        + "RETURN count(DISTINCT p) AS total",
+                    Values.parameters("authorId", authorId));
+            if (result.hasNext()) {
+              return result.next().get("total").asLong();
+            }
+            return 0L;
+          });
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to count posts by author: %s", authorId);
+      throw new PostPersistenceException("Failed to count posts for authorId=" + authorId, e);
+    }
+  }
+
+  /**
+   * Maps a Neo4j record to a Post domain model. Used by findByAuthor().
+   *
+   * <p>Expects: id, content, mediaUrl, createdAt, authorId fields.
+   */
+  private Post mapRecordToPost(Record record) {
+    String id = record.get("id").asString();
+    String content = record.get("content").asString();
+    String mediaUrl = record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString();
+    Instant createdAt = parseInstant(record.get("createdAt"));
+    String authorId = record.get("authorId").asString();
+
+    return new Post(id, authorId, content, mediaUrl, createdAt);
+  }
+
+  /**
+   * Atomically toggles a user's reaction on a post in a single write transaction.
+   *
+   * <p>If the post does not exist the underlying {@code REACT_QUERY} matches zero rows, the
+   * returned record stream is empty, and a {@link PostNotFoundException} is raised. Any other
+   * driver-level failure is wrapped in {@link PostPersistenceException} so the caller can
+   * distinguish a not-found condition from a transient Neo4j problem.
+   */
+  @Override
+  public ReactionResult react(String userId, String postId, ReactionType type) {
+    try (Session session = driver.session()) {
+      Optional<Record> result =
+          session.executeWrite(
+              tx -> {
+                var run =
+                    tx.run(
+                        REACT_QUERY,
+                        Values.parameters("userId", userId, "postId", postId, "tipo", type.name()));
+                if (run.hasNext()) {
+                  return Optional.of(run.next());
+                }
+                return Optional.<Record>empty();
+              });
+
+      if (result.isEmpty()) {
+        throw new PostNotFoundException(postId);
+      }
+
+      Record record = result.get();
+      String status = record.get("status").asString();
+      ReactionStatus reactionStatus = ReactionStatus.valueOf(status);
+      String reactionTypeStr =
+          record.get("reactionType").isNull() ? null : record.get("reactionType").asString();
+      ReactionType reactionType =
+          reactionTypeStr == null ? null : ReactionType.valueOf(reactionTypeStr);
+      long total = record.get("totalReactions").asLong();
+
+      return new ReactionResult(postId, reactionStatus, reactionType, total);
+    } catch (PostNotFoundException e) {
+      throw e;
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to react to post: userId=%s postId=%s", userId, postId);
+      throw new PostPersistenceException("Failed to react to post=" + postId, e);
+    }
+  }
+
+  private static Instant parseInstant(Value val) {
+    if (val == null || val.isNull()) {
       return Instant.now();
     }
     try {
-      return createdVal.asZonedDateTime().toInstant();
+      return val.asZonedDateTime().toInstant();
     } catch (Exception e) {
       try {
-        return Instant.parse(createdVal.asString());
-      } catch (Exception ex2) {
-        Log.warnf("Could not parse Post createdAt; defaulting to now(). value=%s", createdVal);
+        return Instant.parse(val.asString());
+      } catch (Exception ex) {
         return Instant.now();
       }
     }

@@ -1,6 +1,5 @@
 package com.wyrdly.post.application.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 
 /**
@@ -21,24 +20,5 @@ public record PostResponse(
 
   public record AuthorDto(String id, String username, String fullName, String avatarUrl) {}
 
-  public record ReactionCounts(
-      @JsonProperty("likeCount") long likeCount,
-      @JsonProperty("loveCount") long loveCount,
-      @JsonProperty("celebrateCount") long celebrateCount) {
-
-    @JsonProperty("LIKE")
-    public long like() {
-      return likeCount;
-    }
-
-    @JsonProperty("LOVE")
-    public long love() {
-      return loveCount;
-    }
-
-    @JsonProperty("CELEBRATE")
-    public long celebrate() {
-      return celebrateCount;
-    }
-  }
+  public record ReactionCounts(long likeCount, long loveCount, long celebrateCount) {}
 }

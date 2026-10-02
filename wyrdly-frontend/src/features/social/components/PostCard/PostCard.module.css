@@ -118,12 +118,39 @@
   color: #4f46e5;
 }
 
+.actionButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.actionButton:disabled:hover {
+  background-color: transparent;
+  color: inherit;
+}
+
+/* HU09 active-state colors per reaction type. */
 .actionButtonLiked {
   color: #e11d48;
 }
 
 .actionButtonLiked:hover {
   color: #be123c;
+}
+
+.actionButtonLoved {
+  color: #db2777;
+}
+
+.actionButtonLoved:hover {
+  color: #be185d;
+}
+
+.actionButtonCelebrated {
+  color: #d97706;
+}
+
+.actionButtonCelebrated:hover {
+  color: #b45309;
 }
 
 .actionButtonBoosted {

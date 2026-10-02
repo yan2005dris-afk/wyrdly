@@ -45,6 +45,20 @@ services:
       retries: 5
       start_period: 10s
 
+  wyrdly-redis:
+    image: redis:7-alpine
+    container_name: wyrdly-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - wyrdly-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   wyrdly-backend:
     build:
       context: ./wyrdly-backend
@@ -63,10 +77,13 @@ services:
       - RUSTFS_BUCKET=${RUSTFS_BUCKET:-social-media-assets}
       - WYRDLY_SEED_ENABLED=${WYRDLY_SEED_ENABLED:-true}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:80}
+      - REDIS_HOSTS=${REDIS_HOSTS:-redis://wyrdly-redis:6379}
     depends_on:
       wyrdly-neo4j:
         condition: service_healthy
       wyrdly-rustfs:
+        condition: service_healthy
+      wyrdly-redis:
         condition: service_healthy
     networks:
       - wyrdly-network
@@ -100,10 +117,13 @@ services:
 volumes:
   neo4j_data:
     name: wyrdly_neo4j_data
+    driver: local
   neo4j_logs:
     name: wyrdly_neo4j_logs
+    driver: local
   rustfs_data:
     name: wyrdly_rustfs_data
+    driver: local
 
 networks:
   wyrdly-network:

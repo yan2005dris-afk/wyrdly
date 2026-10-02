@@ -16,6 +16,12 @@ export type { RelayHealthWidgetProps } from "./components/RelayHealthWidget";
 
 // Hooks
 export { useFeed } from "./hooks/useFeed";
+export type { UseFeedReturn } from "./hooks/useFeed";
 export { useCreatePost } from "./hooks/useCreatePost";
 export { useFollow } from "./hooks/useFollow";
 export { useGraphSuggestions } from "./hooks/useGraphSuggestions";
+export { useReaction } from "./hooks/useReaction";
+export type {
+  UseReactionReturn,
+  UseReactionCallbacks,
+} from "./hooks/useReaction";

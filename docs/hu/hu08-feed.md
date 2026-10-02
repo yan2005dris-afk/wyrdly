@@ -56,8 +56,6 @@ RETURN id, content, mediaUrl, createdAt, authorId, authorUsername,
 - Queda estrictamente prohibido el volcado global no relacional (`MATCH (p:Post) RETURN p`).
 - Agrega conteos de reacciones (`LIKE`, `LOVE`, `CELEBRATE`) compatibles con relaciones `[:REACCIONA {tipo}]`.
 - Retorna la reacción del usuario autenticado (`userReaction`).
-- Orden cronológico inverso (`createdAt DESC`).
-- Paginación con `SKIP` y `LIMIT`.
 
 ## Respuesta
 
