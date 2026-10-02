@@ -115,4 +115,43 @@ describe("ProfilePage Component", () => {
     const msgBtn = screen.getByTestId("profile-message-btn");
     fireEvent.click(msgBtn);
   });
+
+  it("renders ProfileHeaderSkeleton while profile is loading", async () => {
+    vi.mocked(usersApi.getProfile).mockReturnValue(new Promise(() => {}));
+    renderProfilePage();
+
+    expect(screen.getByTestId("profile-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("profile-header-skeleton")).toBeInTheDocument();
+    expect(screen.getAllByTestId("post-grid-item-skeleton")).toHaveLength(3);
+  });
+
+  it("renders post grid skeletons while user posts are loading", async () => {
+    vi.mocked(usersApi.getUserPosts).mockReturnValue(new Promise(() => {}));
+    renderProfilePage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("profile-posts-loading")).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId("post-grid-item-skeleton")).toHaveLength(6);
+  });
+
+  it("renders user row skeletons while followers are loading", async () => {
+    vi.mocked(usersApi.getUserFollowers).mockReturnValue(new Promise(() => {}));
+    renderProfilePage();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("tab", { name: "Followers" }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Followers" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("profile-followers-list-loading"),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId("user-list-row-skeleton")).toHaveLength(4);
+  });
 });

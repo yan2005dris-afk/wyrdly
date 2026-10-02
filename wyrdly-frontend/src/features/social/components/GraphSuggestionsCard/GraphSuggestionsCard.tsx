@@ -1,11 +1,12 @@
 import type { FC } from "react";
 import { GitBranch } from "lucide-react";
 import type { GraphSuggestionsCardProps } from "./GraphSuggestionsCard.types";
-import { UserListRow } from "../UserListRow";
+import { UserListRow, UserListRowSkeleton } from "../UserListRow";
 import styles from "./GraphSuggestionsCard.module.css";
 
 export const GraphSuggestionsCard: FC<GraphSuggestionsCardProps> = ({
   suggestions,
+  isLoading = false,
   onAfterToggle,
   onSeeAllClick,
   className = "",
@@ -24,14 +25,22 @@ export const GraphSuggestionsCard: FC<GraphSuggestionsCardProps> = ({
       </div>
 
       <div className={styles.list}>
-        {suggestions.map((user) => (
-          <UserListRow
-            key={user.id}
-            user={user}
-            subtitle={user.mutualConnectionSnippet}
-            onAfterToggle={onAfterToggle}
-          />
-        ))}
+        {isLoading ? (
+          <div data-testid="graph-suggestions-loading">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <UserListRowSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          suggestions.map((user) => (
+            <UserListRow
+              key={user.id}
+              user={user}
+              subtitle={user.mutualConnectionSnippet}
+              onAfterToggle={onAfterToggle}
+            />
+          ))
+        )}
       </div>
 
       {onSeeAllClick && (
