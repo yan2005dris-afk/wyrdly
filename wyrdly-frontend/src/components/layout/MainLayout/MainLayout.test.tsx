@@ -24,6 +24,9 @@ describe("MainLayout Component", () => {
     expect(screen.getByTestId("main-layout")).toBeInTheDocument();
     expect(screen.getByTestId("app-navbar")).toBeInTheDocument();
     expect(screen.getByTestId("main-layout-sidebar")).toBeInTheDocument();
+    expect(screen.getByTestId("user-summary-card")).toBeInTheDocument();
+    expect(screen.getByTestId("view-profile-link")).toBeInTheDocument();
+    expect(screen.queryByTestId("user-summary-stats")).not.toBeInTheDocument();
     expect(screen.getByTestId("sidebar-nav")).toBeInTheDocument();
     expect(screen.getByTestId("test-child")).toHaveTextContent("Child Content");
   });

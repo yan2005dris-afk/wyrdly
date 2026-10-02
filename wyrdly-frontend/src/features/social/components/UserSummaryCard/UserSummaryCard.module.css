@@ -1,15 +1,35 @@
 .card {
   background-color: #ffffff;
-  padding: 1.25rem;
+  padding: 1rem 1.125rem;
   border-radius: 1rem;
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s ease-in-out;
+}
+
+.card:hover {
+  border-color: #cbd5e1;
 }
 
 .profileHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
+}
+
+.profileIdentity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.infoWrapper {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .nameRow {
@@ -23,6 +43,9 @@
   font-weight: 700;
   color: #0f172a;
   text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fullName:hover {
@@ -36,20 +59,45 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .handleText {
   font-size: 0.75rem;
   color: #94a3b8;
   margin-top: 0.125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viewProfileBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  color: #94a3b8;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  transition: all 0.15s ease-in-out;
+  text-decoration: none;
+}
+
+.viewProfileBtn:hover {
+  background-color: #eef2ff;
+  color: #4f46e5;
+  border-color: #c7d2fe;
 }
 
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
   border-top: 1px solid #f1f5f9;
   text-align: center;
 }

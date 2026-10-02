@@ -74,4 +74,25 @@ describe("ProfileHeaderCard Component", () => {
     fireEvent.click(followersTab);
     expect(handleTabChange).toHaveBeenCalledWith("followers");
   });
+
+  it("renders social graph stats counts (Following, Followers, Posts) as a primary block", () => {
+    render(
+      <ProfileHeaderCard
+        user={MOCK_USER}
+        activeTab="posts"
+        onTabChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("profile-stats-row")).toBeInTheDocument();
+    expect(screen.getByTestId("profile-stat-following")).toHaveTextContent(
+      "890 Following",
+    );
+    expect(screen.getByTestId("profile-stat-followers")).toHaveTextContent(
+      "12.4k Followers",
+    );
+    expect(screen.getByTestId("profile-stat-posts")).toHaveTextContent(
+      "3.1k Posts",
+    );
+  });
 });
