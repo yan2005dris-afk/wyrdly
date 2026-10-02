@@ -311,4 +311,5 @@ class Neo4jPostRepositoryAdapterIT {
     assertEquals(1, page2.size());
     assertEquals("pst_1", page2.get(0).id());
   }
+
 }

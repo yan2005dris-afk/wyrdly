@@ -71,21 +71,41 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
    * PostPersistenceException} for any infrastructure-level failure so callers can distinguish "not
    * found" from "Neo4j unavailable".
    */
+  /**
+   * Looks up a post by id, traversing {@code (:Usuario)-[:PUBLICA]->(:Post)} to also return the
+   * author id.
+   *
+   * <p>Returns {@link Optional#empty()} when no post matches. Throws {@link
+   * PostPersistenceException} for any infrastructure-level failure so callers can distinguish "not
+   * found" from "Neo4j unavailable".
+   */
   @Override
   public Optional<Post> findById(String id) {
     try (Session session = driver.session()) {
       return session.executeRead(
           tx ->
-              tx
-                  .run(
+              tx.run(
                       "MATCH (author:Usuario)-[:PUBLICA]->(p:Post {id: $id}) "
                           + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
-                          + "       p.createdAt AS createdAt, author.id AS userId",
+                          + "       p.createdAt AS createdAt, author.id AS authorId",
                       Values.parameters("id", id))
                   .list()
                   .stream()
                   .findFirst()
-                  .map(this::mapRecordToPost));
+                  .map(
+                      record -> {
+                        String postId = record.get("id").asString();
+                        String content = record.get("content").asString();
+                        String mediaUrl =
+                            record.get("mediaUrl").isNull()
+                                ? null
+                                : record.get("mediaUrl").asString();
+                        Instant createdAt =
+                            Instant.parse(record.get("createdAt").asString());
+                        String authorId = record.get("authorId").asString();
+
+                        return new Post(postId, authorId, content, mediaUrl, createdAt);
+                      }));
 
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Post by id: %s", id);
@@ -98,6 +118,14 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
    *
    * <p>Counts reactions (LIKE, LOVE, CELEBRATE) and returns the caller's reaction type (if any).
    * Results ordered by createdAt DESC, with SKIP/LIMIT for pagination.
+   */
+  /**
+   * Feed query combining:
+   * 1. Posts from users the caller follows
+   * 2. The caller's own posts
+   *
+   * <p>Counts reactions (LIKE, LOVE, CELEBRATE) and detects user's reaction type.
+   * TODO: Extend to count both legacy (:LIKE/:LOVE/:CELEBRATE) and new (:REACCIONA {tipo}) relationships
    */
   private static final String FEED_QUERY =
       "MATCH (me:Usuario {id: $userId}) "
@@ -206,5 +234,74 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         loveCount,
         celebrateCount,
         userReactionType);
+  }
+
+  /**
+   * Finds all posts published by a specific author, with pagination.
+   *
+   * <p>Query: (:Usuario {id: authorId})-[:PUBLICA]->(:Post) traversal.
+   * Returns basic post info without reaction counts (used for user profile page).
+   */
+  @Override
+  public List<Post> findByAuthor(String authorId, int page, int pageSize) {
+    int skip = Math.max(0, (page - 1) * pageSize);
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx.run(
+                      "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
+                          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+                          + "       p.createdAt AS createdAt, author.id AS authorId "
+                          + "ORDER BY p.createdAt DESC "
+                          + "SKIP $skip LIMIT $limit",
+                      Values.parameters(
+                          "authorId", authorId,
+                          "skip", skip,
+                          "limit", pageSize))
+                  .list(this::mapRecordToPost));
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query posts by author: %s", authorId);
+      throw new PostPersistenceException("Failed to query posts for authorId=" + authorId, e);
+    }
+  }
+
+  /**
+   * Counts total posts published by a specific author.
+   */
+  @Override
+  public long countByAuthor(String authorId) {
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx -> {
+            var result =
+                tx.run(
+                    "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
+                        + "RETURN count(DISTINCT p) AS total",
+                    Values.parameters("authorId", authorId));
+            if (result.hasNext()) {
+              return result.next().get("total").asLong();
+            }
+            return 0L;
+          });
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to count posts by author: %s", authorId);
+      throw new PostPersistenceException("Failed to count posts for authorId=" + authorId, e);
+    }
+  }
+
+  /**
+   * Maps a Neo4j record to a Post domain model.
+   * Used by findByAuthor().
+   *
+   * <p>Expects: id, content, mediaUrl, createdAt, authorId fields.
+   */
+  private Post mapRecordToPost(Record record) {
+    String id = record.get("id").asString();
+    String content = record.get("content").asString();
+    String mediaUrl = record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString();
+    Instant createdAt = Instant.parse(record.get("createdAt").asString());
+    String authorId = record.get("authorId").asString();
+
+    return new Post(id, authorId, content, mediaUrl, createdAt);
   }
 }
