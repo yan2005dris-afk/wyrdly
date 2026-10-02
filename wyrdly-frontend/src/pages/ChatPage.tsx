@@ -1,8 +1,17 @@
-import { useState, type FC } from "react";
-import type { ChatConversation, ChatMessage } from "../features/chat";
+import { useState, useEffect, useCallback, type FC } from "react";
+import type {
+  ChatConversation,
+  ChatMessage,
+  MessageResponse,
+} from "../features/chat";
 import type { UserProfileSummary } from "../types/domain";
 import { useAuth } from "../features/auth";
-import { ConversationList, ChatWindow } from "../features/chat";
+import {
+  ConversationList,
+  ChatWindow,
+  useChatWebSocket,
+  chatApi,
+} from "../features/chat";
 
 const MOCK_PARTICIPANTS: readonly UserProfileSummary[] = [
   {
@@ -102,6 +111,8 @@ const INITIAL_MESSAGES: readonly ChatMessage[] = [
 
 export const ChatPage: FC = () => {
   const { user } = useAuth();
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("wyrdly_token") : null;
   const currentUserId = user?.id || "user-maya";
 
   const [conversations, setConversations] = useState<
@@ -115,14 +126,86 @@ export const ChatPage: FC = () => {
   const activeConversation =
     conversations.find((c) => c.id === activeConvId) || conversations[0];
 
+  const handleIncomingMessage = useCallback(
+    (incoming: MessageResponse) => {
+      const newMsg: ChatMessage = {
+        id: incoming.id,
+        senderId: incoming.senderId,
+        recipientId: incoming.recipientId,
+        text: incoming.content,
+        timestamp: new Date(incoming.sentAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        deliveryStatus: "DELIVERED",
+        isEncrypted: true,
+      };
+
+      setMessages((prev) => [...prev, newMsg]);
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.participant.id === incoming.senderId
+            ? {
+                ...c,
+                lastMessage: newMsg,
+                unreadCount: c.id === activeConvId ? 0 : c.unreadCount + 1,
+              }
+            : c,
+        ),
+      );
+    },
+    [activeConvId],
+  );
+
+  const { isConnected, sendMessage } = useChatWebSocket({
+    token,
+    onMessageReceived: handleIncomingMessage,
+  });
+
+  // Fetch real chat history if recipient exists
+  useEffect(() => {
+    if (!token || !activeConversation?.participant?.id) return;
+    const recipientId = activeConversation.participant.id;
+
+    // Only attempt fetch if not mock or if backend is reachable
+    chatApi
+      .getChatHistory(recipientId, 1, 50)
+      .then((history) => {
+        if (history?.data && history.data.length > 0) {
+          const loadedMessages: ChatMessage[] = history.data.map((m) => ({
+            id: m.id,
+            senderId: m.senderId,
+            recipientId: m.recipientId,
+            text: m.content,
+            timestamp: new Date(m.sentAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            deliveryStatus: "READ",
+            isEncrypted: true,
+          }));
+          setMessages(loadedMessages);
+        }
+      })
+      .catch(() => {
+        // Fallback to initial messages if recipient history is empty or in mock mode
+      });
+  }, [token, activeConversation?.participant?.id]);
+
   const handleSendMessage = (text: string) => {
+    const recipientId = activeConversation.participant.id;
+
+    // Try sending over WebSocket
+    const sentViaWs = sendMessage(recipientId, text);
+
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       senderId: currentUserId,
-      recipientId: activeConversation.participant.id,
+      recipientId,
       text,
       timestamp: "Just now",
-      deliveryStatus: "SENT",
+      deliveryStatus: sentViaWs ? "SENT" : "DELIVERED",
       isEncrypted: true,
     };
 
@@ -159,7 +242,10 @@ export const ChatPage: FC = () => {
       <div className="lg:col-span-7 h-full overflow-hidden">
         {activeConversation ? (
           <ChatWindow
-            conversation={activeConversation}
+            conversation={{
+              ...activeConversation,
+              isOnline: isConnected ? true : activeConversation.isOnline,
+            }}
             currentUserId={currentUserId}
             messages={messages}
             onSendMessage={handleSendMessage}
