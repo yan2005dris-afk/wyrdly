@@ -30,12 +30,15 @@ El módulo de chat es un componente crítico de comunicación directa en la plat
 
 ## Tareas
 
-- [ ] **TASK-01**: Limpieza de `yaga-backend/` y dependencias JJWT innecesarias en `pom.xml`.
-- [ ] **TASK-02**: Corrección del modelo de persistencia Neo4j (`:Mensaje`, `[:ENVIA]`, `[:DIRIGIDO_A]`, `createdAt`) e índices en migraciones.
-- [ ] **TASK-03**: Refactor de seguridad con `JWTParser` y corrección de código de cierre `4401` y evento `NEW_MESSAGE` en `ChatWebSocketEndpoint`.
-- [ ] **TASK-04**: Desacoplamiento arquitectural del módulo `user` respecto a `chat`.
-- [ ] **TASK-05**: Migración y validación de pruebas unitarias/integración de chat en `wyrdly-backend`.
-- [ ] **TASK-06**: Conectividad en Frontend: servicio REST de historial y cliente WebSocket en `features/chat` integrado con `ChatPage.tsx`.
+- [x] **TASK-01**: Limpieza de `yaga-backend/` y dependencias JJWT innecesarias en `pom.xml`.
+- [x] **TASK-02**: Corrección del modelo de persistencia Neo4j (`:Mensaje`, `[:ENVIA]`, `[:DIRIGIDO_A]`, `createdAt`) e índices en migraciones.
+- [x] **TASK-03**: Refactor de seguridad con `JWTParser` y corrección de código de cierre `4401` y evento `NEW_MESSAGE` en `ChatWebSocketEndpoint`.
+- [x] **TASK-04**: Desacoplamiento arquitectural del módulo `user` respecto a `chat`.
+- [x] **TASK-05**: Migración y validación de pruebas unitarias/integración de chat en `wyrdly-backend`.
+- [x] **TASK-06**: Conectividad en Frontend: servicio REST de historial, cliente WebSocket en `features/chat`, carga de seguidos reales e integración de navegación desde perfil a `ChatPage.tsx`.
 
 ## Evidencia de Verificación
-- Pendiente de ejecución.
+- Backend: 133 pruebas pasando (0 fallos, 0 errores, 0 saltadas).
+- Frontend: 223 pruebas en 46 suites pasando (0 fallos).
+- Linting y formateo: Spotless (Java), ESLint y Prettier en verde.
+- Build: Vite production bundle generado exitosamente.

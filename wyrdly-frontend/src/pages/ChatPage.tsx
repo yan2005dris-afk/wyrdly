@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, type FC } from "react";
+import { useState, useEffect, useCallback, useMemo, type FC } from "react";
+import { useSearchParams } from "react-router-dom";
 import type {
   ChatConversation,
   ChatMessage,
@@ -6,6 +7,7 @@ import type {
 } from "../features/chat";
 import type { UserProfileSummary } from "../types/domain";
 import { useAuth } from "../features/auth";
+import { usersApi } from "../api/users";
 import {
   ConversationList,
   ChatWindow,
@@ -111,6 +113,10 @@ const INITIAL_MESSAGES: readonly ChatMessage[] = [
 
 export const ChatPage: FC = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const queryUserId = searchParams.get("userId");
+  const queryUsername = searchParams.get("username");
+
   const token =
     typeof window !== "undefined" ? localStorage.getItem("wyrdly_token") : null;
   const currentUserId = user?.id || "user-maya";
@@ -118,13 +124,80 @@ export const ChatPage: FC = () => {
   const [conversations, setConversations] = useState<
     readonly ChatConversation[]
   >(INITIAL_CONVERSATIONS);
-  const [activeConvId, setActiveConvId] = useState<string>("conv-alice");
+  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [messages, setMessages] =
     useState<readonly ChatMessage[]>(INITIAL_MESSAGES);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const directTargetConv: ChatConversation | null = useMemo(() => {
+    if (!queryUserId) return null;
+    return {
+      id: `conv-${queryUserId}`,
+      participant: {
+        id: queryUserId,
+        username: queryUsername || "User",
+        fullName: queryUsername || "User",
+        avatarUrl: undefined,
+        isVerified: false,
+        instanceUrl: "wyrdly.social",
+        stats: { followersCount: 0, followingCount: 0, postsCount: 0 },
+      },
+      unreadCount: 0,
+      isOnline: true,
+    };
+  }, [queryUserId, queryUsername]);
+
+  const allConversations = useMemo(() => {
+    if (!directTargetConv) return conversations;
+    const exists = conversations.some((c) => c.id === directTargetConv.id);
+    return exists ? conversations : [directTargetConv, ...conversations];
+  }, [conversations, directTargetConv]);
+
+  const activeConvId =
+    selectedConvId ||
+    (queryUserId
+      ? `conv-${queryUserId}`
+      : allConversations[0]?.id || "conv-alice");
+
   const activeConversation =
-    conversations.find((c) => c.id === activeConvId) || conversations[0];
+    allConversations.find((c) => c.id === activeConvId) || allConversations[0];
+
+  // Load followed users into conversations list
+  useEffect(() => {
+    if (!user?.username) return;
+
+    let isCancelled = false;
+    usersApi
+      .getUserFollowing(user.username, { pageSize: 50 })
+      .then((followingUsers) => {
+        if (isCancelled) return;
+        const loadedConvs: ChatConversation[] = followingUsers.map((u) => ({
+          id: `conv-${u.id}`,
+          participant: {
+            id: u.id,
+            username: u.username,
+            fullName: u.fullName,
+            avatarUrl: u.avatarUrl ?? undefined,
+            isVerified: false,
+            instanceUrl: "wyrdly.social",
+            stats: { followersCount: 0, followingCount: 0, postsCount: 0 },
+          },
+          unreadCount: 0,
+          isOnline: true,
+        }));
+
+        if (loadedConvs.length > 0) {
+          setConversations(loadedConvs);
+        }
+      })
+      .catch(() => {
+        // Fallback to initial conversations if network fails
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.username]);
 
   const handleIncomingMessage = useCallback(
     (incoming: MessageResponse) => {
@@ -167,11 +240,13 @@ export const ChatPage: FC = () => {
   useEffect(() => {
     if (!token || !activeConversation?.participant?.id) return;
     const recipientId = activeConversation.participant.id;
+    let isCancelled = false;
 
     // Only attempt fetch if not mock or if backend is reachable
     chatApi
       .getChatHistory(recipientId, 1, 50)
       .then((history) => {
+        if (isCancelled) return;
         if (history?.data && history.data.length > 0) {
           const loadedMessages: ChatMessage[] = history.data.map((m) => ({
             id: m.id,
@@ -186,14 +261,22 @@ export const ChatPage: FC = () => {
             isEncrypted: true,
           }));
           setMessages(loadedMessages);
+        } else {
+          setMessages(recipientId === "user-alice" ? INITIAL_MESSAGES : []);
         }
       })
       .catch(() => {
-        // Fallback to initial messages if recipient history is empty or in mock mode
+        if (isCancelled) return;
+        setMessages(recipientId === "user-alice" ? INITIAL_MESSAGES : []);
       });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [token, activeConversation?.participant?.id]);
 
   const handleSendMessage = (text: string) => {
+    if (!activeConversation?.participant?.id) return;
     const recipientId = activeConversation.participant.id;
 
     // Try sending over WebSocket
@@ -231,11 +314,11 @@ export const ChatPage: FC = () => {
     >
       <div className="lg:col-span-5 h-full overflow-hidden">
         <ConversationList
-          conversations={conversations}
+          conversations={allConversations}
           activeConversationId={activeConvId}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onSelectConversation={setActiveConvId}
+          onSelectConversation={setSelectedConvId}
         />
       </div>
 
