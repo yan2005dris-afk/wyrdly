@@ -38,6 +38,12 @@ export const NotificationItem: FC<NotificationItemProps> = ({
     <div
       className={`${styles.item} ${!notification.isRead ? styles.itemUnread : ""} ${className}`}
       onClick={() => onClick?.(notification.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.(notification.id);
+        }
+      }}
       role="button"
       tabIndex={0}
       data-testid={`notification-item-${notification.id}`}

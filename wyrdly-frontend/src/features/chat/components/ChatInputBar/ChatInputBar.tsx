@@ -55,6 +55,7 @@ export const ChatInputBar: FC<ChatInputBarProps> = ({
         onChange={handleFileChange}
         className={styles.hiddenFileInput}
         data-testid="chat-file-input"
+        aria-label="Upload chat attachment"
       />
       <button
         type="button"
@@ -70,6 +71,7 @@ export const ChatInputBar: FC<ChatInputBarProps> = ({
         <input
           type="text"
           placeholder={`Message ${recipientName}...`}
+          aria-label={`Message ${recipientName}`}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}

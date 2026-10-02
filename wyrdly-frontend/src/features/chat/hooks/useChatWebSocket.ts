@@ -22,7 +22,7 @@ export const useChatWebSocket = ({
         socketRef.current.close();
         socketRef.current = null;
       }
-      return;
+      return () => {};
     }
 
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -35,7 +35,7 @@ export const useChatWebSocket = ({
       ws = new WebSocket(wsUrl);
       socketRef.current = ws;
     } catch {
-      return;
+      return () => {};
     }
 
     ws.onopen = () => {

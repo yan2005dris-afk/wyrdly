@@ -25,9 +25,11 @@ interface UseUserPostsParams {
  * stats, reactions or comments that the backend does not return
  * for that endpoint yet.
  */
+const DEFAULT_PARAMS: UseUserPostsParams = {};
+
 export function useUserPosts(
   username: string | undefined,
-  params: UseUserPostsParams = {},
+  params: UseUserPostsParams = DEFAULT_PARAMS,
 ): UseUserPostsReturn {
   const [posts, setPosts] = useState<readonly PostApiResponse[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(username));

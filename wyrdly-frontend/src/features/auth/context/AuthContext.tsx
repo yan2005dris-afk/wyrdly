@@ -3,6 +3,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   type FC,
   type ReactNode,
 } from "react";
@@ -76,7 +77,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     void initAuth();
   }, [logout]);
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = useCallback(async (credentials: LoginCredentials) => {
     setIsLoading(true);
     try {
       const response = await authApi.login(credentials);
@@ -87,9 +88,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const register = async (credentials: RegisterCredentials) => {
+  const register = useCallback(async (credentials: RegisterCredentials) => {
     setIsLoading(true);
     try {
       const response = await authApi.register(credentials);
@@ -100,21 +101,22 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  const contextValue = useMemo<AuthContextType>(
+    () => ({
+      user,
+      token,
+      isAuthenticated: !!token && !!user,
+      isLoading,
+      login,
+      register,
+      logout,
+    }),
+    [user, token, isLoading, login, register, logout],
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isAuthenticated: !!token && !!user,
-        isLoading,
-        login,
-        register,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };

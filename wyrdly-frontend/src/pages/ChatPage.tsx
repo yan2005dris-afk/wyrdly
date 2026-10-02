@@ -99,9 +99,7 @@ export const ChatPage: FC = () => {
         if (isCancelled) return;
         setConversations([]);
       } finally {
-        if (!isCancelled) {
-          setIsLoadingConversations(false);
-        }
+        setIsLoadingConversations(false);
       }
     };
 
@@ -213,9 +211,7 @@ export const ChatPage: FC = () => {
         if (isCancelled) return;
         setMessages([]);
       } finally {
-        if (!isCancelled) {
-          setIsLoadingMessages(false);
-        }
+        setIsLoadingMessages(false);
       }
     };
 

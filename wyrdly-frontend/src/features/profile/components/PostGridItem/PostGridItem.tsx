@@ -45,6 +45,16 @@ export const PostGridItem: FC<PostGridItemProps> = ({
     <div
       className={`${styles.card} ${className}`}
       onClick={() => onClick?.(id)}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick(id);
+              }
+            }
+          : undefined
+      }
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       data-testid={`post-grid-item-${id}`}
