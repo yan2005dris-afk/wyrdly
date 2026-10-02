@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { ProfilePage } from "./ProfilePage";
@@ -97,5 +97,22 @@ describe("ProfilePage Component", () => {
       expect(screen.getByText("User not found")).toBeInTheDocument();
       expect(screen.getByText("Try again")).toBeInTheDocument();
     });
+  });
+
+  it("renders Message button for other profiles and handles click", async () => {
+    vi.mocked(usersApi.getProfile).mockResolvedValueOnce({
+      ...mockProfile,
+      id: "usr_alice",
+      username: "alice",
+      fullName: "Alice Chen",
+    });
+    renderProfilePage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("profile-message-btn")).toBeInTheDocument();
+    });
+
+    const msgBtn = screen.getByTestId("profile-message-btn");
+    fireEvent.click(msgBtn);
   });
 });
