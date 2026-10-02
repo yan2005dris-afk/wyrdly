@@ -1,9 +1,12 @@
 package com.wyrdly.user.application.usecase;
 
 import com.wyrdly.user.application.dto.FollowActionResponse;
+import com.wyrdly.user.domain.event.UserFollowRelationshipChangedEvent;
 import com.wyrdly.user.domain.exception.SelfFollowNotAllowedException;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
+import com.wyrdly.user.infrastructure.qualifier.ResilientNeo4j;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.util.Objects;
 
@@ -11,10 +14,14 @@ import java.util.Objects;
 public class FollowUserUseCaseImpl implements FollowUserUseCase {
 
   private final UserProfileRepository repository;
+  private final Event<UserFollowRelationshipChangedEvent> followEvent;
 
   @Inject
-  public FollowUserUseCaseImpl(UserProfileRepository repository) {
+  public FollowUserUseCaseImpl(
+      @ResilientNeo4j UserProfileRepository repository,
+      Event<UserFollowRelationshipChangedEvent> followEvent) {
     this.repository = Objects.requireNonNull(repository, "repository must not be null");
+    this.followEvent = followEvent;
   }
 
   @Override
@@ -25,6 +32,10 @@ public class FollowUserUseCaseImpl implements FollowUserUseCase {
 
     repository.validateUserExists(targetUserId);
     repository.followUser(userId, targetUserId);
+
+    if (followEvent != null) {
+      followEvent.fire(new UserFollowRelationshipChangedEvent(userId, targetUserId, true));
+    }
 
     return new FollowActionResponse("Usuario seguido exitosamente.", targetUserId, true);
   }

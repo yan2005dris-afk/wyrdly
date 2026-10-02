@@ -10,6 +10,7 @@ import com.wyrdly.user.application.usecase.UpdateUserProfileUseCase;
 import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
 import com.wyrdly.user.domain.model.UserProfile;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
+import com.wyrdly.user.infrastructure.qualifier.ResilientNeo4j;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
@@ -23,7 +24,7 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
 
   @Inject
   public UserProfileService(
-      UserProfileRepository userProfileRepository, PostRepository postRepository) {
+      @ResilientNeo4j UserProfileRepository userProfileRepository, PostRepository postRepository) {
     this.userProfileRepository =
         Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
     this.postRepository = Objects.requireNonNull(postRepository, "postRepository must not be null");

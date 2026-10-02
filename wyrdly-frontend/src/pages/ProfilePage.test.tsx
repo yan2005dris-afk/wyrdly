@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { ProfilePage } from "./ProfilePage";
@@ -97,5 +97,61 @@ describe("ProfilePage Component", () => {
       expect(screen.getByText("User not found")).toBeInTheDocument();
       expect(screen.getByText("Try again")).toBeInTheDocument();
     });
+  });
+
+  it("renders Message button for other profiles and handles click", async () => {
+    vi.mocked(usersApi.getProfile).mockResolvedValueOnce({
+      ...mockProfile,
+      id: "usr_alice",
+      username: "alice",
+      fullName: "Alice Chen",
+    });
+    renderProfilePage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("profile-message-btn")).toBeInTheDocument();
+    });
+
+    const msgBtn = screen.getByTestId("profile-message-btn");
+    fireEvent.click(msgBtn);
+  });
+
+  it("renders ProfileHeaderSkeleton while profile is loading", async () => {
+    vi.mocked(usersApi.getProfile).mockReturnValue(new Promise(() => {}));
+    renderProfilePage();
+
+    expect(screen.getByTestId("profile-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("profile-header-skeleton")).toBeInTheDocument();
+    expect(screen.getAllByTestId("post-grid-item-skeleton")).toHaveLength(3);
+  });
+
+  it("renders post grid skeletons while user posts are loading", async () => {
+    vi.mocked(usersApi.getUserPosts).mockReturnValue(new Promise(() => {}));
+    renderProfilePage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("profile-posts-loading")).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId("post-grid-item-skeleton")).toHaveLength(6);
+  });
+
+  it("renders user row skeletons while followers are loading", async () => {
+    vi.mocked(usersApi.getUserFollowers).mockReturnValue(new Promise(() => {}));
+    renderProfilePage();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("tab", { name: "Followers" }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Followers" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("profile-followers-list-loading"),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId("user-list-row-skeleton")).toHaveLength(4);
   });
 });

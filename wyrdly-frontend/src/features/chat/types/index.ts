@@ -37,3 +37,35 @@ export interface WebSocketLatencyInfo {
   readonly latencyMs: number;
   readonly connectedRelay: string;
 }
+
+export interface MessageResponse {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  content: string;
+  sentAt: string;
+}
+
+export interface ChatHistoryMeta {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface ChatHistoryResponse {
+  data: MessageResponse[];
+  meta: ChatHistoryMeta;
+}
+
+export interface WebSocketIncomingMessage {
+  action:
+    | "CONNECTION_ESTABLISHED"
+    | "MESSAGE_SENT"
+    | "NEW_MESSAGE"
+    | "MESSAGE_RECEIVED"
+    | "USER_TYPING"
+    | "ERROR";
+  message?: MessageResponse | string;
+  userId?: string;
+}

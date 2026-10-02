@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Wyrdly Distributed Social Network Architecture",
+    "output": ".archify/architecture-wyrdly-platform-20261001-163200/wyrdly-platform.html",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "repository": {
+      "url": "https://github.com/yan2005dris-afk/wyrdly.git",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "47943b76eaf37404b94f3906ca5827f13edb5fdf"
+    },
+    "views": [
+      {
+        "id": "full-system",
+        "label": "Sistema Distribuido Completo",
+        "focus": ["browser_user", "spa_frontend", "quarkus_backend", "neo4j_db", "rustfs_storage", "push_gateway", "service_worker"],
+        "note": "Topología general de servicios, almacenamiento y notificaciones"
+      },
+      {
+        "id": "feed-and-graph",
+        "label": "Grafo y Feed Social",
+        "focus": ["spa_frontend", "quarkus_backend", "neo4j_db"],
+        "note": "Consultas Cypher y recorridos de feed por seguimiento"
+      },
+      {
+        "id": "media-storage",
+        "label": "Almacenamiento de Multimedia",
+        "focus": ["spa_frontend", "quarkus_backend", "rustfs_storage"],
+        "note": "Almacenamiento compatible con AWS S3 mediante RustFS"
+      },
+      {
+        "id": "push-notifications",
+        "label": "Notificaciones Web Push",
+        "focus": ["quarkus_backend", "push_gateway", "service_worker", "browser_user"],
+        "note": "Despacho asíncrono RFC 8030 firmado con VAPID"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "browser_user",
+      "type": "external",
+      "label": "Usuario Cliente",
+      "sublabel": "Navegador Web / PWA",
+      "tag": "SPA Client",
+      "pos": [30, 260],
+      "size": [130, 64],
+      "sources": [
+        {
+          "path": "wyrdly-frontend/src/App.tsx",
+          "line": 1,
+          "end_line": 35,
+          "label": "Frontend Root"
+        }
+      ]
+    },
+    {
+      "id": "service_worker",
+      "type": "frontend",
+      "label": "Service Worker",
+      "sublabel": "Push Client (RFC 8291)",
+      "tag": "Background Worker",
+      "pos": [30, 460],
+      "size": [130, 64],
+      "sources": [
+        {
+          "path": "docs/trd/TRD.md",
+          "line": 43,
+          "end_line": 45,
+          "label": "ServiceWorker Spec"
+        }
+      ]
+    },
+    {
+      "id": "spa_frontend",
+      "type": "frontend",
+      "label": "Frontend React",
+      "sublabel": "Vite + TS + Tailwind :3000",
+      "tag": "Screaming Architecture",
+      "pos": [230, 260],
+      "size": [150, 64],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 80,
+          "end_line": 99,
+          "label": "Frontend Container"
+        },
+        {
+          "path": "wyrdly-frontend/src/api/axios.ts",
+          "line": 6,
+          "end_line": 23,
+          "label": "Axios JWT Client"
+        }
+      ]
+    },
+    {
+      "id": "quarkus_backend",
+      "type": "backend",
+      "label": "Backend Quarkus",
+      "sublabel": "Java 21 / RESTEasy / WS :8080",
+      "tag": "Onion Architecture",
+      "pos": [530, 260],
+      "size": [180, 70],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 48,
+          "end_line": 79,
+          "label": "Backend Container"
+        },
+        {
+          "path": "wyrdly-backend/src/main/resources/application.properties",
+          "line": 1,
+          "end_line": 33,
+          "label": "Quarkus Properties"
+        }
+      ]
+    },
+    {
+      "id": "neo4j_db",
+      "type": "database",
+      "label": "Neo4j Graph Database",
+      "sublabel": "Bolt :7687 / HTTP :7474",
+      "tag": "Cypher Graph Engine",
+      "pos": [840, 130],
+      "size": [170, 64],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 2,
+          "end_line": 25,
+          "label": "Neo4j Container"
+        },
+        {
+          "path": "wyrdly-backend/src/main/java/com/wyrdly/post/infrastructure/persistence/Neo4jPostRepositoryAdapter.java",
+          "line": 40,
+          "end_line": 60,
+          "label": "Cypher Bolt Driver"
+        }
+      ]
+    },
+    {
+      "id": "rustfs_storage",
+      "type": "cloud",
+      "label": "RustFS Object Storage",
+      "sublabel": "S3 API :9000 / Console :9001",
+      "tag": "AWS S3 Compatible",
+      "pos": [840, 260],
+      "size": [170, 64],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 27,
+          "end_line": 46,
+          "label": "RustFS Container"
+        },
+        {
+          "path": "wyrdly-backend/src/main/java/com/wyrdly/media/infrastructure/storage/S3StorageService.java",
+          "line": 16,
+          "end_line": 45,
+          "label": "S3 Client Storage"
+        }
+      ]
+    },
+    {
+      "id": "push_gateway",
+      "type": "external",
+      "label": "Servidor Push Navegador",
+      "sublabel": "FCM / Mozilla (RFC 8030)",
+      "tag": "VAPID RFC 8292",
+      "pos": [530, 460],
+      "size": [180, 64],
+      "sources": [
+        {
+          "path": "docs/trd/TRD.md",
+          "line": 77,
+          "end_line": 86,
+          "label": "Web Push Spec"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Docker Compose: wyrdly-network",
+      "wraps": ["spa_frontend", "quarkus_backend", "neo4j_db", "rustfs_storage"],
+      "pad": 22
+    },
+    {
+      "kind": "security-group",
+      "label": "Entorno Cliente (Navegador / OS)",
+      "wraps": ["browser_user", "service_worker"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-user-to-spa",
+      "from": "browser_user",
+      "to": "spa_frontend",
+      "label": "HTTPS :3000",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conn-spa-to-backend",
+      "from": "spa_frontend",
+      "to": "quarkus_backend",
+      "label": "REST / WebSocket :8080",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conn-backend-to-neo4j",
+      "from": "quarkus_backend",
+      "to": "neo4j_db",
+      "label": "Bolt Cypher :7687",
+      "variant": "security"
+    },
+    {
+      "id": "conn-backend-to-rustfs",
+      "from": "quarkus_backend",
+      "to": "rustfs_storage",
+      "label": "S3 SDK :9000",
+      "variant": "default"
+    },
+    {
+      "id": "conn-backend-to-push",
+      "from": "quarkus_backend",
+      "to": "push_gateway",
+      "label": "HTTP POST (VAPID)",
+      "variant": "default",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "conn-push-to-sw",
+      "from": "push_gateway",
+      "to": "service_worker",
+      "label": "Web Push Event",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "conn-sw-to-user",
+      "from": "service_worker",
+      "to": "browser_user",
+      "label": "Notificación OS",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Topología y Microservicios",
+      "items": [
+        "Frontend: SPA React 18 + Vite estructurado bajo Screaming Architecture y FSD.",
+        "Backend: Quarkus 3.x (Java 21) reactivo con arquitectura Onion / DDD por capas.",
+        "Grafo Neo4j 5.26: Persistencia relacional de alta velocidad para perfiles, feed y seguidores.",
+        "Storage RustFS: Almacenamiento de objetos binarios de alto desempeño compatible con AWS S3."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Protocolos de Comunicación",
+      "items": [
+        "REST API: Operaciones CRUD autenticadas vía cabecera Authorization: Bearer <JWT>.",
+        "WebSockets: Comunicación bidireccional continua en /ws/chat para mensajería instantánea.",
+        "Bolt Protocol: Canal binario nativo de alta eficiencia entre Quarkus y Neo4j en puerto 7687.",
+        "S3 API: Integración mediante AWS SDK v2 sobre HTTP en puerto 9000 para multimedia."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Notificaciones Web Push (VAPID)",
+      "items": [
+        "Desacoplamiento asíncrono según RFC 8030 / RFC 8291 firmado con claves VAPID.",
+        "Al publicar un post, Quarkus recorre el grafo de seguidores y envía alertas al servidor Push.",
+        "El Service Worker recibe el evento push en segundo plano e interactúa con el sistema operativo."
+      ]
+    }
+  ]
+}

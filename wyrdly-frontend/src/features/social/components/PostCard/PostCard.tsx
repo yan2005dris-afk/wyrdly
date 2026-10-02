@@ -14,7 +14,39 @@ import type { PostCardProps } from "./PostCard.types";
 import type { ReactionType } from "../../../../types/feed";
 import { Avatar } from "../../../../components/ui/Avatar";
 import { AuthImage } from "../../../../components/ui/AuthImage";
+import { Skeleton } from "../../../../components/ui/Skeleton";
 import styles from "./PostCard.module.css";
+
+export const PostCardSkeleton: FC<{ className?: string }> = ({
+  className = "",
+}) => {
+  return (
+    <article
+      className={`${styles.card} ${className}`}
+      data-testid="post-skeleton"
+      aria-hidden="true"
+    >
+      <div className={styles.header}>
+        <div className={styles.authorRow}>
+          <Skeleton variant="circular" width={40} height={40} />
+          <div className="flex flex-col gap-1.5">
+            <Skeleton variant="text" width={120} height={14} />
+            <Skeleton variant="text" width={80} height={10} />
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 py-1">
+        <Skeleton variant="text" width="95%" height={14} />
+        <Skeleton variant="text" width="70%" height={14} />
+      </div>
+      <div className="flex items-center gap-6 pt-2 border-t border-slate-100">
+        <Skeleton variant="rounded" width={48} height={20} />
+        <Skeleton variant="rounded" width={48} height={20} />
+        <Skeleton variant="rounded" width={48} height={20} />
+      </div>
+    </article>
+  );
+};
 
 const formatCount = (count: number): string => {
   if (count >= 1_000_000) {

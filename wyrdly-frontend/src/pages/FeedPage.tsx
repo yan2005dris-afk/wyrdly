@@ -6,6 +6,7 @@ import { useAuth } from "../features/auth";
 import {
   CreatePostCard,
   PostCard,
+  PostCardSkeleton,
   GraphSuggestionsCard,
   RelayHealthWidget,
   useGraphSuggestions,
@@ -28,9 +29,18 @@ export const FeedPage: FC = () => {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>("for_you");
 
-  const { suggestions: apiSuggestions, refetch: refetchSuggestions } =
-    useGraphSuggestions();
-  const { posts, addPost, replacePost, refetch: refetchFeed } = useFeed();
+  const {
+    suggestions: apiSuggestions,
+    isLoading: isSuggestionsLoading,
+    refetch: refetchSuggestions,
+  } = useGraphSuggestions();
+  const {
+    posts,
+    isLoading: isFeedLoading,
+    addPost,
+    replacePost,
+    refetch: refetchFeed,
+  } = useFeed();
   const { createPost } = useCreatePost();
   const { upload: uploadMediaFile, isUploading: isUploadingMedia } =
     useMediaUpload();
@@ -39,19 +49,17 @@ export const FeedPage: FC = () => {
   const suggestions = apiSuggestions;
 
   const currentUserSummary: UserProfileSummary = {
-    id: user?.id || "usr-current",
-    username: user?.username || "maya",
-    fullName: user?.fullName || "Maya Krishnan",
-    avatarUrl:
-      user?.avatarUrl ||
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
-    bio: user?.bio || "Building federated mesh networks",
-    instanceUrl: "wyrdly.app",
-    isVerified: true,
+    id: user?.id || "",
+    username: user?.username || "",
+    fullName: user?.fullName || "User",
+    avatarUrl: user?.avatarUrl || undefined,
+    bio: user?.bio || "",
+    instanceUrl: "wyrdly.social",
+    isVerified: false,
     stats: {
-      postsCount: 12,
-      followersCount: 148,
-      followingCount: 92,
+      postsCount: 0,
+      followersCount: 0,
+      followingCount: 0,
     },
   };
 
@@ -139,14 +147,32 @@ export const FeedPage: FC = () => {
         </div>
 
         <div className="flex flex-col gap-4">
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onReaction={handleReaction}
-              isReactionPending={isReactionPending(post.id)}
-            />
-          ))}
+          {isFeedLoading ? (
+            <div
+              data-testid="feed-posts-loading"
+              className="flex flex-col gap-4"
+            >
+              {Array.from({ length: 3 }).map((_, i) => (
+                <PostCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : posts.length === 0 ? (
+            <div
+              className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500"
+              data-testid="feed-posts-empty"
+            >
+              No posts found. Start by following people or publishing a thought!
+            </div>
+          ) : (
+            posts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onReaction={handleReaction}
+                isReactionPending={isReactionPending(post.id)}
+              />
+            ))
+          )}
         </div>
       </div>
 
@@ -154,6 +180,7 @@ export const FeedPage: FC = () => {
       <aside className="lg:col-span-4 flex flex-col gap-4">
         <GraphSuggestionsCard
           suggestions={suggestions}
+          isLoading={isSuggestionsLoading}
           onAfterToggle={handleAfterToggle}
         />
         <RelayHealthWidget />

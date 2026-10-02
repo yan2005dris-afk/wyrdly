@@ -71,4 +71,18 @@ describe("ConversationList & ConversationItem Components", () => {
 
     expect(screen.getByText("No conversations found")).toBeInTheDocument();
   });
+
+  it("renders skeleton loading placeholders when isLoading is true", () => {
+    render(
+      <ConversationList
+        conversations={MOCK_CONVERSATIONS}
+        isLoading={true}
+        onSelectConversation={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("conversation-list-loading")).toBeInTheDocument();
+    expect(screen.getAllByTestId("conversation-item-skeleton").length).toBe(4);
+    expect(screen.queryByText("Alice Chen")).not.toBeInTheDocument();
+  });
 });

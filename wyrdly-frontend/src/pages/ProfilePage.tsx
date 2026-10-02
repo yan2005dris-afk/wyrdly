@@ -1,12 +1,14 @@
 import { useCallback, useState, type FC } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Share2, Edit3, Loader2, AlertCircle } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Share2, Edit3, AlertCircle } from "lucide-react";
 import type { PostApiResponse } from "../types/feed";
 import type { UpdateProfilePayload } from "../api/users";
 import { useAuth } from "../features/auth";
 import {
   ProfileHeaderCard,
+  ProfileHeaderSkeleton,
   PostGridItem,
+  PostGridItemSkeleton,
   EditProfileModal,
   useUserProfile,
   useUserPosts,
@@ -17,6 +19,7 @@ import {
 import {
   GraphSuggestionsCard,
   UserListRow,
+  UserListRowSkeleton,
   useGraphSuggestions,
 } from "../features/social";
 import { Button } from "../components/ui/Button";
@@ -24,6 +27,7 @@ import { Button } from "../components/ui/Button";
 export const ProfilePage: FC = () => {
   const { username } = useParams<{ username: string }>();
   const { user: authUser } = useAuth();
+  const navigate = useNavigate();
 
   const profileUsername = username || authUser?.username;
   const { profile, isLoading, error, updateProfile, refetch } =
@@ -69,14 +73,23 @@ export const ProfilePage: FC = () => {
     }
   };
 
+  const handleMessageClick = useCallback(() => {
+    if (profile) {
+      navigate(
+        `/chat?userId=${encodeURIComponent(profile.id)}&username=${encodeURIComponent(profile.username)}`,
+      );
+    }
+  }, [navigate, profile]);
+
   if (isLoading) {
     return (
-      <div
-        className="flex items-center justify-center py-20"
-        data-testid="profile-loading"
-      >
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-        <span className="ml-3 text-sm text-slate-500">Loading profile…</span>
+      <div className="w-full flex flex-col gap-6" data-testid="profile-loading">
+        <ProfileHeaderSkeleton />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <PostGridItemSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -142,6 +155,7 @@ export const ProfilePage: FC = () => {
             isSubscribed={profile.isFollowing ?? false}
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            onMessageClick={handleMessageClick}
             onSubscribeToggle={() => {
               /* delegated to a future follow-action button; the
                  ProfileHeaderCard receives isSubscribed for display only */
@@ -212,10 +226,12 @@ const PostsTab: FC<PostsTabProps> = ({ posts, isLoading }) => {
   if (isLoading) {
     return (
       <div
-        className="flex items-center justify-center py-12"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-4"
         data-testid="profile-posts-loading"
       >
-        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+        {Array.from({ length: 6 }).map((_, i) => (
+          <PostGridItemSkeleton key={i} />
+        ))}
       </div>
     );
   }
@@ -267,12 +283,16 @@ const FollowersOrFollowingTab: FC<FollowersOrFollowingTabProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <div
-        className="flex items-center justify-center py-12"
+      <ul
+        className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100"
         data-testid={`${testId}-loading`}
       >
-        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-      </div>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <li key={i}>
+            <UserListRowSkeleton />
+          </li>
+        ))}
+      </ul>
     );
   }
 

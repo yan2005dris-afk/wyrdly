@@ -1,128 +1,245 @@
-import { useState, type FC } from "react";
-import type { ChatConversation, ChatMessage } from "../features/chat";
-import type { UserProfileSummary } from "../types/domain";
+import { useState, useEffect, useCallback, useMemo, type FC } from "react";
+import { useSearchParams } from "react-router-dom";
+import { MessageSquare } from "lucide-react";
+import type {
+  ChatConversation,
+  ChatMessage,
+  MessageResponse,
+} from "../features/chat";
 import { useAuth } from "../features/auth";
-import { ConversationList, ChatWindow } from "../features/chat";
-
-const MOCK_PARTICIPANTS: readonly UserProfileSummary[] = [
-  {
-    id: "user-alice",
-    username: "alice",
-    fullName: "Alice Chen",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-    isVerified: true,
-    instanceUrl: "wyrdly.app",
-    stats: { followersCount: 120, followingCount: 80, postsCount: 45 },
-  },
-  {
-    id: "user-jonas",
-    username: "jonas",
-    fullName: "Jonas Weber",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-    isVerified: true,
-    instanceUrl: "mastodon.social",
-    stats: { followersCount: 4200, followingCount: 650, postsCount: 180 },
-  },
-];
-
-const INITIAL_CONVERSATIONS: readonly ChatConversation[] = [
-  {
-    id: "conv-alice",
-    participant: MOCK_PARTICIPANTS[0],
-    lastMessage: {
-      id: "msg-1",
-      senderId: "user-alice",
-      recipientId: "user-maya",
-      text: "Did you see the new relay map?",
-      timestamp: "2m",
-      deliveryStatus: "DELIVERED",
-      isEncrypted: true,
-    },
-    unreadCount: 2,
-    isOnline: true,
-    typingStatus: "Online • typing via relay eu-west-1...",
-  },
-  {
-    id: "conv-jonas",
-    participant: MOCK_PARTICIPANTS[1],
-    lastMessage: {
-      id: "msg-2",
-      senderId: "user-jonas",
-      recipientId: "user-maya",
-      text: "Jonas: deploy at 18:00 UTC",
-      timestamp: "9m",
-      deliveryStatus: "READ",
-      isEncrypted: true,
-    },
-    unreadCount: 5,
-    isOnline: true,
-  },
-];
-
-const INITIAL_MESSAGES: readonly ChatMessage[] = [
-  {
-    id: "m-1",
-    senderId: "user-alice",
-    recipientId: "user-maya",
-    text: "Hey! Did you see the new relay map? Your region just lit up!",
-    timestamp: "10:24 AM",
-    deliveryStatus: "READ",
-    isEncrypted: true,
-  },
-  {
-    id: "m-2",
-    senderId: "user-maya",
-    recipientId: "user-alice",
-    text: "Yes! 42ms from ap-south-1 — fastest federated hop we have ever had.",
-    timestamp: "10:26 AM",
-    deliveryStatus: "READ",
-    isEncrypted: true,
-  },
-  {
-    id: "m-3",
-    senderId: "user-alice",
-    recipientId: "user-maya",
-    text: "Shipping the announcement post now. Can you boost it from your instance?",
-    timestamp: "10:27 AM",
-    deliveryStatus: "READ",
-    isEncrypted: true,
-  },
-  {
-    id: "m-4",
-    senderId: "user-maya",
-    recipientId: "user-alice",
-    text: "On it — boosting + pinning to relay highlights",
-    timestamp: "10:28 AM",
-    deliveryStatus: "READ",
-    isEncrypted: true,
-  },
-];
+import { usersApi } from "../api/users";
+import {
+  ConversationList,
+  ChatWindow,
+  useChatWebSocket,
+  chatApi,
+} from "../features/chat";
 
 export const ChatPage: FC = () => {
-  const { user } = useAuth();
-  const currentUserId = user?.id || "user-maya";
+  const { user, token } = useAuth();
+  const [searchParams] = useSearchParams();
+  const queryUserId = searchParams.get("userId");
+  const queryUsername = searchParams.get("username");
+
+  const currentUserId = user?.id || "";
 
   const [conversations, setConversations] = useState<
     readonly ChatConversation[]
-  >(INITIAL_CONVERSATIONS);
-  const [activeConvId, setActiveConvId] = useState<string>("conv-alice");
-  const [messages, setMessages] =
-    useState<readonly ChatMessage[]>(INITIAL_MESSAGES);
+  >([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(() =>
+    Boolean(user?.username),
+  );
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<readonly ChatMessage[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const directTargetConv: ChatConversation | null = useMemo(() => {
+    if (!queryUserId) return null;
+    return {
+      id: `conv-${queryUserId}`,
+      participant: {
+        id: queryUserId,
+        username: queryUsername || "User",
+        fullName: queryUsername || "User",
+        avatarUrl: undefined,
+        isVerified: false,
+        instanceUrl: "wyrdly.social",
+        stats: { followersCount: 0, followingCount: 0, postsCount: 0 },
+      },
+      unreadCount: 0,
+      isOnline: false,
+    };
+  }, [queryUserId, queryUsername]);
+
+  const allConversations = useMemo(() => {
+    if (!directTargetConv) return conversations;
+    const exists = conversations.some((c) => c.id === directTargetConv.id);
+    return exists ? conversations : [directTargetConv, ...conversations];
+  }, [conversations, directTargetConv]);
+
+  const activeConvId =
+    selectedConvId ||
+    (queryUserId ? `conv-${queryUserId}` : allConversations[0]?.id || null);
+
   const activeConversation =
-    conversations.find((c) => c.id === activeConvId) || conversations[0];
+    allConversations.find((c) => c.id === activeConvId) ||
+    allConversations[0] ||
+    null;
+
+  // Load followed users into conversations list
+  useEffect(() => {
+    if (!user?.username) return;
+
+    let isCancelled = false;
+
+    const fetchFollowing = async () => {
+      setIsLoadingConversations(true);
+      try {
+        const followingUsers = await usersApi.getUserFollowing(user.username, {
+          pageSize: 50,
+        });
+        if (isCancelled) return;
+        const loadedConvs: ChatConversation[] = followingUsers.map((u) => ({
+          id: `conv-${u.id}`,
+          participant: {
+            id: u.id,
+            username: u.username,
+            fullName: u.fullName,
+            avatarUrl: u.avatarUrl ?? undefined,
+            isVerified: false,
+            instanceUrl: "wyrdly.social",
+            stats: { followersCount: 0, followingCount: 0, postsCount: 0 },
+          },
+          unreadCount: 0,
+          isOnline: false,
+        }));
+        setConversations(loadedConvs);
+      } catch {
+        if (isCancelled) return;
+        setConversations([]);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingConversations(false);
+        }
+      }
+    };
+
+    fetchFollowing();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.username]);
+
+  // Query online status for the active conversation participant
+  useEffect(() => {
+    if (!token || !activeConversation?.participant?.id) return;
+    const recipientId = activeConversation.participant.id;
+
+    let isCancelled = false;
+    chatApi
+      .getUserStatus(recipientId)
+      .then((status) => {
+        if (isCancelled) return;
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.participant.id === recipientId
+              ? { ...c, isOnline: status.isOnline }
+              : c,
+          ),
+        );
+      })
+      .catch(() => {
+        // Keep existing status on network failure
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [token, activeConversation?.participant?.id]);
+
+  const handleIncomingMessage = useCallback(
+    (incoming: MessageResponse) => {
+      const newMsg: ChatMessage = {
+        id: incoming.id,
+        senderId: incoming.senderId,
+        recipientId: incoming.recipientId,
+        text: incoming.content,
+        timestamp: new Date(incoming.sentAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        deliveryStatus: "DELIVERED",
+        isEncrypted: true,
+      };
+
+      setMessages((prev) => [...prev, newMsg]);
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.participant.id === incoming.senderId
+            ? {
+                ...c,
+                lastMessage: newMsg,
+                unreadCount: c.id === activeConvId ? 0 : c.unreadCount + 1,
+              }
+            : c,
+        ),
+      );
+    },
+    [activeConvId],
+  );
+
+  const { sendMessage } = useChatWebSocket({
+    token,
+    onMessageReceived: handleIncomingMessage,
+  });
+
+  // Fetch real chat history if recipient exists (sorted chronologically)
+  useEffect(() => {
+    if (!token || !activeConversation?.participant?.id) return;
+    const recipientId = activeConversation.participant.id;
+    let isCancelled = false;
+
+    const fetchHistory = async () => {
+      setIsLoadingMessages(true);
+      try {
+        const history = await chatApi.getChatHistory(recipientId, 1, 50);
+        if (isCancelled) return;
+        if (history?.data && history.data.length > 0) {
+          const loadedMessages: ChatMessage[] = [...history.data]
+            .sort(
+              (a, b) =>
+                new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+            )
+            .map((m) => ({
+              id: m.id,
+              senderId: m.senderId,
+              recipientId: m.recipientId,
+              text: m.content,
+              timestamp: new Date(m.sentAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              deliveryStatus: "READ",
+              isEncrypted: true,
+            }));
+          setMessages(loadedMessages);
+        } else {
+          setMessages([]);
+        }
+      } catch {
+        if (isCancelled) return;
+        setMessages([]);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingMessages(false);
+        }
+      }
+    };
+
+    fetchHistory();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [token, activeConversation?.participant?.id]);
 
   const handleSendMessage = (text: string) => {
+    if (!activeConversation?.participant?.id) return;
+    const recipientId = activeConversation.participant.id;
+
+    // Try sending over WebSocket
+    const sentViaWs = sendMessage(recipientId, text);
+
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       senderId: currentUserId,
-      recipientId: activeConversation.participant.id,
+      recipientId,
       text,
       timestamp: "Just now",
-      deliveryStatus: "SENT",
+      deliveryStatus: sentViaWs ? "SENT" : "DELIVERED",
       isEncrypted: true,
     };
 
@@ -148,11 +265,12 @@ export const ChatPage: FC = () => {
     >
       <div className="lg:col-span-5 h-full overflow-hidden">
         <ConversationList
-          conversations={conversations}
-          activeConversationId={activeConvId}
+          conversations={allConversations}
+          activeConversationId={activeConvId ?? undefined}
+          isLoading={isLoadingConversations}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onSelectConversation={setActiveConvId}
+          onSelectConversation={setSelectedConvId}
         />
       </div>
 
@@ -162,11 +280,22 @@ export const ChatPage: FC = () => {
             conversation={activeConversation}
             currentUserId={currentUserId}
             messages={messages}
+            isLoadingMessages={isLoadingMessages}
             onSendMessage={handleSendMessage}
           />
         ) : (
-          <div className="flex items-center justify-center h-full bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
-            Select a conversation to start messaging
+          <div
+            className="flex flex-col items-center justify-center h-full bg-white rounded-2xl border border-slate-200 text-slate-400 p-8 text-center"
+            data-testid="chat-empty-selection"
+          >
+            <MessageSquare className="w-12 h-12 text-slate-300 mb-3" />
+            <h3 className="text-base font-semibold text-slate-700">
+              No conversation selected
+            </h3>
+            <p className="text-sm text-slate-500 max-w-sm mt-1">
+              Select a user from the list or follow users on Wyrdly to start
+              messaging.
+            </p>
           </div>
         )}
       </div>

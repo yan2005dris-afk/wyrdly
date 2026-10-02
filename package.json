@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Wyrdly — Red social distribuida (monorepo root). See wyrdly-frontend/ and wyrdly-backend/.",
+  "type": "module",
   "scripts": {
     "ci": "bash scripts/ci-local.sh",
     "ci:fix": "bash scripts/ci-local.sh --fix",
@@ -11,6 +12,16 @@
     "ci:frontend": "bash scripts/ci-local.sh --frontend-only",
     "ci:backend": "bash scripts/ci-local.sh --backend-only",
     "test": "echo 'Run pnpm ci from the repo root, or pnpm test from wyrdly-frontend/, or ./mvnw test from wyrdly-backend/.'",
+    "test:e2e": "cucumber-js",
+    "test:e2e:headed": "HEADLESS=false cucumber-js",
+    "test:load": "k6 run scripts/k6/feed-load-test.js",
+    "test:load:smoke": "k6 run --vus 1 --duration 5s scripts/k6/feed-load-test.js",
     "lint": "echo 'Run pnpm ci from the repo root, or pnpm lint from wyrdly-frontend/.'"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^13.2.1",
+    "@playwright/test": "^1.63.0",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.15"
   }
 }

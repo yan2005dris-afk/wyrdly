@@ -19,7 +19,47 @@ import { Avatar } from "../../../../components/ui/Avatar";
 import { AuthImage } from "../../../../components/ui/AuthImage";
 import { Tabs } from "../../../../components/ui/Tabs";
 import { Button } from "../../../../components/ui/Button";
+import { Skeleton } from "../../../../components/ui/Skeleton";
 import styles from "./ProfileHeaderCard.module.css";
+
+export const ProfileHeaderSkeleton: FC<{ className?: string }> = ({
+  className = "",
+}) => {
+  return (
+    <div
+      className={`${styles.card} ${className}`}
+      data-testid="profile-header-skeleton"
+      aria-hidden="true"
+    >
+      <div className={styles.coverContainer}>
+        <Skeleton variant="rectangular" width="100%" height="100%" />
+      </div>
+      <div className={styles.body}>
+        <div className={styles.avatarAndActions}>
+          <div className="rounded-full p-1 bg-white inline-block">
+            <Skeleton variant="circular" width={96} height={96} />
+          </div>
+          <div className={styles.actionsGroup}>
+            <Skeleton variant="rounded" width={90} height={36} />
+            <Skeleton variant="rounded" width={90} height={36} />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 mb-4">
+          <Skeleton variant="text" width={180} height={24} />
+          <Skeleton variant="text" width={120} height={14} />
+          <Skeleton variant="text" width={260} height={14} className="mt-1" />
+        </div>
+
+        <div className="flex items-center gap-6 py-3 border-t border-slate-100">
+          <Skeleton variant="text" width={80} height={18} />
+          <Skeleton variant="text" width={80} height={18} />
+          <Skeleton variant="text" width={80} height={18} />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const formatCount = (count: number): string => {
   if (count >= 1_000_000)

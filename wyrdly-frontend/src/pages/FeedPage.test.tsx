@@ -485,4 +485,27 @@ describe("FeedPage Component", () => {
     );
     consoleErrorSpy.mockRestore();
   });
+
+  it("renders post skeletons while feed is loading", async () => {
+    mockedGetFeed.mockReturnValue(new Promise(() => {}));
+
+    renderFeedPage();
+
+    expect(screen.getByTestId("feed-posts-loading")).toBeInTheDocument();
+    expect(screen.getAllByTestId("post-skeleton")).toHaveLength(3);
+  });
+
+  it("renders suggestion skeletons while graph suggestions are loading", async () => {
+    mockedUseGraphSuggestions.mockReturnValue({
+      suggestions: [],
+      isLoading: true,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderFeedPage();
+
+    expect(screen.getByTestId("graph-suggestions-loading")).toBeInTheDocument();
+    expect(screen.getAllByTestId("user-list-row-skeleton")).toHaveLength(3);
+  });
 });
