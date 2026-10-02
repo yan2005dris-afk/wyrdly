@@ -16,10 +16,14 @@ public class ReactionTypeDeserializer extends JsonDeserializer<ReactionType> {
   public ReactionType deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
     String value = p.getText();
     if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException("ReactionType cannot be null or empty");
+      throw new com.fasterxml.jackson.databind.exc.InvalidFormatException(
+          p,
+          "ReactionType cannot be null or empty",
+          value,
+          ReactionType.class);
     }
     try {
-      return ReactionType.valueOf(value.toUpperCase());
+      return ReactionType.valueOf(value);
     } catch (IllegalArgumentException e) {
       throw new com.fasterxml.jackson.databind.exc.InvalidFormatException(
           p,

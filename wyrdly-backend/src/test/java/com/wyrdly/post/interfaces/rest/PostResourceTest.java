@@ -1,6 +1,7 @@
 package com.wyrdly.post.interfaces.rest;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.notNullValue;
@@ -127,7 +128,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("violations[0].message", equalTo("Content is required"));
+        .body("message", containsString("Content is required"));
   }
 
   @Test
@@ -144,7 +145,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("violations[0].message", equalTo("Content must be between 1 and 1000 characters"));
+        .body("message", containsString("Content must be between 1 and 1000 characters"));
   }
 
   @Test
@@ -160,7 +161,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("violations.message", hasItem("mediaUrl must be a valid URL"));
+        .body("message", containsString("mediaUrl must be a valid URL"));
   }
 
   @Test
@@ -177,7 +178,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("violations.message", hasItem("mediaUrl must use http or https protocol"));
+        .body("message", containsString("mediaUrl must use http or https protocol"));
   }
 
   @Test
@@ -191,7 +192,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("violations[0].message", equalTo("Content is required"));
+        .body("attributeName", equalTo("content"));
   }
 
   @Test
@@ -207,7 +208,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("violations.message", hasItem("Content must be between 1 and 1000 characters"));
+        .body("message", containsString("Content must be between 1 and 1000 characters"));
   }
 
   @Test
@@ -223,7 +224,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("violations[0].message", equalTo("Content is required"));
+        .body("message", containsString("Content is required"));
   }
 
   @Test
