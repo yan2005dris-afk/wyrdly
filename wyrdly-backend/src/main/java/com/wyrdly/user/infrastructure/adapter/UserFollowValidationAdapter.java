@@ -1,11 +1,13 @@
 package com.wyrdly.user.infrastructure.adapter;
 
 import com.wyrdly.chat.application.port.FollowValidationPort;
+import com.wyrdly.user.domain.event.UserFollowRelationshipChangedEvent;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
 import com.wyrdly.user.infrastructure.qualifier.ResilientNeo4j;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -24,13 +26,17 @@ public class UserFollowValidationAdapter implements FollowValidationPort {
 
   @Inject @ResilientNeo4j UserProfileRepository userProfileRepository;
 
-  @ConfigProperty(name = "yaga.cache.follow.ttl.seconds", defaultValue = "300")
+  @ConfigProperty(name = "wyrdly.cache.follow.ttl.seconds", defaultValue = "300")
   long cacheTtlSeconds;
 
   @Inject
   public UserFollowValidationAdapter(MeterRegistry meterRegistry) {
     this.cacheHits = Counter.builder("follow.cache.hits").register(meterRegistry);
     this.cacheMisses = Counter.builder("follow.cache.misses").register(meterRegistry);
+  }
+
+  public void onFollowRelationshipChanged(@Observes UserFollowRelationshipChangedEvent event) {
+    invalidateCache(event.followerId(), event.targetUserId());
   }
 
   @Override

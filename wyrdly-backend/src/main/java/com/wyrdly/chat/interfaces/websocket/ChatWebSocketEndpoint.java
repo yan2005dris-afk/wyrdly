@@ -35,19 +35,27 @@ public class ChatWebSocketEndpoint {
 
   @Inject JwtValidationService jwtValidationService;
 
+  private static final CloseReason.CloseCode CLOSE_UNAUTHORIZED =
+      new CloseReason.CloseCode() {
+        @Override
+        public int getCode() {
+          return 4401;
+        }
+      };
+
   @OnOpen
   public void onOpen(Session session) {
     try {
       String token = extractTokenFromQuery(session);
       if (token == null || token.isEmpty()) {
-        session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "Missing token"));
+        session.close(new CloseReason(CLOSE_UNAUTHORIZED, "Missing token"));
         return;
       }
 
       String userId = validateAndExtractUserId(token);
       if (userId == null) {
-        LOGGER.warning("WebSocket: Invalid or tampered JWT token");
-        session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "Invalid token"));
+        LOGGER.warning("WebSocket: Invalid or unverified JWT token");
+        session.close(new CloseReason(CLOSE_UNAUTHORIZED, "Invalid token"));
         return;
       }
 
@@ -76,7 +84,7 @@ public class ChatWebSocketEndpoint {
     try {
       String userId = sessionRegistry.getUserForSession(session.getId());
       if (userId == null) {
-        session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "Unauthorized"));
+        session.close(new CloseReason(CLOSE_UNAUTHORIZED, "Unauthorized"));
         return;
       }
 
@@ -127,7 +135,7 @@ public class ChatWebSocketEndpoint {
 
       if (sessionRegistry.isUserOnline(request.getRecipientId())) {
         Map<String, Object> notification = new HashMap<>();
-        notification.put("action", "MESSAGE_RECEIVED");
+        notification.put("action", "NEW_MESSAGE");
         notification.put("message", response);
         sessionRegistry.broadcast(request.getRecipientId(), serializeToJson(notification));
       }

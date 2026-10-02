@@ -5,24 +5,26 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.wyrdly.chat.application.port.FollowValidationPort;
 import com.wyrdly.user.application.dto.FollowActionResponse;
+import com.wyrdly.user.domain.event.UserFollowRelationshipChangedEvent;
 import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
+import jakarta.enterprise.event.Event;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class UnfollowUserUseCaseImplTest {
 
   private UserProfileRepository userProfileRepository;
-  private FollowValidationPort followValidationPort;
+  private Event<UserFollowRelationshipChangedEvent> followEvent;
   private UnfollowUserUseCase unfollowUserUseCase;
 
   @BeforeEach
+  @SuppressWarnings("unchecked")
   void setUp() {
     userProfileRepository = mock(UserProfileRepository.class);
-    followValidationPort = mock(FollowValidationPort.class);
-    unfollowUserUseCase = new UnfollowUserUseCaseImpl(userProfileRepository, followValidationPort);
+    followEvent = mock(Event.class);
+    unfollowUserUseCase = new UnfollowUserUseCaseImpl(userProfileRepository, followEvent);
   }
 
   @Test
@@ -37,6 +39,7 @@ class UnfollowUserUseCaseImplTest {
     assertEquals(false, response.following());
     verify(userProfileRepository).validateUserExists(targetUserId);
     verify(userProfileRepository).unfollowUser(userId, targetUserId);
+    verify(followEvent).fire(new UserFollowRelationshipChangedEvent(userId, targetUserId, false));
   }
 
   @Test

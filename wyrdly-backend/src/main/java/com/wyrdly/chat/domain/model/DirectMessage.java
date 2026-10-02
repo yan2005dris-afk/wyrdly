@@ -48,6 +48,10 @@ public class DirectMessage {
     return sentAt;
   }
 
+  public Instant getCreatedAt() {
+    return sentAt;
+  }
+
   public void validateContent() {
     if (content == null || content.trim().isEmpty()) {
       throw new InvalidMessageException("Message content cannot be empty");

@@ -13,7 +13,7 @@ public class RestApiRateLimiter {
 
   private final Map<String, TokenBucket> historyBuckets = new ConcurrentHashMap<>();
 
-  @ConfigProperty(name = "yaga.rate-limit.history.requests-per-minute", defaultValue = "60")
+  @ConfigProperty(name = "wyrdly.rate-limit.history.requests-per-minute", defaultValue = "60")
   int requestsPerMinute;
 
   public boolean allowHistoryRequest(String userId) {

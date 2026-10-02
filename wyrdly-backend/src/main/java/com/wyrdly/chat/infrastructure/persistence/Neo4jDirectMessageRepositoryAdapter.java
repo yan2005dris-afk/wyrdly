@@ -27,17 +27,17 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
   public void save(DirectMessage message) {
     String cypher =
         """
-        CREATE (msg:Message {
+        CREATE (msg:Mensaje {
           id: $id,
           senderId: $senderId,
           recipientId: $recipientId,
           content: $content,
-          sentAt: $sentAt
+          createdAt: $createdAt
         })
         WITH msg
         MERGE (sender:Usuario {id: $senderId})
         MERGE (recipient:Usuario {id: $recipientId})
-        CREATE (sender)-[:SENT_MESSAGE]->(msg)-[:TO]->(recipient)
+        CREATE (sender)-[:ENVIA]->(msg)-[:DIRIGIDO_A]->(recipient)
         RETURN msg.id AS id
         """;
 
@@ -52,7 +52,7 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
                         "senderId", message.getSenderId(),
                         "recipientId", message.getRecipientId(),
                         "content", message.getContent(),
-                        "sentAt", message.getSentAt().toString()));
+                        "createdAt", message.getCreatedAt().toString()));
             return result.single();
           });
     }
@@ -62,11 +62,11 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
   public List<DirectMessage> findBetweenUsers(String userId1, String userId2, int skip, int limit) {
     String cypher =
         """
-        MATCH (msg:Message)
+        MATCH (msg:Mensaje)
         WHERE (msg.senderId = $userId1 AND msg.recipientId = $userId2)
           OR (msg.senderId = $userId2 AND msg.recipientId = $userId1)
         RETURN msg
-        ORDER BY msg.sentAt DESC
+        ORDER BY msg.createdAt DESC
         SKIP $skip
         LIMIT $limit
         """;
@@ -101,7 +101,7 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
   public long countBetweenUsers(String userId1, String userId2) {
     String cypher =
         """
-        MATCH (msg:Message)
+        MATCH (msg:Mensaje)
         WHERE (msg.senderId = $userId1 AND msg.recipientId = $userId2)
           OR (msg.senderId = $userId2 AND msg.recipientId = $userId1)
         RETURN count(msg) AS total
@@ -121,11 +121,15 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
 
   private DirectMessage mapRecordToMessage(org.neo4j.driver.Value value) {
     var node = value.asNode();
+    String createdAtStr =
+        node.containsKey("createdAt")
+            ? node.get("createdAt").asString()
+            : node.get("sentAt").asString();
     return new DirectMessage(
         node.get("id").asString(),
         node.get("senderId").asString(),
         node.get("recipientId").asString(),
         node.get("content").asString(),
-        Instant.parse(node.get("sentAt").asString()));
+        Instant.parse(createdAtStr));
   }
 }
