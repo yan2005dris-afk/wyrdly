@@ -8,7 +8,8 @@
     ],
     "format": [
       "summary",
-      "progress-bar"
+      "progress-bar",
+      "html:reports/e2e/cucumber-report.html"
     ],
     "parallel": 1,
     "publishQuiet": true

@@ -23,3 +23,4 @@ jwt/
 .codegraph/
 .archify/
 e2e-report.*
+reports/
