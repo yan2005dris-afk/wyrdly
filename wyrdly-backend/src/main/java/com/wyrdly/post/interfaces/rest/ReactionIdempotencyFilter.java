@@ -14,6 +14,8 @@ import jakarta.ws.rs.container.ContainerResponseFilter;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
 import java.io.IOException;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
  * Short-window Redis dedup for {@code POST /api/posts/{postId}/react}. If the same user submits the
@@ -37,10 +39,9 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
 
   @Inject RedisDataSource redis;
   @Inject ObjectMapper objectMapper;
+
   @Inject
-  @org.eclipse.microprofile.config.inject.ConfigProperty(
-      name = "quarkus.profile",
-      defaultValue = "prod")
+  @ConfigProperty(name = "quarkus.profile", defaultValue = "prod")
   String quarkusProfile;
 
   private ValueCommands<String, String> values;
@@ -60,7 +61,7 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
     if ("test".equals(quarkusProfile)) {
       return;
     }
-    String path = req.getUriInfo().getPath();
+    String path = normalizePath(req.getUriInfo().getPath());
     if (!isReactionEndpoint(path)) {
       return;
     }
@@ -74,8 +75,7 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
     try {
       String cached = values().get(key);
       if (cached != null) {
-        req.abortWith(
-            Response.ok().entity(cached).header("X-Cached-Response", "true").build());
+        req.abortWith(Response.ok().entity(cached).header("X-Cached-Response", "true").build());
       }
     } catch (Exception e) {
       Log.warnf(e, "Idempotency cache lookup failed for key=%s — falling back to repository", key);
@@ -92,7 +92,7 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
     if (resp.getStatus() != 200) {
       return;
     }
-    String path = req.getUriInfo().getPath();
+    String path = normalizePath(req.getUriInfo().getPath());
     if (!isReactionEndpoint(path)) {
       return;
     }
@@ -115,11 +115,17 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
     }
   }
 
+  private static String normalizePath(String path) {
+    if (path == null) {
+      return null;
+    }
+    return path.startsWith("/") ? path : "/" + path;
+  }
+
   private static boolean isReactionEndpoint(String path) {
     return path != null && path.startsWith(PATH_PREFIX) && path.endsWith(SUFFIX);
   }
 
-  /** Path layout: {@code api/posts/{postId}/react} (no leading slash from {@code UriInfo}). */
   private static String extractPostId(String path) {
     if (path == null) {
       return null;
@@ -137,6 +143,12 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
     var sec = req.getSecurityContext();
     if (sec == null || sec.getUserPrincipal() == null) {
       return null;
+    }
+    if (sec.getUserPrincipal() instanceof JsonWebToken jwt) {
+      String sub = jwt.getSubject();
+      if (sub != null && !sub.isBlank()) {
+        return sub;
+      }
     }
     return sec.getUserPrincipal().getName();
   }

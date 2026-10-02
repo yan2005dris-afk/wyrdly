@@ -10,6 +10,7 @@ import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
 import java.io.IOException;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
  * Per-user rate limit for {@code POST /api/posts/{postId}/react}. Uses a Redis {@code INCR} counter
@@ -37,15 +38,14 @@ public class ReactionRateLimitFilter implements ContainerRequestFilter {
 
   @Override
   public void filter(ContainerRequestContext req) throws IOException {
-    String path = req.getUriInfo().getPath();
+    String path = normalizePath(req.getUriInfo().getPath());
     if (!isReactionEndpoint(path)) {
       return;
     }
-    var sec = req.getSecurityContext();
-    if (sec == null || sec.getUserPrincipal() == null) {
+    String userId = currentUserId(req);
+    if (userId == null) {
       return;
     }
-    String userId = sec.getUserPrincipal().getName();
     String key = "ratelimit:react:" + userId;
 
     long count;
@@ -70,7 +70,28 @@ public class ReactionRateLimitFilter implements ContainerRequestFilter {
     }
   }
 
+  private static String normalizePath(String path) {
+    if (path == null) {
+      return null;
+    }
+    return path.startsWith("/") ? path : "/" + path;
+  }
+
   private static boolean isReactionEndpoint(String path) {
     return path != null && path.startsWith(PATH_PREFIX) && path.endsWith(SUFFIX);
+  }
+
+  private static String currentUserId(ContainerRequestContext req) {
+    var sec = req.getSecurityContext();
+    if (sec == null || sec.getUserPrincipal() == null) {
+      return null;
+    }
+    if (sec.getUserPrincipal() instanceof JsonWebToken jwt) {
+      String sub = jwt.getSubject();
+      if (sub != null && !sub.isBlank()) {
+        return sub;
+      }
+    }
+    return sec.getUserPrincipal().getName();
   }
 }

@@ -11,9 +11,7 @@ import io.micrometer.core.annotation.Timed;
 import io.quarkus.security.Authenticated;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validator;
-import jakarta.ws.rs.BadRequestException;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -23,8 +21,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
@@ -37,37 +33,22 @@ public class PostResource {
   private final CreatePostUseCase createPostUseCase;
   private final ReactToPostUseCase reactToPostUseCase;
   private final JsonWebToken jwt;
-  private final Validator validator;
 
   @Inject
   public PostResource(
       CreatePostUseCase createPostUseCase,
       ReactToPostUseCase reactToPostUseCase,
-      JsonWebToken jwt,
-      Validator validator) {
+      JsonWebToken jwt) {
     this.createPostUseCase =
         Objects.requireNonNull(createPostUseCase, "createPostUseCase must not be null");
     this.reactToPostUseCase =
         Objects.requireNonNull(reactToPostUseCase, "reactToPostUseCase must not be null");
     this.jwt = Objects.requireNonNull(jwt, "jwt must not be null");
-    this.validator = Objects.requireNonNull(validator, "validator must not be null");
-  }
-
-  private <T> void validate(T object) {
-    Set<ConstraintViolation<T>> violations = validator.validate(object);
-    if (!violations.isEmpty()) {
-      String message =
-          violations.stream()
-              .map(ConstraintViolation::getMessage)
-              .collect(Collectors.joining(", "));
-      throw new BadRequestException(message);
-    }
   }
 
   @POST
   @Authenticated
-  public Response createPost(CreatePostRequest request) {
-    validate(request);
+  public Response createPost(@Valid CreatePostRequest request) {
     String userId = jwt.getSubject();
     PostResponse response = createPostUseCase.createPost(userId, request);
     return Response.status(Response.Status.CREATED).entity(response).build();
@@ -84,8 +65,6 @@ public class PostResource {
   @POST
   @Path("/{postId}/react")
   @Authenticated
-  @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.APPLICATION_JSON)
   @CircuitBreaker(
       requestVolumeThreshold = 20,
       failureRatio = 0.5,
@@ -95,8 +74,8 @@ public class PostResource {
       value = "reaction_duration_seconds",
       description = "Reaction endpoint latency",
       histogram = true)
-  public ReactPostResponse react(@PathParam("postId") String postId, ReactPostRequest request) {
-    validate(request);
+  public ReactPostResponse react(
+      @PathParam("postId") String postId, @Valid ReactPostRequest request) {
     String userId = jwt.getSubject();
     ReactionResult result = reactToPostUseCase.react(userId, postId, request.type());
     return new ReactPostResponse(result.status(), result.reactionType(), result.totalReactions());

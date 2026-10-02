@@ -1,8 +1,9 @@
-package com.wyrdly.post.domain.model;
+package com.wyrdly.infrastructure.jackson;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.wyrdly.post.domain.model.ReactionType;
 import java.io.IOException;
 
 /**
@@ -17,17 +18,15 @@ public class ReactionTypeDeserializer extends JsonDeserializer<ReactionType> {
     String value = p.getText();
     if (value == null || value.isBlank()) {
       throw new com.fasterxml.jackson.databind.exc.InvalidFormatException(
-          p,
-          "ReactionType cannot be null or empty",
-          value,
-          ReactionType.class);
+          p, "ReactionType cannot be null or empty", value, ReactionType.class);
     }
     try {
       return ReactionType.valueOf(value);
     } catch (IllegalArgumentException e) {
       throw new com.fasterxml.jackson.databind.exc.InvalidFormatException(
           p,
-          String.format("Invalid ReactionType: '%s'. Allowed values are: LIKE, LOVE, CELEBRATE", value),
+          String.format(
+              "Invalid ReactionType: '%s'. Allowed values are: LIKE, LOVE, CELEBRATE", value),
           value,
           ReactionType.class);
     }

@@ -1,6 +1,8 @@
 package com.wyrdly.post.application.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.wyrdly.infrastructure.jackson.ReactionTypeDeserializer;
 import com.wyrdly.post.domain.model.ReactionType;
 import jakarta.validation.constraints.NotNull;
 
@@ -10,4 +12,7 @@ import jakarta.validation.constraints.NotNull;
  * default error handler).
  */
 public record ReactPostRequest(
-    @JsonProperty(value = "type", required = true) @NotNull ReactionType type) {}
+    @JsonProperty(value = "type", required = true)
+        @JsonDeserialize(using = ReactionTypeDeserializer.class)
+        @NotNull
+        ReactionType type) {}

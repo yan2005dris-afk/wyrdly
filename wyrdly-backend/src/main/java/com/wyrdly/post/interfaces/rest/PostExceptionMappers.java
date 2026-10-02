@@ -64,7 +64,8 @@ public class PostExceptionMappers {
   }
 
   @ServerExceptionMapper
-  public Response handleJsonMappingException(com.fasterxml.jackson.databind.JsonMappingException ex) {
+  public Response handleJsonMappingException(
+      com.fasterxml.jackson.databind.JsonMappingException ex) {
     String message = ex.getOriginalMessage() != null ? ex.getOriginalMessage() : "Invalid request";
     return buildResponse(Response.Status.BAD_REQUEST, "VALIDATION_ERROR", message);
   }
@@ -78,7 +79,10 @@ public class PostExceptionMappers {
   @ServerExceptionMapper
   public Response handleIOException(java.io.IOException ex) {
     String message = ex.getMessage() != null ? ex.getMessage() : "Invalid request";
-    if (message.contains("type") || message.contains("enum") || message.contains("missing") || message.contains("required")) {
+    if (message.contains("type")
+        || message.contains("enum")
+        || message.contains("missing")
+        || message.contains("required")) {
       return buildResponse(Response.Status.BAD_REQUEST, "VALIDATION_ERROR", message);
     }
     // If it's another IO error, re-throw (or return 500)
