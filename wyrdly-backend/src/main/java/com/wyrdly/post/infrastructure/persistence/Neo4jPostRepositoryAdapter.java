@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
 
 @ApplicationScoped
@@ -43,9 +44,9 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                       "MATCH (author:Usuario {id: $userId}) "
                           + "MERGE (p:Post {id: $id}) "
                           + "ON CREATE SET p.content = $content, p.mediaUrl = $mediaUrl, "
-                          + "               p.createdAt = $createdAt "
+                          + "               p.createdAt = datetime($createdAt) "
                           + "MERGE (author)-[r:PUBLICA]->(p) "
-                          + "ON CREATE SET r.createdAt = $createdAt",
+                          + "ON CREATE SET r.createdAt = datetime($createdAt)",
                       Values.parameters(
                           "id", post.id(),
                           "userId", post.userId(),
@@ -84,16 +85,8 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                   .list()
                   .stream()
                   .findFirst()
-                  .map(
-                      record ->
-                          new Post(
-                              record.get("id").asString(),
-                              record.get("userId").asString(),
-                              record.get("content").asString(),
-                              record.get("mediaUrl").isNull()
-                                  ? null
-                                  : record.get("mediaUrl").asString(),
-                              Instant.parse(record.get("createdAt").asString()))));
+                  .map(this::mapRecordToPost));
+
     } catch (Exception e) {
       Log.errorf(e, "Failed to query Post by id: %s", id);
       throw new PostPersistenceException("Failed to query Post by id=" + id, e);

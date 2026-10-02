@@ -17,17 +17,18 @@ import type {
 import type { PostApiResponse } from "../types/feed";
 import type { MediaUploadResponse } from "../types/media";
 
-vi.mock("../hooks/useGraphSuggestions", () => ({
-  useGraphSuggestions: vi.fn(),
-}));
-
-vi.mock("../hooks/useFollow", () => ({
-  useFollow: vi.fn(),
-}));
-
-vi.mock("../hooks/useCreatePost", () => ({
-  useCreatePost: vi.fn(),
-}));
+vi.mock("../features/social", async () => {
+  const actual =
+    await vi.importActual<typeof import("../features/social")>(
+      "../features/social",
+    );
+  return {
+    ...actual,
+    useGraphSuggestions: vi.fn(),
+    useFollow: vi.fn(),
+    useCreatePost: vi.fn(),
+  };
+});
 
 vi.mock("../hooks/useMediaUpload", () => ({
   useMediaUpload: vi.fn(),
@@ -46,10 +47,20 @@ vi.mock("../api/users", async () => {
   };
 });
 
-import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
-import { useFollow } from "../hooks/useFollow";
-import { useCreatePost } from "../hooks/useCreatePost";
+vi.mock("../api/posts", () => ({
+  postsApi: {
+    create: vi.fn(),
+    getFeed: vi.fn(),
+  },
+}));
+
+import {
+  useGraphSuggestions,
+  useFollow,
+  useCreatePost,
+} from "../features/social";
 import { useMediaUpload } from "../hooks/useMediaUpload";
+import { postsApi } from "../api/posts";
 
 const mockedUseGraphSuggestions = vi.mocked(useGraphSuggestions);
 const mockedUseFollow = vi.mocked(useFollow);
@@ -58,6 +69,7 @@ const mockedUseMediaUpload = vi.mocked(useMediaUpload);
 
 const mockedFollow = vi.mocked(usersApi.follow);
 const mockedUnfollow = vi.mocked(usersApi.unfollow);
+const mockedGetFeed = vi.mocked(postsApi.getFeed);
 
 const suggestionAlice: GraphSuggestionUser = {
   id: "user-alice",
@@ -96,6 +108,12 @@ function buildCreatePostResponse(
       fullName: "Maya Krishnan",
       avatarUrl: null,
     },
+    reactionCounts: {
+      likeCount: 0,
+      loveCount: 0,
+      celebrateCount: 0,
+    },
+    userReaction: null,
     ...overrides,
   };
 }
@@ -121,6 +139,19 @@ describe("FeedPage Component", () => {
     mockedUseMediaUpload.mockReset();
     mockedFollow.mockReset();
     mockedUnfollow.mockReset();
+    mockedGetFeed.mockReset();
+
+    // Default: empty feed on mount
+    mockedGetFeed.mockResolvedValue({
+      data: [],
+      meta: {
+        page: 1,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
+        hasNext: false,
+      },
+    });
 
     mockedUseGraphSuggestions.mockReturnValue({
       suggestions: successResponse.data,
@@ -266,10 +297,10 @@ describe("FeedPage Component", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByTestId("suggestion-item-user-alice"),
+        screen.getByTestId("user-list-row-user-alice"),
       ).toBeInTheDocument();
       expect(
-        screen.getByTestId("suggestion-item-user-marcus"),
+        screen.getByTestId("user-list-row-user-marcus"),
       ).toBeInTheDocument();
     });
 
@@ -298,11 +329,13 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-alice"),
+      ).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("follow-btn-user-alice"));
+      fireEvent.click(screen.getByTestId("follow-toggle-user-alice"));
     });
 
     expect(mockedFollow).toHaveBeenCalledTimes(1);
@@ -328,11 +361,13 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-marcus")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-marcus"),
+      ).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("follow-btn-user-marcus"));
+      fireEvent.click(screen.getByTestId("follow-toggle-user-marcus"));
     });
 
     expect(mockedUnfollow).toHaveBeenCalledTimes(1);
@@ -358,11 +393,13 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-alice"),
+      ).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("follow-btn-user-alice"));
+      fireEvent.click(screen.getByTestId("follow-toggle-user-alice"));
     });
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -391,10 +428,12 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-alice"),
+      ).toBeInTheDocument();
     });
 
-    const followBtn = screen.getByTestId("follow-btn-user-alice");
+    const followBtn = screen.getByTestId("follow-toggle-user-alice");
     expect(followBtn).toHaveTextContent("Follow");
 
     await act(async () => {
@@ -403,7 +442,7 @@ describe("FeedPage Component", () => {
 
     // Immediately after click, before the awaited follow() resolves the next
     // tick, the button must already read "Following".
-    expect(screen.getByTestId("follow-btn-user-alice")).toHaveTextContent(
+    expect(screen.getByTestId("follow-toggle-user-alice")).toHaveTextContent(
       "Following",
     );
     expect(mockedFollow).toHaveBeenCalledTimes(1);
@@ -424,16 +463,18 @@ describe("FeedPage Component", () => {
     renderFeedPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("follow-toggle-user-alice"),
+      ).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("follow-btn-user-alice"));
+      fireEvent.click(screen.getByTestId("follow-toggle-user-alice"));
     });
 
     // The catch path must restore the Follow label.
     await waitFor(() => {
-      expect(screen.getByTestId("follow-btn-user-alice")).toHaveTextContent(
+      expect(screen.getByTestId("follow-toggle-user-alice")).toHaveTextContent(
         "Follow",
       );
     });

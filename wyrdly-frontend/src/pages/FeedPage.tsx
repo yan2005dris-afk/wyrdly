@@ -2,18 +2,17 @@ import { useCallback, useState, type FC } from "react";
 import type { CreatePostPayload, ReactionType } from "../types/feed";
 import { mapPostApiResponseToPost } from "../types/feed";
 import type { UserProfileSummary } from "../types/domain";
-import { useAuth } from "../hooks/useAuth";
-import { useGraphSuggestions } from "../hooks/useGraphSuggestions";
-import { useFollow } from "../hooks/useFollow";
-import { useCreatePost } from "../hooks/useCreatePost";
-import { useFeed } from "../hooks/useFeed";
-import { useMediaUpload } from "../hooks/useMediaUpload";
+import { useAuth } from "../features/auth";
 import {
   CreatePostCard,
   PostCard,
   GraphSuggestionsCard,
   RelayHealthWidget,
-} from "../components/social";
+  useGraphSuggestions,
+  useCreatePost,
+  useFeed,
+} from "../features/social";
+import { useMediaUpload } from "../hooks/useMediaUpload";
 import { Tabs, type TabItem } from "../components/ui/Tabs";
 
 type FeedFilter = "for_you" | "latest" | "relays";
@@ -30,27 +29,12 @@ export const FeedPage: FC = () => {
 
   const { suggestions: apiSuggestions, refetch: refetchSuggestions } =
     useGraphSuggestions();
-  const { follow, unfollow } = useFollow();
   const { posts, addPost, replacePost } = useFeed();
   const { createPost } = useCreatePost();
   const { upload: uploadMediaFile, isUploading: isUploadingMedia } =
     useMediaUpload();
 
-  // Optimistic follow state: when the user clicks Follow, mark the user as
-  // followed immediately so the button flips to "Following" without waiting
-  // for the backend refetch. Rolled back on API error.
-  const [locallyFollowed, setLocallyFollowed] = useState<ReadonlySet<string>>(
-    () => new Set<string>(),
-  );
-
-  const suggestions = apiSuggestions.map((s) => ({
-    id: s.id,
-    username: s.username,
-    fullName: s.fullName,
-    avatarUrl: s.avatarUrl ?? undefined,
-    mutualConnectionSnippet: s.mutualConnectionSnippet,
-    isFollowing: s.isFollowing || locallyFollowed.has(s.id),
-  }));
+  const suggestions = apiSuggestions;
 
   const currentUserSummary: UserProfileSummary = {
     id: user?.id || "usr-current",
@@ -107,45 +91,13 @@ export const FeedPage: FC = () => {
     });
   };
 
-  const handleFollowToggle = async (userId: string) => {
-    const suggestion = apiSuggestions.find((s) => s.id === userId);
-    if (!suggestion) return;
+  // Follow/unfollow is now owned by the UserListRow component used by
+  // GraphSuggestionsCard. After a successful toggle we refetch the
+  // suggestion list so the next call reflects the new state.
 
-    const wasFollowing = suggestion.isFollowing || locallyFollowed.has(userId);
-    // Optimistic: flip the local flag immediately for instant feedback.
-    setLocallyFollowed((prev) => {
-      const next = new Set(prev);
-      if (wasFollowing) {
-        next.delete(userId);
-      } else {
-        next.add(userId);
-      }
-      return next;
-    });
-
-    try {
-      if (wasFollowing) {
-        await unfollow(userId);
-      } else {
-        await follow(userId);
-      }
-      // Backend will exclude newly-followed users via WHERE NOT in the next
-      // refetch; re-sync to drop them from the list.
-      refetchSuggestions();
-    } catch (err) {
-      // Rollback the optimistic flag on failure.
-      setLocallyFollowed((prev) => {
-        const next = new Set(prev);
-        if (wasFollowing) {
-          next.add(userId);
-        } else {
-          next.delete(userId);
-        }
-        return next;
-      });
-      console.error("Follow toggle failed", err);
-    }
-  };
+  const handleAfterToggle = useCallback(() => {
+    refetchSuggestions();
+  }, [refetchSuggestions]);
 
   return (
     <div
@@ -181,7 +133,7 @@ export const FeedPage: FC = () => {
       <aside className="lg:col-span-4 flex flex-col gap-4">
         <GraphSuggestionsCard
           suggestions={suggestions}
-          onFollowToggle={handleFollowToggle}
+          onAfterToggle={handleAfterToggle}
         />
         <RelayHealthWidget />
       </aside>

@@ -1,5 +1,6 @@
 package com.wyrdly.post.application.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 
 /**

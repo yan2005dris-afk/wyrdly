@@ -1,65 +1,25 @@
-import { useState, type FC } from "react";
+import { useCallback, useState, type FC } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Share2, Edit3, Loader2, AlertCircle } from "lucide-react";
-import type { GraphSuggestionUser } from "../types/domain";
+import type { PostApiResponse } from "../types/feed";
 import type { UpdateProfilePayload } from "../api/users";
-import type { ProfileTabId } from "../components/profile/ProfileHeaderCard";
-import { useAuth } from "../hooks/useAuth";
-import { useUserProfile } from "../hooks/useUserProfile";
-import { GraphSuggestionsCard } from "../components/social";
+import { useAuth } from "../features/auth";
 import {
   ProfileHeaderCard,
   PostGridItem,
   EditProfileModal,
-} from "../components/profile";
+  useUserProfile,
+  useUserPosts,
+  useProfileUsers,
+  type ProfileTabId,
+  type ProfileUserSummary,
+} from "../features/profile";
+import {
+  GraphSuggestionsCard,
+  UserListRow,
+  useGraphSuggestions,
+} from "../features/social";
 import { Button } from "../components/ui/Button";
-
-interface PostGalleryItem {
-  readonly id: string;
-  readonly imageUrl: string;
-  readonly title: string;
-  readonly likesCount: number;
-  readonly repliesCount: number;
-}
-
-const GALLERY_POSTS: readonly PostGalleryItem[] = [
-  {
-    id: "gal-1",
-    imageUrl:
-      "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=400&auto=format&fit=crop&q=80",
-    title: "Night deploys hit different...",
-    likesCount: 412,
-    repliesCount: 38,
-  },
-  {
-    id: "gal-2",
-    imageUrl:
-      "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&auto=format&fit=crop&q=80",
-    title: "Relay v2 benchmarks live",
-    likesCount: 1100,
-    repliesCount: 204,
-  },
-  {
-    id: "gal-3",
-    imageUrl:
-      "https://images.unsplash.com/photo-1448375240586-882707db888b?w=400&auto=format&fit=crop&q=80",
-    title: "Offline weekend in forest",
-    likesCount: 689,
-    repliesCount: 51,
-  },
-];
-
-const SUGGESTIONS: readonly GraphSuggestionUser[] = [
-  {
-    id: "user-alice",
-    username: "alice",
-    fullName: "Alice Chen",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-    mutualConnectionSnippet: "Mutual followers: 4",
-    isFollowing: false,
-  },
-];
 
 export const ProfilePage: FC = () => {
   const { username } = useParams<{ username: string }>();
@@ -70,21 +30,32 @@ export const ProfilePage: FC = () => {
     useUserProfile(profileUsername);
 
   const [activeTab, setActiveTab] = useState<ProfileTabId>("posts");
-  const [isSubscribed, setIsSubscribed] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [suggestions, setSuggestions] =
-    useState<readonly GraphSuggestionUser[]>(SUGGESTIONS);
+
+  const { posts, isLoading: postsLoading } = useUserPosts(profileUsername);
+  const {
+    users: followers,
+    isLoading: followersLoading,
+    refetch: refetchFollowers,
+  } = useProfileUsers(profileUsername, "followers");
+  const {
+    users: following,
+    isLoading: followingLoading,
+    refetch: refetchFollowing,
+  } = useProfileUsers(profileUsername, "following");
+  const { suggestions: apiSuggestions } = useGraphSuggestions();
 
   const isCurrentUser = !!authUser && profile?.username === authUser.username;
 
-  const handleFollowToggle = (userId: string) => {
-    setSuggestions((prev) =>
-      prev.map((s) =>
-        s.id === userId ? { ...s, isFollowing: !s.isFollowing } : s,
-      ),
-    );
-  };
+  const handleAfterToggle = useCallback(() => {
+    // Re-fetch the profile header (followers / following / postsCount)
+    // and the two tab lists so a follow or unfollow in the Followers /
+    // Following tab is reflected everywhere.
+    refetch();
+    refetchFollowers();
+    refetchFollowing();
+  }, [refetch, refetchFollowers, refetchFollowing]);
 
   const handleSaveProfile = async (payload: UpdateProfilePayload) => {
     setIsSaving(true);
@@ -168,34 +139,43 @@ export const ProfilePage: FC = () => {
             user={profile}
             coverUrl="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1000&auto=format&fit=crop&q=80"
             isCurrentUser={isCurrentUser}
+            isSubscribed={profile.isFollowing ?? false}
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            isSubscribed={isSubscribed}
-            onSubscribeToggle={() => setIsSubscribed(!isSubscribed)}
+            onSubscribeToggle={() => {
+              /* delegated to a future follow-action button; the
+                 ProfileHeaderCard receives isSubscribed for display only */
+            }}
             onEditProfileClick={() => setIsEditOpen(true)}
           />
 
           {activeTab === "posts" && (
-            <div
-              className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-              data-testid="profile-posts-grid"
-            >
-              {GALLERY_POSTS.map((item) => (
-                <PostGridItem
-                  key={item.id}
-                  id={item.id}
-                  imageUrl={item.imageUrl}
-                  title={item.title}
-                  likesCount={item.likesCount}
-                  repliesCount={item.repliesCount}
-                />
-              ))}
-            </div>
+            <PostsTab posts={posts} isLoading={postsLoading} />
           )}
 
-          {activeTab !== "posts" && (
+          {activeTab === "followers" && (
+            <FollowersOrFollowingTab
+              users={followers}
+              isLoading={followersLoading}
+              emptyMessage={`@${profile.username} has no followers yet`}
+              testId="profile-followers-list"
+              onAfterToggle={handleAfterToggle}
+            />
+          )}
+
+          {activeTab === "following" && (
+            <FollowersOrFollowingTab
+              users={following}
+              isLoading={followingLoading}
+              emptyMessage={`@${profile.username} isn't following anyone yet`}
+              testId="profile-following-list"
+              onAfterToggle={handleAfterToggle}
+            />
+          )}
+
+          {activeTab === "reactions" && (
             <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500">
-              Showing {activeTab} for @{profile.username}
+              Reactions tab coming soon.
             </div>
           )}
         </div>
@@ -203,8 +183,8 @@ export const ProfilePage: FC = () => {
         {/* Right Sidebar Area (4 columns) */}
         <aside className="lg:col-span-4 flex flex-col gap-4">
           <GraphSuggestionsCard
-            suggestions={suggestions}
-            onFollowToggle={handleFollowToggle}
+            suggestions={apiSuggestions}
+            onAfterToggle={handleAfterToggle}
           />
         </aside>
       </div>
@@ -220,5 +200,103 @@ export const ProfilePage: FC = () => {
         />
       )}
     </>
+  );
+};
+
+interface PostsTabProps {
+  readonly posts: readonly PostApiResponse[];
+  readonly isLoading: boolean;
+}
+
+const PostsTab: FC<PostsTabProps> = ({ posts, isLoading }) => {
+  if (isLoading) {
+    return (
+      <div
+        className="flex items-center justify-center py-12"
+        data-testid="profile-posts-loading"
+      >
+        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <div
+        className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500"
+        data-testid="profile-posts-empty"
+      >
+        No posts yet.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+      data-testid="profile-posts-grid"
+    >
+      {posts.map((post) => (
+        <PostGridItem
+          key={post.id}
+          id={post.id}
+          imageUrl={post.mediaUrl ?? ""}
+          title={post.content.slice(0, 80)}
+          likesCount={0}
+          repliesCount={0}
+        />
+      ))}
+    </div>
+  );
+};
+
+interface FollowersOrFollowingTabProps {
+  readonly users: readonly ProfileUserSummary[];
+  readonly isLoading: boolean;
+  readonly emptyMessage: string;
+  readonly testId: string;
+  readonly onAfterToggle?: (userId: string) => void;
+}
+
+const FollowersOrFollowingTab: FC<FollowersOrFollowingTabProps> = ({
+  users,
+  isLoading,
+  emptyMessage,
+  testId,
+  onAfterToggle,
+}) => {
+  if (isLoading) {
+    return (
+      <div
+        className="flex items-center justify-center py-12"
+        data-testid={`${testId}-loading`}
+      >
+        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (users.length === 0) {
+    return (
+      <div
+        className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500"
+        data-testid={`${testId}-empty`}
+      >
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  return (
+    <ul
+      className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100"
+      data-testid={testId}
+    >
+      {users.map((user) => (
+        <li key={user.id} data-testid={`profile-user-${user.id}`}>
+          <UserListRow user={user} onAfterToggle={onAfterToggle} />
+        </li>
+      ))}
+    </ul>
   );
 };

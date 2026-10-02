@@ -11,7 +11,7 @@ import { Search } from "lucide-react";
 import { userSearchApi } from "../api/userSearch";
 import type { UserSearchResponse } from "../types/userSearch";
 import { Input } from "../components/ui/Input";
-import { UserSearchResultCard } from "../components/social";
+import { UserSearchResultCard } from "../features/social";
 
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;

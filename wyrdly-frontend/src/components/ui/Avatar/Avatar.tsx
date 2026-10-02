@@ -1,5 +1,7 @@
 import { useState, type FC } from "react";
 import type { AvatarProps, AvatarSize, AvatarShape } from "./Avatar.types";
+import { AuthImage } from "../AuthImage";
+import { defaultAvatarDataUrl } from "../../../utils/defaultAvatar";
 import styles from "./Avatar.module.css";
 
 const SIZE_CLASSES: Record<AvatarSize, string> = {
@@ -43,12 +45,10 @@ export const Avatar: FC<AvatarProps> = ({
 }) => {
   const [hasError, setHasError] = useState(false);
 
-  const getInitials = (text: string): string => {
-    if (fallbackInitials) return fallbackInitials.slice(0, 2);
-    const words = text.trim().split(/\s+/);
-    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-    return (words[0][0] + words[1][0]).toUpperCase();
-  };
+  // Inline SVG avatar used both as the AuthImage fallback (so failed
+  // loads switch seamlessly to the SVG) and as the rendered element
+  // when src is missing or has previously failed.
+  const inlineAvatar = defaultAvatarDataUrl(alt, fallbackInitials ?? alt);
 
   const ringClass = showRing ? RING_CLASSES[ringColor] : "";
   const containerClasses = [
@@ -70,20 +70,20 @@ export const Avatar: FC<AvatarProps> = ({
       data-testid="avatar-container"
     >
       {src && !hasError ? (
-        <img
+        <AuthImage
           src={src}
           alt={alt}
           className={`${styles.avatarImage} ${SHAPE_CLASSES[shape]}`}
+          fallbackSrc={inlineAvatar}
           onError={() => setHasError(true)}
-          loading="lazy"
         />
       ) : (
-        <div
-          className={`${styles.fallback} ${SHAPE_CLASSES[shape]}`}
+        <img
+          src={inlineAvatar}
+          alt={alt}
+          className={`${styles.avatarImage} ${SHAPE_CLASSES[shape]}`}
           data-testid="avatar-fallback"
-        >
-          {getInitials(alt)}
-        </div>
+        />
       )}
 
       {isOnline && (

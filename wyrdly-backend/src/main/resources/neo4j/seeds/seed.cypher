@@ -123,7 +123,7 @@ MERGE (u4)-[r:SIGUE]->(u1)
 ON CREATE SET r.createdAt = datetime("2026-09-24T13:20:00Z");
 
 // 2b. Edges adicionales para que Yandris vea varias sugerencias FoF.
-// Yandris ya sigue a sofia (NO debe aparecer como sugerencia); el resto son
+// Yandris ya sigue a sofia (NO debe aparecer como sugerencia). El resto son
 // candidatos ordenados por mutualCount DESC.
 MATCH (u1:Usuario {id: "usr_yandris_01"}), (u6:Usuario {id: "usr_sofia_06"})
 MERGE (u1)-[r:SIGUE]->(u6)

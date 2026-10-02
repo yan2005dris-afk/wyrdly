@@ -10,5 +10,6 @@ public record UserProfile(
     String avatarUrl,
     long followersCount,
     long followingCount,
+    long postsCount,
     boolean isFollowing,
     Instant createdAt) {}

@@ -1,10 +1,13 @@
 package com.wyrdly.user.interfaces.rest;
 
+import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.user.application.dto.FollowActionResponse;
 import com.wyrdly.user.application.dto.GraphSuggestionsResponse;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
 import com.wyrdly.user.application.dto.UserSearchResponseDto;
+import com.wyrdly.user.application.dto.UserSearchResultDto;
+import com.wyrdly.user.application.service.UserProfileService;
 import com.wyrdly.user.application.usecase.FollowUserUseCase;
 import com.wyrdly.user.application.usecase.GetSuggestionsUseCase;
 import com.wyrdly.user.application.usecase.GetUserProfileUseCase;
@@ -29,6 +32,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.List;
 import java.util.Objects;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
@@ -38,6 +42,7 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 public class UserResource {
 
   private final GetUserProfileUseCase getUserProfileUseCase;
+  private final UserProfileService userProfileService;
   private final UpdateUserProfileUseCase updateUserProfileUseCase;
   private final GetSuggestionsUseCase getSuggestionsUseCase;
   private final FollowUserUseCase followUserUseCase;
@@ -49,6 +54,7 @@ public class UserResource {
   @Inject
   public UserResource(
       GetUserProfileUseCase getUserProfileUseCase,
+      UserProfileService userProfileService,
       UpdateUserProfileUseCase updateUserProfileUseCase,
       GetSuggestionsUseCase getSuggestionsUseCase,
       FollowUserUseCase followUserUseCase,
@@ -58,6 +64,8 @@ public class UserResource {
       JsonWebToken jwt) {
     this.getUserProfileUseCase =
         Objects.requireNonNull(getUserProfileUseCase, "getUserProfileUseCase must not be null");
+    this.userProfileService =
+        Objects.requireNonNull(userProfileService, "userProfileService must not be null");
     this.updateUserProfileUseCase =
         Objects.requireNonNull(
             updateUserProfileUseCase, "updateUserProfileUseCase must not be null");
@@ -105,6 +113,52 @@ public class UserResource {
     GraphSuggestionsResponse response =
         getSuggestionsUseCase.getSuggestions(userId, page, pageSize);
     return Response.ok(response).build();
+  }
+
+  /**
+   * Paginated list of posts authored by the user whose username is in the path. Returns 404 when
+   * the username does not exist (mapped from {@link
+   * com.wyrdly.user.domain.exception.UserProfileNotFoundException}).
+   */
+  @GET
+  @Path("/{username}/posts")
+  public Response getUserPosts(
+      @PathParam("username") String username,
+      @QueryParam("page") @DefaultValue("0") int page,
+      @QueryParam("pageSize") @DefaultValue("20") int pageSize) {
+    List<PostResponse> posts = userProfileService.getUserPosts(username, page, pageSize);
+    return Response.ok(posts).build();
+  }
+
+  /**
+   * Paginated list of users following {@code username}. The viewer (taken from the Authorization
+   * header if present) controls the per-row isFollowing flag.
+   */
+  @GET
+  @Path("/{username}/followers")
+  public Response getUserFollowers(
+      @PathParam("username") String username,
+      @HeaderParam("Authorization") String authorizationHeader,
+      @QueryParam("page") @DefaultValue("0") int page,
+      @QueryParam("pageSize") @DefaultValue("30") int pageSize) {
+    String viewerId = optionalJwtSubjectExtractor.extractSubject(authorizationHeader);
+    List<UserSearchResultDto> followers =
+        userProfileService.getUserFollowers(username, viewerId, page, pageSize);
+    return Response.ok(followers).build();
+  }
+
+  /** Paginated list of users that {@code username} follows. */
+  @GET
+  @Path("/{username}/following")
+  public Response getUserFollowing(
+      @PathParam("username") String username,
+      @HeaderParam("Authorization") String authorizationHeader,
+      @QueryParam("page") @DefaultValue("0") int page,
+      @QueryParam("pageSize") @DefaultValue("30") int pageSize) {
+    String viewerId = optionalJwtSubjectExtractor.extractSubject(authorizationHeader);
+    List<UserSearchResultDto> following =
+        userProfileService.getUserFollowing(username, viewerId, page, pageSize);
+    return Response.ok(following).build();
   }
 
   @POST
