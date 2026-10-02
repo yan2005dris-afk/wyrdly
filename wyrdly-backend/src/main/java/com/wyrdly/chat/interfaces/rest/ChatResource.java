@@ -2,6 +2,7 @@ package com.wyrdly.chat.interfaces.rest;
 
 import com.wyrdly.chat.application.dto.ChatHistoryPage;
 import com.wyrdly.chat.application.usecase.GetChatHistoryUseCase;
+import com.wyrdly.chat.infrastructure.websocket.ChatSessionRegistry;
 import io.quarkus.security.Authenticated;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -25,7 +26,17 @@ public class ChatResource {
 
   @Inject GetChatHistoryUseCase getChatHistoryUseCase;
 
+  @Inject ChatSessionRegistry sessionRegistry;
+
   @Inject JsonWebToken jwt;
+
+  @GET
+  @Path("/{targetUserId}/status")
+  @Authenticated
+  public Response getUserStatus(@PathParam("targetUserId") String targetUserId) {
+    boolean online = sessionRegistry.isUserOnline(targetUserId);
+    return Response.ok(new UserStatusResponse(targetUserId, online)).build();
+  }
 
   @GET
   @Path("/{recipientId}/history")
@@ -55,6 +66,34 @@ public class ChatResource {
     LOGGER.info(
         "Retrieved chat history for user: " + userId + " with " + recipientId + " page: " + page);
     return Response.ok(history).build();
+  }
+
+  public static class UserStatusResponse {
+    public String userId;
+    public boolean isOnline;
+
+    public UserStatusResponse() {}
+
+    public UserStatusResponse(String userId, boolean isOnline) {
+      this.userId = userId;
+      this.isOnline = isOnline;
+    }
+
+    public String getUserId() {
+      return userId;
+    }
+
+    public void setUserId(String userId) {
+      this.userId = userId;
+    }
+
+    public boolean isOnline() {
+      return isOnline;
+    }
+
+    public void setOnline(boolean online) {
+      isOnline = online;
+    }
   }
 
   public static class ErrorResponse {

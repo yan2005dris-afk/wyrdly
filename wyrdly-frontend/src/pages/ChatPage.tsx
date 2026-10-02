@@ -143,7 +143,7 @@ export const ChatPage: FC = () => {
         stats: { followersCount: 0, followingCount: 0, postsCount: 0 },
       },
       unreadCount: 0,
-      isOnline: true,
+      isOnline: false,
     };
   }, [queryUserId, queryUsername]);
 
@@ -183,7 +183,7 @@ export const ChatPage: FC = () => {
             stats: { followersCount: 0, followingCount: 0, postsCount: 0 },
           },
           unreadCount: 0,
-          isOnline: true,
+          isOnline: false,
         }));
 
         if (loadedConvs.length > 0) {
@@ -198,6 +198,34 @@ export const ChatPage: FC = () => {
       isCancelled = true;
     };
   }, [user?.username]);
+
+  // Query online status for the active conversation participant
+  useEffect(() => {
+    if (!token || !activeConversation?.participant?.id) return;
+    const recipientId = activeConversation.participant.id;
+    if (recipientId === "user-alice" || recipientId === "user-jonas") return;
+
+    let isCancelled = false;
+    chatApi
+      .getUserStatus(recipientId)
+      .then((status) => {
+        if (isCancelled) return;
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.participant.id === recipientId
+              ? { ...c, isOnline: status.isOnline }
+              : c,
+          ),
+        );
+      })
+      .catch(() => {
+        // Keep existing status on network failure
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [token, activeConversation?.participant?.id]);
 
   const handleIncomingMessage = useCallback(
     (incoming: MessageResponse) => {
@@ -231,12 +259,12 @@ export const ChatPage: FC = () => {
     [activeConvId],
   );
 
-  const { isConnected, sendMessage } = useChatWebSocket({
+  const { sendMessage } = useChatWebSocket({
     token,
     onMessageReceived: handleIncomingMessage,
   });
 
-  // Fetch real chat history if recipient exists
+  // Fetch real chat history if recipient exists (sorted chronologically)
   useEffect(() => {
     if (!token || !activeConversation?.participant?.id) return;
     const recipientId = activeConversation.participant.id;
@@ -248,18 +276,23 @@ export const ChatPage: FC = () => {
       .then((history) => {
         if (isCancelled) return;
         if (history?.data && history.data.length > 0) {
-          const loadedMessages: ChatMessage[] = history.data.map((m) => ({
-            id: m.id,
-            senderId: m.senderId,
-            recipientId: m.recipientId,
-            text: m.content,
-            timestamp: new Date(m.sentAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            deliveryStatus: "READ",
-            isEncrypted: true,
-          }));
+          const loadedMessages: ChatMessage[] = [...history.data]
+            .sort(
+              (a, b) =>
+                new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+            )
+            .map((m) => ({
+              id: m.id,
+              senderId: m.senderId,
+              recipientId: m.recipientId,
+              text: m.content,
+              timestamp: new Date(m.sentAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              deliveryStatus: "READ",
+              isEncrypted: true,
+            }));
           setMessages(loadedMessages);
         } else {
           setMessages(recipientId === "user-alice" ? INITIAL_MESSAGES : []);
@@ -325,10 +358,7 @@ export const ChatPage: FC = () => {
       <div className="lg:col-span-7 h-full overflow-hidden">
         {activeConversation ? (
           <ChatWindow
-            conversation={{
-              ...activeConversation,
-              isOnline: isConnected ? true : activeConversation.isOnline,
-            }}
+            conversation={activeConversation}
             currentUserId={currentUserId}
             messages={messages}
             onSendMessage={handleSendMessage}

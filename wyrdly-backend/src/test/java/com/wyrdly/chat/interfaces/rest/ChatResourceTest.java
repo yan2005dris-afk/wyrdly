@@ -78,4 +78,18 @@ class ChatResourceTest {
         .then()
         .statusCode(403);
   }
+
+  @Test
+  @TestSecurity(user = USER_1_ID)
+  @JwtSecurity(claims = {@Claim(key = "sub", value = USER_1_ID)})
+  void shouldReturnUserOnlineStatus() {
+    given()
+        .contentType(ContentType.JSON)
+        .when()
+        .get("/api/chat/" + USER_2_ID + "/status")
+        .then()
+        .statusCode(200)
+        .body("userId", equalTo(USER_2_ID))
+        .body("isOnline", equalTo(false));
+  }
 }

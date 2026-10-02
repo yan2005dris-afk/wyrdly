@@ -15,4 +15,13 @@ export const chatApi = {
     );
     return response.data;
   },
+
+  async getUserStatus(
+    userId: string,
+  ): Promise<{ userId: string; isOnline: boolean }> {
+    const response = await apiClient.get<{ userId: string; isOnline: boolean }>(
+      `/api/chat/${userId}/status`,
+    );
+    return response.data;
+  },
 };
