@@ -34,12 +34,7 @@ export const FeedPage: FC = () => {
     isLoading: isSuggestionsLoading,
     refetch: refetchSuggestions,
   } = useGraphSuggestions();
-  const {
-    posts,
-    isLoading: isFeedLoading,
-    addPost,
-    replacePost,
-  } = useFeed();
+  const { posts, isLoading: isFeedLoading, addPost, replacePost } = useFeed();
   const { createPost } = useCreatePost();
   const { upload: uploadMediaFile, isUploading: isUploadingMedia } =
     useMediaUpload();
