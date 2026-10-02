@@ -1,4 +1,5 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
+import { getAccessToken, setAccessToken } from "./tokenStore";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
@@ -13,7 +14,7 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem("wyrdly_token");
+    const token = getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -74,7 +75,7 @@ apiClient.interceptors.response.use(
         );
         const { token: newToken } = response.data;
 
-        localStorage.setItem("wyrdly_token", newToken);
+        setAccessToken(newToken);
         apiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
         processQueue(null, newToken);
 
@@ -82,8 +83,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem("wyrdly_token");
-        localStorage.removeItem("wyrdly_user");
+        setAccessToken(null);
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
