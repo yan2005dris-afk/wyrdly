@@ -21,3 +21,5 @@ jwt/
 # Local tooling artifacts (not for committing)
 .atl/
 .codegraph/
+.archify/
+e2e-report.*
