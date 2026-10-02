@@ -114,6 +114,16 @@ services:
       retries: 3
       start_period: 5s
 
+  wyrdly-cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: wyrdly-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - wyrdly-network
+
 volumes:
   neo4j_data:
     name: wyrdly_neo4j_data
