@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Wyrdly Inter-Service Communication Flow",
+    "output": ".archify/sequence-service-communication-20261001-163500/service-communication.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/yan2005dris-afk/wyrdly.git",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "47943b76eaf37404b94f3906ca5827f13edb5fdf"
+    }
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "Cliente",
+      "sublabel": "Navegador Web"
+    },
+    {
+      "id": "spa",
+      "type": "frontend",
+      "label": "React UI",
+      "sublabel": "SPA / Axios",
+      "sources": [
+        {
+          "path": "wyrdly-frontend/src/api/axios.ts",
+          "line": 6,
+          "end_line": 23,
+          "label": "Axios Client"
+        }
+      ]
+    },
+    {
+      "id": "backend",
+      "type": "backend",
+      "label": "Backend",
+      "sublabel": "Quarkus Java 21",
+      "sources": [
+        {
+          "path": "wyrdly-backend/src/main/java/com/wyrdly/post/interfaces/rest/PostResource.java",
+          "line": 1,
+          "end_line": 40,
+          "label": "Post Resource API"
+        }
+      ]
+    },
+    {
+      "id": "rustfs",
+      "type": "cloud",
+      "label": "RustFS",
+      "sublabel": "S3 :9000",
+      "sources": [
+        {
+          "path": "wyrdly-backend/src/main/java/com/wyrdly/media/infrastructure/storage/S3StorageService.java",
+          "line": 16,
+          "end_line": 45,
+          "label": "S3 Storage Service"
+        }
+      ]
+    },
+    {
+      "id": "neo4j",
+      "type": "database",
+      "label": "Neo4j",
+      "sublabel": "Cypher :7687",
+      "sources": [
+        {
+          "path": "wyrdly-backend/src/main/java/com/wyrdly/post/infrastructure/persistence/Neo4jPostRepositoryAdapter.java",
+          "line": 40,
+          "end_line": 60,
+          "label": "Cypher Adapter"
+        }
+      ]
+    },
+    {
+      "id": "push",
+      "type": "external",
+      "label": "Web Push",
+      "sublabel": "RFC 8030 FCM"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 345,
+      "label": "1. Direct-to-S3 Presigned Upload (ADR-003)"
+    },
+    {
+      "from": 355,
+      "to": 475,
+      "label": "2. Creación de Post y Transacción de Grafo"
+    },
+    {
+      "from": 485,
+      "to": 545,
+      "label": "3. Despacho Asíncrono de Web Push (VAPID)"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg-1",
+      "from": "user",
+      "to": "spa",
+      "y": 165,
+      "label": "Crear publicación con imagen WebP",
+      "variant": "default"
+    },
+    {
+      "id": "msg-2",
+      "from": "spa",
+      "to": "backend",
+      "y": 198,
+      "label": "POST /api/media/upload-url (JWT)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "msg-3",
+      "from": "backend",
+      "to": "rustfs",
+      "y": 231,
+      "label": "S3 Presign PUT (staging/key)",
+      "variant": "default"
+    },
+    {
+      "id": "msg-4",
+      "from": "backend",
+      "to": "spa",
+      "y": 264,
+      "label": "200 OK (uploadUrl + stagingKey)",
+      "variant": "return"
+    },
+    {
+      "id": "msg-5",
+      "from": "spa",
+      "to": "rustfs",
+      "y": 297,
+      "label": "PUT /staging/key (Binary WebP)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "msg-6",
+      "from": "rustfs",
+      "to": "spa",
+      "y": 330,
+      "label": "200 OK (Upload S3 confirmado)",
+      "variant": "return"
+    },
+    {
+      "id": "msg-7",
+      "from": "spa",
+      "to": "backend",
+      "y": 363,
+      "label": "POST /api/posts { content, mediaUrl }",
+      "variant": "emphasis"
+    },
+    {
+      "id": "msg-8",
+      "from": "backend",
+      "to": "neo4j",
+      "y": 396,
+      "label": "Cypher MERGE (p:Post), (u)-[:PUBLICA]->(p)",
+      "variant": "security"
+    },
+    {
+      "id": "msg-9",
+      "from": "neo4j",
+      "to": "backend",
+      "y": 429,
+      "label": "COMMIT OK (Node ID asignado)",
+      "variant": "return"
+    },
+    {
+      "id": "msg-10",
+      "from": "backend",
+      "to": "spa",
+      "y": 462,
+      "label": "201 Created (PostResponse DTO)",
+      "variant": "return"
+    },
+    {
+      "id": "msg-11",
+      "from": "backend",
+      "to": "push",
+      "y": 495,
+      "label": "HTTP POST RFC 8030 (VAPID Signed)",
+      "variant": "security"
+    },
+    {
+      "id": "msg-12",
+      "from": "push",
+      "to": "user",
+      "y": 528,
+      "label": "Alerta Web Push al Service Worker",
+      "variant": "dashed"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "user",
+      "from": 165,
+      "to": 535,
+      "type": "external"
+    },
+    {
+      "participant": "spa",
+      "from": 165,
+      "to": 470,
+      "type": "frontend"
+    },
+    {
+      "participant": "backend",
+      "from": 198,
+      "to": 505,
+      "type": "backend"
+    },
+    {
+      "participant": "rustfs",
+      "from": 231,
+      "to": 335,
+      "type": "cloud"
+    },
+    {
+      "participant": "neo4j",
+      "from": 396,
+      "to": 435,
+      "type": "database"
+    },
+    {
+      "participant": "push",
+      "from": 495,
+      "to": 535,
+      "type": "external"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Direct-to-S3 Presigned Upload (ADR-003)",
+      "items": [
+        "El cliente solicita una URL de subida prefirmada con expiración corta.",
+        "Los binarios viajan directamente entre el navegador y RustFS/S3.",
+        "Se protege la memoria heap de Quarkus frente a cargas masivas concurrentes."
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Persistencia de Grafos en Neo4j",
+      "items": [
+        "La creación del post y la relación [:PUBLICA] es atómica vía Cypher.",
+        "Las consultas de feed recorren [:SIGUE] sin JOINs relacionales costosos.",
+        "Los recuentos de reacciones [:REACCIONA] se calculan en la misma pasada."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Notificaciones Asíncronas VAPID",
+      "items": [
+        "Quarkus no bloquea la respuesta REST para despachar notificaciones.",
+        "Las credenciales VAPID autentican al servidor emisor ante Google FCM / Mozilla.",
+        "El Service Worker despierta en el cliente y renderiza la notificación nativa."
+      ]
+    }
+  ]
+}
