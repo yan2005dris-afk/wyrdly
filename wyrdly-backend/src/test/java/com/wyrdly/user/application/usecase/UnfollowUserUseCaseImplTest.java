@@ -6,11 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.wyrdly.chat.application.port.FollowValidationPort;
-
 import com.wyrdly.user.application.dto.FollowActionResponse;
 import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

@@ -93,7 +93,8 @@ public class ChatWebSocketEndpoint {
       try {
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("action", "ERROR");
-        errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Invalid message format");
+        errorResponse.put(
+            "message", e.getMessage() != null ? e.getMessage() : "Invalid message format");
         sendJson(session, errorResponse);
       } catch (IOException ex) {
         LOGGER.warning("Error sending error response: " + ex.getMessage());
@@ -169,9 +170,8 @@ public class ChatWebSocketEndpoint {
   }
 
   /**
-   * Valida JWT y extrae userId.
-   * Verifica firma criptográfica y claims requeridos.
-   * ✅ Fix #1: Previene JWT tamperizado
+   * Valida JWT y extrae userId. Verifica firma criptográfica y claims requeridos. ✅ Fix #1:
+   * Previene JWT tamperizado
    *
    * @return userId si JWT es válido, null si inválido o firma falsa
    */

@@ -13,8 +13,7 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class SessionManagerService {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(SessionManagerService.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(SessionManagerService.class.getName());
 
   private final Map<String, List<SessionWrapper>> userSessions = new ConcurrentHashMap<>();
   private final Map<String, String> sessionToUserId = new ConcurrentHashMap<>();
@@ -51,9 +50,7 @@ public class SessionManagerService {
     if (wrappers == null) {
       return List.of();
     }
-    return wrappers.stream()
-        .map(w -> w.webSocketSession)
-        .collect(Collectors.toList());
+    return wrappers.stream().map(w -> w.webSocketSession).collect(Collectors.toList());
   }
 
   public boolean isUserOnline(String userId) {
@@ -75,9 +72,7 @@ public class SessionManagerService {
 
   public void cleanupStaleSessions() {
     userSessions.forEach(
-        (userId, sessions) ->
-            sessions.removeIf(
-                w -> w.chatSession.isStale(INACTIVITY_TIMEOUT_MS)));
+        (userId, sessions) -> sessions.removeIf(w -> w.chatSession.isStale(INACTIVITY_TIMEOUT_MS)));
   }
 
   private static class SessionWrapper {

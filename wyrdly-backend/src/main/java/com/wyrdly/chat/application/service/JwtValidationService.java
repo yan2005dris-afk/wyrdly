@@ -3,34 +3,29 @@ package com.wyrdly.chat.application.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.logging.Logger;
-import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
- * Servicio para validar JWT con firma criptográfica.
- * ✅ Fix #1: Previene JWT tamperizado.
+ * Servicio para validar JWT con firma criptográfica. ✅ Fix #1: Previene JWT tamperizado.
  *
- * Valida:
- * - Firma criptográfica (usando secret key configurado)
- * - Presencia de claims requeridos (sub, iat)
- * - Expiración del token
+ * <p>Valida: - Firma criptográfica (usando secret key configurado) - Presencia de claims requeridos
+ * (sub, iat) - Expiración del token
  */
 @ApplicationScoped
 public class JwtValidationService {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(JwtValidationService.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(JwtValidationService.class.getName());
 
   @Inject
   @ConfigProperty(name = "mp.jwt.verify.publickey.location", defaultValue = "")
   String jwtPublicKeyLocation;
 
   /**
-   * Valida JWT manualmente y extrae userId del claim "sub".
-   * Simula validación de firma usando estructura JWT.
+   * Valida JWT manualmente y extrae userId del claim "sub". Simula validación de firma usando
+   * estructura JWT.
    *
-   * ⚠️ NOTA: En WebSocket, la validación total se hace en request HTTP inicial.
-   * Esta validación actúa como verificación secundaria de integridad.
+   * <p>⚠️ NOTA: En WebSocket, la validación total se hace en request HTTP inicial. Esta validación
+   * actúa como verificación secundaria de integridad.
    *
    * @param token JWT token
    * @return userId si token es válido, null si inválido
@@ -88,8 +83,7 @@ public class JwtValidationService {
   }
 
   /**
-   * Extrae valor de claim desde JSON payload decodificado.
-   * Uso simple sin parser JSON externo.
+   * Extrae valor de claim desde JSON payload decodificado. Uso simple sin parser JSON externo.
    *
    * @param jsonPayload payload decodificado (JSON string)
    * @param claimName nombre del claim (ej: "sub", "iat", "exp")
@@ -115,8 +109,7 @@ public class JwtValidationService {
         return jsonPayload.substring(startIndex, endIndex);
       } else {
         int endIndex = startIndex;
-        while (endIndex < jsonPayload.length()
-            && Character.isDigit(jsonPayload.charAt(endIndex))) {
+        while (endIndex < jsonPayload.length() && Character.isDigit(jsonPayload.charAt(endIndex))) {
           endIndex++;
         }
         return jsonPayload.substring(startIndex, endIndex);

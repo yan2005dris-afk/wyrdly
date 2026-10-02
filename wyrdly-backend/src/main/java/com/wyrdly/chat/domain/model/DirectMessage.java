@@ -11,10 +11,7 @@ public class DirectMessage {
   private final String content;
   private final Instant sentAt;
 
-  public DirectMessage(
-      String senderId,
-      String recipientId,
-      String content) {
+  public DirectMessage(String senderId, String recipientId, String content) {
     this.id = UUID.randomUUID().toString();
     this.senderId = senderId;
     this.recipientId = recipientId;
@@ -23,11 +20,7 @@ public class DirectMessage {
   }
 
   public DirectMessage(
-      String id,
-      String senderId,
-      String recipientId,
-      String content,
-      Instant sentAt) {
+      String id, String senderId, String recipientId, String content, Instant sentAt) {
     this.id = id;
     this.senderId = senderId;
     this.recipientId = recipientId;

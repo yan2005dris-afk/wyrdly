@@ -18,8 +18,7 @@ public class UserFollowValidationAdapter implements FollowValidationPort {
   private static final Logger LOGGER =
       Logger.getLogger(UserFollowValidationAdapter.class.getName());
 
-  private final ConcurrentHashMap<String, CachedFollowRelation> cache =
-      new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, CachedFollowRelation> cache = new ConcurrentHashMap<>();
   private final Counter cacheHits;
   private final Counter cacheMisses;
 

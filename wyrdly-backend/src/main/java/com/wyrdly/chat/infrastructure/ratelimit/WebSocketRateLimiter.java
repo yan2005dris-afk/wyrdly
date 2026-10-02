@@ -15,12 +15,14 @@ public class WebSocketRateLimiter {
   private final Map<String, TokenBucket> typingBuckets = new ConcurrentHashMap<>();
 
   public boolean allowMessage(String userId) {
-    return messageBuckets.computeIfAbsent(userId, k -> new TokenBucket(MESSAGES_PER_SECOND, REFILL_INTERVAL))
+    return messageBuckets
+        .computeIfAbsent(userId, k -> new TokenBucket(MESSAGES_PER_SECOND, REFILL_INTERVAL))
         .tryConsume();
   }
 
   public boolean allowTyping(String userId) {
-    return typingBuckets.computeIfAbsent(userId, k -> new TokenBucket(TYPING_EVENTS_PER_SECOND, REFILL_INTERVAL))
+    return typingBuckets
+        .computeIfAbsent(userId, k -> new TokenBucket(TYPING_EVENTS_PER_SECOND, REFILL_INTERVAL))
         .tryConsume();
   }
 

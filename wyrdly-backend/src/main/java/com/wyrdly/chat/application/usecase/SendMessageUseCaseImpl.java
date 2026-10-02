@@ -37,8 +37,7 @@ public class SendMessageUseCaseImpl implements SendMessageUseCase {
 
   private void validateFollowRelationship(String senderId, String recipientId) {
     if (!followValidationPort.areMutualFollowers(senderId, recipientId)) {
-      throw new UsersNotFollowingException(
-          "Ambos usuarios deben seguirse mutuamente para chatear");
+      throw new UsersNotFollowingException("Ambos usuarios deben seguirse mutuamente para chatear");
     }
   }
 }

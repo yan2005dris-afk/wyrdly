@@ -11,12 +11,10 @@ public class ChatService {
 
   private static final Logger LOGGER = Logger.getLogger(ChatService.class.getName());
 
-  @Inject
-  SendMessageUseCase sendMessageUseCase;
+  @Inject SendMessageUseCase sendMessageUseCase;
 
   public MessageResponse sendMessage(String senderId, String recipientId, String content) {
-    LOGGER.info(
-        "Sending message from " + senderId + " to " + recipientId);
+    LOGGER.info("Sending message from " + senderId + " to " + recipientId);
     return sendMessageUseCase.execute(senderId, recipientId, content);
   }
 }

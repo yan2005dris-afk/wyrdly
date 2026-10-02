@@ -1,13 +1,10 @@
 package com.wyrdly.user.application.usecase;
 
-
 import com.wyrdly.chat.application.port.FollowValidationPort;
-import com.wyrdly.user.infrastructure.qualifier.ResilientNeo4j;
-
 import com.wyrdly.user.application.dto.FollowActionResponse;
 import com.wyrdly.user.domain.exception.SelfFollowNotAllowedException;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
-
+import com.wyrdly.user.infrastructure.qualifier.ResilientNeo4j;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Objects;

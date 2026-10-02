@@ -1,9 +1,8 @@
 package com.wyrdly.chat.application.port;
 
 /**
- * Puerto de validación de relaciones follow.
- * Desacopla módulo chat del módulo user.
- * Permite múltiples implementaciones (cache, evento, async, etc).
+ * Puerto de validación de relaciones follow. Desacopla módulo chat del módulo user. Permite
+ * múltiples implementaciones (cache, evento, async, etc).
  */
 public interface FollowValidationPort {
 
@@ -17,8 +16,8 @@ public interface FollowValidationPort {
   boolean areMutualFollowers(String userId1, String userId2);
 
   /**
-   * Invalida cache de relación follow cuando cambia.
-   * Llamado desde FollowUserUseCase y UnfollowUserUseCase.
+   * Invalida cache de relación follow cuando cambia. Llamado desde FollowUserUseCase y
+   * UnfollowUserUseCase.
    *
    * @param userId1 ID del primer usuario
    * @param userId2 ID del segundo usuario

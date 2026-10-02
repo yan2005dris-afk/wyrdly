@@ -9,8 +9,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class RestApiRateLimiter {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(RestApiRateLimiter.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(RestApiRateLimiter.class.getName());
 
   private final Map<String, TokenBucket> historyBuckets = new ConcurrentHashMap<>();
 
@@ -20,8 +19,7 @@ public class RestApiRateLimiter {
   public boolean allowHistoryRequest(String userId) {
     int requestsPerSecond = Math.max(1, requestsPerMinute / 60);
     TokenBucket bucket =
-        historyBuckets.computeIfAbsent(
-            userId, k -> new TokenBucket(requestsPerSecond, 1000L));
+        historyBuckets.computeIfAbsent(userId, k -> new TokenBucket(requestsPerSecond, 1000L));
 
     boolean allowed = bucket.tryConsume();
     if (!allowed) {

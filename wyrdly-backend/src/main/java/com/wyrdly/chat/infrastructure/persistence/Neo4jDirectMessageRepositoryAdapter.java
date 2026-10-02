@@ -79,10 +79,14 @@ public class Neo4jDirectMessageRepositoryAdapter implements DirectMessageReposit
                 tx.run(
                     cypher,
                     Map.of(
-                        "userId1", userId1,
-                        "userId2", userId2,
-                        "skip", (long) skip,
-                        "limit", (long) limit));
+                        "userId1",
+                        userId1,
+                        "userId2",
+                        userId2,
+                        "skip",
+                        (long) skip,
+                        "limit",
+                        (long) limit));
             while (result.hasNext()) {
               Record record = result.next();
               messages.add(mapRecordToMessage(record.get("msg")));

@@ -75,10 +75,11 @@ public class ResilientNeo4jUserProfileRepositoryAdapter implements UserProfileRe
   @Timeout(3000)
   @Fallback(fallbackMethod = "followUserFallback")
   public void followUser(String followerId, String followingId) {
-    neo4jLatency.record(() -> {
-      delegate.followUser(followerId, followingId);
-      return null;
-    });
+    neo4jLatency.record(
+        () -> {
+          delegate.followUser(followerId, followingId);
+          return null;
+        });
   }
 
   public void followUserFallback(String followerId, String followingId) {
@@ -93,14 +94,16 @@ public class ResilientNeo4jUserProfileRepositoryAdapter implements UserProfileRe
   @Timeout(3000)
   @Fallback(fallbackMethod = "unfollowUserFallback")
   public void unfollowUser(String followerId, String followingId) {
-    neo4jLatency.record(() -> {
-      delegate.unfollowUser(followerId, followingId);
-      return null;
-    });
+    neo4jLatency.record(
+        () -> {
+          delegate.unfollowUser(followerId, followingId);
+          return null;
+        });
   }
 
   public void unfollowUserFallback(String followerId, String followingId) {
-    LOGGER.severe("CircuitBreaker OPEN - Cannot unfollow user: " + followerId + " -> " + followingId);
+    LOGGER.severe(
+        "CircuitBreaker OPEN - Cannot unfollow user: " + followerId + " -> " + followingId);
     neo4jErrors.increment();
     throw new RuntimeException("Database temporarily unavailable");
   }
@@ -123,10 +126,11 @@ public class ResilientNeo4jUserProfileRepositoryAdapter implements UserProfileRe
   @Override
   public void validateUserExists(String userId) {
     try {
-      neo4jLatency.record(() -> {
-        delegate.validateUserExists(userId);
-        return null;
-      });
+      neo4jLatency.record(
+          () -> {
+            delegate.validateUserExists(userId);
+            return null;
+          });
     } catch (UserProfileNotFoundException e) {
       throw e;
     } catch (Exception e) {
@@ -141,11 +145,13 @@ public class ResilientNeo4jUserProfileRepositoryAdapter implements UserProfileRe
   @Retry(maxRetries = 2, delay = 100)
   @Timeout(3000)
   @Fallback(fallbackMethod = "findFollowersFallback")
-  public List<FollowerSummary> findFollowers(String userId, String viewerId, int page, int pageSize) {
+  public List<FollowerSummary> findFollowers(
+      String userId, String viewerId, int page, int pageSize) {
     return neo4jLatency.record(() -> delegate.findFollowers(userId, viewerId, page, pageSize));
   }
 
-  public List<FollowerSummary> findFollowersFallback(String userId, String viewerId, int page, int pageSize) {
+  public List<FollowerSummary> findFollowersFallback(
+      String userId, String viewerId, int page, int pageSize) {
     LOGGER.warning("CircuitBreaker OPEN - Cannot find followers for: " + userId);
     neo4jErrors.increment();
     return List.of();
@@ -156,11 +162,13 @@ public class ResilientNeo4jUserProfileRepositoryAdapter implements UserProfileRe
   @Retry(maxRetries = 2, delay = 100)
   @Timeout(3000)
   @Fallback(fallbackMethod = "findFollowingFallback")
-  public List<FollowerSummary> findFollowing(String userId, String viewerId, int page, int pageSize) {
+  public List<FollowerSummary> findFollowing(
+      String userId, String viewerId, int page, int pageSize) {
     return neo4jLatency.record(() -> delegate.findFollowing(userId, viewerId, page, pageSize));
   }
 
-  public List<FollowerSummary> findFollowingFallback(String userId, String viewerId, int page, int pageSize) {
+  public List<FollowerSummary> findFollowingFallback(
+      String userId, String viewerId, int page, int pageSize) {
     LOGGER.warning("CircuitBreaker OPEN - Cannot find following for: " + userId);
     neo4jErrors.increment();
     return List.of();

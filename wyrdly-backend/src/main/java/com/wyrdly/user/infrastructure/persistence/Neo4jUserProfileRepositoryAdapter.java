@@ -1,12 +1,10 @@
 package com.wyrdly.user.infrastructure.persistence;
 
-import com.wyrdly.user.infrastructure.qualifier.Neo4jDirect;
-
 import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
 import com.wyrdly.user.domain.model.UserProfile;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
+import com.wyrdly.user.infrastructure.qualifier.Neo4jDirect;
 import io.quarkus.logging.Log;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;

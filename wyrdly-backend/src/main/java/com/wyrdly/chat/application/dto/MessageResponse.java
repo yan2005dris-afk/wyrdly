@@ -12,11 +12,7 @@ public class MessageResponse {
   public MessageResponse() {}
 
   public MessageResponse(
-      String id,
-      String senderId,
-      String recipientId,
-      String content,
-      Instant sentAt) {
+      String id, String senderId, String recipientId, String content, Instant sentAt) {
     this.id = id;
     this.senderId = senderId;
     this.recipientId = recipientId;

@@ -20,9 +20,7 @@ public class Neo4jHealthCheck implements HealthCheck {
       session.run("RETURN 1").consume();
       return HealthCheckResponse.named("neo4j").up().build();
     } catch (Exception e) {
-      return HealthCheckResponse.named("neo4j")
-          .down()
-          .build();
+      return HealthCheckResponse.named("neo4j").down().build();
     }
   }
 }

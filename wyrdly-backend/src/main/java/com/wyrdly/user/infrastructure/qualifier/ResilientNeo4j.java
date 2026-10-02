@@ -7,5 +7,9 @@ import java.lang.annotation.Target;
 
 @Qualifier
 @Retention(RetentionPolicy.RUNTIME)
-@Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.TYPE})
+@Target({
+  java.lang.annotation.ElementType.FIELD,
+  java.lang.annotation.ElementType.PARAMETER,
+  java.lang.annotation.ElementType.TYPE
+})
 public @interface ResilientNeo4j {}

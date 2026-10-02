@@ -23,11 +23,9 @@ public class ChatResource {
 
   private static final Logger LOGGER = Logger.getLogger(ChatResource.class.getName());
 
-  @Inject
-  GetChatHistoryUseCase getChatHistoryUseCase;
+  @Inject GetChatHistoryUseCase getChatHistoryUseCase;
 
-  @Inject
-  JsonWebToken jwt;
+  @Inject JsonWebToken jwt;
 
   @GET
   @Path("/{recipientId}/history")
@@ -52,16 +50,10 @@ public class ChatResource {
 
     // ✅ Fix #3: Remover catch genérico
     // ExceptionMappers manejan excepciones específicas automáticamente
-    ChatHistoryPage history =
-        getChatHistoryUseCase.execute(userId, recipientId, page, pageSize);
+    ChatHistoryPage history = getChatHistoryUseCase.execute(userId, recipientId, page, pageSize);
 
     LOGGER.info(
-        "Retrieved chat history for user: "
-            + userId
-            + " with "
-            + recipientId
-            + " page: "
-            + page);
+        "Retrieved chat history for user: " + userId + " with " + recipientId + " page: " + page);
     return Response.ok(history).build();
   }
 

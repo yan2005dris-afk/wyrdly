@@ -56,7 +56,8 @@ public class ChatSessionRegistry {
           session.getAsyncRemote().sendText(message);
         }
       } catch (Exception e) {
-        LOGGER.warning("Failed to send message to session " + session.getId() + ": " + e.getMessage());
+        LOGGER.warning(
+            "Failed to send message to session " + session.getId() + ": " + e.getMessage());
       }
     }
   }
@@ -70,7 +71,8 @@ public class ChatSessionRegistry {
             session.getAsyncRemote().sendText(message);
           }
         } catch (Exception e) {
-          LOGGER.warning("Failed to send message to session " + session.getId() + ": " + e.getMessage());
+          LOGGER.warning(
+              "Failed to send message to session " + session.getId() + ": " + e.getMessage());
         }
       }
     }
