@@ -34,7 +34,7 @@ public class ChatResource {
       @PathParam("recipientId") String recipientId,
       @QueryParam("page") @DefaultValue("1") int page,
       @QueryParam("pageSize") @DefaultValue("50") int pageSize) {
-    String userId = jwt.getName();
+    String userId = jwt.getSubject();
     if (userId == null || userId.isEmpty()) {
       return Response.status(Response.Status.UNAUTHORIZED)
           .entity(new ErrorResponse("Unable to identify user"))
