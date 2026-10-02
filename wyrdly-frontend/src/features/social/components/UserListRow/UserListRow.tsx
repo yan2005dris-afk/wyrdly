@@ -3,8 +3,30 @@ import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import type { ProfileUserSummary } from "../../../../types/suggestions";
 import { Avatar } from "../../../../components/ui/Avatar";
+import { Skeleton } from "../../../../components/ui/Skeleton";
 import { useFollow } from "../../hooks/useFollow";
 import styles from "./UserListRow.module.css";
+
+export const UserListRowSkeleton: FC<{ className?: string }> = ({
+  className = "",
+}) => {
+  return (
+    <div
+      className={`${styles.row} ${className}`}
+      data-testid="user-list-row-skeleton"
+      aria-hidden="true"
+    >
+      <div className={styles.identity}>
+        <Skeleton variant="circular" width={40} height={40} />
+        <div className={styles.text} style={{ minWidth: "120px" }}>
+          <Skeleton variant="text" width={110} height={14} />
+          <Skeleton variant="text" width={75} height={11} className="mt-1" />
+        </div>
+      </div>
+      <Skeleton variant="rounded" width={68} height={28} />
+    </div>
+  );
+};
 
 export interface UserListRowProps {
   readonly user: ProfileUserSummary;

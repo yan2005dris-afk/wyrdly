@@ -1,7 +1,28 @@
 import type { FC } from "react";
 import type { PostGridItemProps } from "./PostGridItem.types";
 import { AuthImage } from "../../../../components/ui/AuthImage";
+import { Skeleton } from "../../../../components/ui/Skeleton";
 import styles from "./PostGridItem.module.css";
+
+export const PostGridItemSkeleton: FC<{ className?: string }> = ({
+  className = "",
+}) => {
+  return (
+    <div
+      className={`${styles.card} ${className}`}
+      data-testid="post-grid-item-skeleton"
+      aria-hidden="true"
+    >
+      <div className={styles.imageContainer}>
+        <Skeleton variant="rectangular" width="100%" height="100%" />
+      </div>
+      <div className={styles.content}>
+        <Skeleton variant="text" width="80%" height={14} />
+        <Skeleton variant="text" width="50%" height={10} className="mt-1" />
+      </div>
+    </div>
+  );
+};
 
 const formatCount = (count: number): string => {
   if (count >= 1_000_000)

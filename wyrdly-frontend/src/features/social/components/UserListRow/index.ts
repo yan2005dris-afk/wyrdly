@@ -1,2 +1,2 @@
-export { UserListRow } from "./UserListRow";
+export { UserListRow, UserListRowSkeleton } from "./UserListRow";
 export type { UserListRowProps } from "./UserListRow";
