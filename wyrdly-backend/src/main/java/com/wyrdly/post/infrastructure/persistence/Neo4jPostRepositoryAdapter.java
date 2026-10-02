@@ -18,6 +18,7 @@ import java.util.Optional;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
 
 @ApplicationScoped
@@ -104,7 +105,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                             record.get("mediaUrl").isNull()
                                 ? null
                                 : record.get("mediaUrl").asString();
-                        Instant createdAt = Instant.parse(record.get("createdAt").asString());
+                        Instant createdAt = parseInstant(record.get("createdAt"));
                         String authorId = record.get("authorId").asString();
 
                         return new Post(postId, authorId, content, mediaUrl, createdAt);
@@ -246,7 +247,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     String id = record.get("id").asString();
     String content = record.get("content").asString();
     String mediaUrl = record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString();
-    Instant createdAt = Instant.parse(record.get("createdAt").asString());
+    Instant createdAt = parseInstant(record.get("createdAt"));
 
     String authorId = record.get("authorId").asString();
     String authorUsername = record.get("authorUsername").asString();
@@ -333,7 +334,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     String id = record.get("id").asString();
     String content = record.get("content").asString();
     String mediaUrl = record.get("mediaUrl").isNull() ? null : record.get("mediaUrl").asString();
-    Instant createdAt = Instant.parse(record.get("createdAt").asString());
+    Instant createdAt = parseInstant(record.get("createdAt"));
     String authorId = record.get("authorId").asString();
 
     return new Post(id, authorId, content, mediaUrl, createdAt);
@@ -382,6 +383,21 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     } catch (Exception e) {
       Log.errorf(e, "Failed to react to post: userId=%s postId=%s", userId, postId);
       throw new PostPersistenceException("Failed to react to post=" + postId, e);
+    }
+  }
+
+  private static Instant parseInstant(Value val) {
+    if (val == null || val.isNull()) {
+      return Instant.now();
+    }
+    try {
+      return val.asZonedDateTime().toInstant();
+    } catch (Exception e) {
+      try {
+        return Instant.parse(val.asString());
+      } catch (Exception ex) {
+        return Instant.now();
+      }
     }
   }
 }
