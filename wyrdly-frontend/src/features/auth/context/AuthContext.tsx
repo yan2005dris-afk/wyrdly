@@ -1,5 +1,4 @@
 import {
-  createContext,
   useState,
   useEffect,
   useCallback,
@@ -14,11 +13,7 @@ import type {
   RegisterCredentials,
   AuthContextType,
 } from "../types";
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined,
-);
+import { AuthContext } from "./authContextInstance";
 
 export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {

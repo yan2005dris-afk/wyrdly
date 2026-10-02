@@ -30,13 +30,8 @@ export const useChatWebSocket = ({
     // Default to port 8080 for dev/local backend if not specified
     const wsUrl = `${wsProtocol}//${host}:8080/ws/chat?token=${encodeURIComponent(token)}`;
 
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
-    } catch {
-      return () => {};
-    }
+    const ws = new WebSocket(wsUrl);
+    socketRef.current = ws;
 
     ws.onopen = () => {
       setIsConnected(true);
