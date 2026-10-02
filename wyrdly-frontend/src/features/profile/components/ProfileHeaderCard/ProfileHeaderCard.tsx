@@ -209,16 +209,22 @@ export const ProfileHeaderCard: FC<ProfileHeaderCardProps> = ({
         </div>
 
         {/* Social Graph Counts */}
-        <div className={styles.countsRow}>
-          <div className={styles.countItem}>
+        <div className={styles.countsRow} data-testid="profile-stats-row">
+          <div
+            className={styles.countItem}
+            data-testid="profile-stat-following"
+          >
             <strong>{formatCount(user.stats.followingCount)}</strong>{" "}
             <span>Following</span>
           </div>
-          <div className={styles.countItem}>
+          <div
+            className={styles.countItem}
+            data-testid="profile-stat-followers"
+          >
             <strong>{formatCount(user.stats.followersCount)}</strong>{" "}
             <span>Followers</span>
           </div>
-          <div className={styles.countItem}>
+          <div className={styles.countItem} data-testid="profile-stat-posts">
             <strong>{formatCount(user.stats.postsCount)}</strong>{" "}
             <span>Posts</span>
           </div>
