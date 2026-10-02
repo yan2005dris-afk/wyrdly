@@ -8,7 +8,6 @@
     ],
     "format": [
       "summary",
-      "progress-bar",
       "html:reports/e2e/cucumber-report.html"
     ],
     "parallel": 1,

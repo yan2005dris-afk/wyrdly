@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { authApi } from "../api/authApi";
+import { setAccessToken } from "../../../api/tokenStore";
 import type {
   User,
   LoginCredentials,
@@ -27,59 +28,54 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }
     return null;
   });
-
-  const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem("wyrdly_token"),
-  );
-
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(
-    () => !!localStorage.getItem("wyrdly_token"),
+    () => !!localStorage.getItem("wyrdly_user"),
   );
 
   const logout = useCallback(() => {
     authApi.logout().catch(() => {});
-    localStorage.removeItem("wyrdly_token");
-    localStorage.removeItem("wyrdly_refresh_token");
-    localStorage.removeItem("wyrdly_user");
+    setAccessToken(null);
     setToken(null);
     setUser(null);
+    localStorage.removeItem("wyrdly_user");
   }, []);
 
   useEffect(() => {
     const initAuth = async () => {
-      const storedToken = localStorage.getItem("wyrdly_token");
-      if (storedToken) {
-        try {
-          const currentUser = await authApi.getMe();
-          setUser(currentUser);
-          localStorage.setItem("wyrdly_user", JSON.stringify(currentUser));
-        } catch {
-          try {
-            const res = await authApi.refresh();
-            localStorage.setItem("wyrdly_token", res.token);
-            localStorage.setItem("wyrdly_user", JSON.stringify(res.user));
-            setToken(res.token);
-            setUser(res.user);
-          } catch {
-            logout();
-          }
-        } finally {
-          setIsLoading(false);
-        }
+      const savedUser = localStorage.getItem("wyrdly_user");
+      if (!savedUser) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const res = await authApi.refresh();
+        setAccessToken(res.token);
+        setToken(res.token);
+        setUser(res.user);
+        localStorage.setItem("wyrdly_user", JSON.stringify(res.user));
+      } catch {
+        setAccessToken(null);
+        setToken(null);
+        setUser(null);
+        localStorage.removeItem("wyrdly_user");
+      } finally {
+        setIsLoading(false);
       }
     };
 
     void initAuth();
-  }, [logout]);
+  }, []);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     setIsLoading(true);
     try {
       const response = await authApi.login(credentials);
-      localStorage.setItem("wyrdly_token", response.token);
-      localStorage.setItem("wyrdly_user", JSON.stringify(response.user));
+      setAccessToken(response.token);
       setToken(response.token);
       setUser(response.user);
+      localStorage.setItem("wyrdly_user", JSON.stringify(response.user));
     } finally {
       setIsLoading(false);
     }
@@ -89,10 +85,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setIsLoading(true);
     try {
       const response = await authApi.register(credentials);
-      localStorage.setItem("wyrdly_token", response.token);
-      localStorage.setItem("wyrdly_user", JSON.stringify(response.user));
+      setAccessToken(response.token);
       setToken(response.token);
       setUser(response.user);
+      localStorage.setItem("wyrdly_user", JSON.stringify(response.user));
     } finally {
       setIsLoading(false);
     }

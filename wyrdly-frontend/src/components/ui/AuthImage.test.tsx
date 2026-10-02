@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { AuthImage } from "./AuthImage";
+import { setAccessToken } from "../../api/tokenStore";
 
 const EXTERNAL_URL = "https://images.unsplash.com/photo-123?w=200";
 const OWN_MEDIA_URL = "http://localhost:8080/api/media/abc-uuid-123";
@@ -8,7 +9,9 @@ const FALLBACK_URL = "https://example.com/fallback.png";
 
 describe("AuthImage", () => {
   beforeEach(() => {
+    setAccessToken(null);
     localStorage.clear();
+
     vi.restoreAllMocks();
     vi.stubGlobal(
       "fetch",
@@ -43,7 +46,7 @@ describe("AuthImage", () => {
   });
 
   it("fetches the bytes with Authorization for /api/media URLs", async () => {
-    localStorage.setItem("wyrdly_token", "test-jwt-123");
+    setAccessToken("test-jwt-123");
 
     render(<AuthImage src={OWN_MEDIA_URL} alt="post media" />);
 
@@ -62,7 +65,7 @@ describe("AuthImage", () => {
   });
 
   it("falls back to fallbackSrc when fetch fails", async () => {
-    localStorage.setItem("wyrdly_token", "test-jwt");
+    setAccessToken("test-jwt");
 
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: false,
@@ -84,7 +87,7 @@ describe("AuthImage", () => {
   });
 
   it("renders the default SVG when fetch fails and no fallback is supplied", async () => {
-    localStorage.setItem("wyrdly_token", "test-jwt");
+    setAccessToken("test-jwt");
 
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: false,
@@ -100,7 +103,7 @@ describe("AuthImage", () => {
     });
   });
 
-  it("does not fetch when there is no JWT in localStorage", () => {
+  it("does not fetch when there is no JWT in token store", () => {
     render(
       <AuthImage
         src={OWN_MEDIA_URL}
@@ -115,7 +118,7 @@ describe("AuthImage", () => {
   });
 
   it("switches from blob to direct src when src changes", async () => {
-    localStorage.setItem("wyrdly_token", "test-jwt");
+    setAccessToken("test-jwt");
 
     const { rerender } = render(<AuthImage src={OWN_MEDIA_URL} alt="a" />);
     await waitFor(() => {

@@ -8,10 +8,11 @@ import type {
 
 export const authApi = {
   async register(credentials: RegisterCredentials): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
-      "/api/auth/register",
-      credentials,
-    );
+    const response = await apiClient.post<AuthResponse>("/api/auth/register", {
+      ...credentials,
+      bio: credentials.bio ?? "",
+      avatarUrl: credentials.avatarUrl ?? "",
+    });
     return response.data;
   },
 
@@ -26,7 +27,7 @@ export const authApi = {
   async refresh(refreshToken?: string): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>(
       "/api/auth/refresh",
-      refreshToken ? { refreshToken } : {},
+      refreshToken ? { refreshToken } : undefined,
     );
     return response.data;
   },
