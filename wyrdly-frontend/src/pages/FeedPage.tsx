@@ -39,7 +39,6 @@ export const FeedPage: FC = () => {
     isLoading: isFeedLoading,
     addPost,
     replacePost,
-    refetch: refetchFeed,
   } = useFeed();
   const { createPost } = useCreatePost();
   const { upload: uploadMediaFile, isUploading: isUploadingMedia } =
@@ -104,10 +103,6 @@ export const FeedPage: FC = () => {
     replacePost(optimistic);
 
     void reactToPost(postId, reaction, {
-      onServerResult: () => {
-        // Reconcile with authoritative counts after the server confirms.
-        void refetchFeed();
-      },
       onRollback: () => {
         // Restore the snapshot captured at click time.
         replacePost(target);
