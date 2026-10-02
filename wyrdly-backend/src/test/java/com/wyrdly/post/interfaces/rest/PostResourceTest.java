@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -13,7 +14,12 @@ import com.wyrdly.post.application.dto.CreatePostRequest;
 import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.post.application.dto.PostResponse.AuthorDto;
 import com.wyrdly.post.application.usecase.CreatePostUseCase;
+import com.wyrdly.post.application.usecase.ReactToPostUseCase;
+import com.wyrdly.post.domain.exception.PostNotFoundException;
 import com.wyrdly.post.domain.exception.PostValidationException;
+import com.wyrdly.post.domain.model.ReactionResult;
+import com.wyrdly.post.domain.model.ReactionStatus;
+import com.wyrdly.post.domain.model.ReactionType;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
@@ -27,6 +33,7 @@ import org.junit.jupiter.api.Test;
 class PostResourceTest {
 
   @InjectMock CreatePostUseCase createPostUseCase;
+  @InjectMock ReactToPostUseCase reactToPostUseCase;
 
   @Test
   void createPost_Returns401_WhenNoAuthenticationProvided() {
@@ -331,5 +338,122 @@ class PostResourceTest {
         .body("author.id", equalTo("usr_456"));
 
     verify(createPostUseCase).createPost(eq("usr_456"), any(CreatePostRequest.class));
+  }
+
+  // ---------------------------------------------------------------------------
+  // HU09 — reactions endpoint
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void react_Returns401_WhenNoAuth() {
+    given()
+        .contentType(ContentType.JSON)
+        .body("{\"type\":\"LIKE\"}")
+        .when()
+        .post("/api/posts/pst_abc/react")
+        .then()
+        .statusCode(401);
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void react_Returns200_Added_WhenValidRequest() {
+    when(reactToPostUseCase.react(eq("usr_123"), eq("pst_abc"), eq(ReactionType.LIKE)))
+        .thenReturn(new ReactionResult("pst_abc", ReactionStatus.ADDED, ReactionType.LIKE, 1L));
+
+    given()
+        .contentType(ContentType.JSON)
+        .body("{\"type\":\"LIKE\"}")
+        .when()
+        .post("/api/posts/pst_abc/react")
+        .then()
+        .statusCode(200)
+        .body("status", equalTo("ADDED"))
+        .body("reactionType", equalTo("LIKE"))
+        .body("totalReactions", equalTo(1));
+
+    verify(reactToPostUseCase).react("usr_123", "pst_abc", ReactionType.LIKE);
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void react_Returns200_Removed_WhenToggledIdentical() {
+    when(reactToPostUseCase.react(eq("usr_123"), eq("pst_abc"), eq(ReactionType.LIKE)))
+        .thenReturn(new ReactionResult("pst_abc", ReactionStatus.REMOVED, null, 0L));
+
+    given()
+        .contentType(ContentType.JSON)
+        .body("{\"type\":\"LIKE\"}")
+        .when()
+        .post("/api/posts/pst_abc/react")
+        .then()
+        .statusCode(200)
+        .body("status", equalTo("REMOVED"))
+        .body("reactionType", nullValue())
+        .body("totalReactions", equalTo(0));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void react_Returns200_Updated_WhenDifferentType() {
+    when(reactToPostUseCase.react(eq("usr_123"), eq("pst_abc"), eq(ReactionType.LOVE)))
+        .thenReturn(new ReactionResult("pst_abc", ReactionStatus.UPDATED, ReactionType.LOVE, 5L));
+
+    given()
+        .contentType(ContentType.JSON)
+        .body("{\"type\":\"LOVE\"}")
+        .when()
+        .post("/api/posts/pst_abc/react")
+        .then()
+        .statusCode(200)
+        .body("status", equalTo("UPDATED"))
+        .body("reactionType", equalTo("LOVE"))
+        .body("totalReactions", equalTo(5));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void react_Returns400_WhenTypeFieldMissing() {
+    given()
+        .contentType(ContentType.JSON)
+        .body("{}")
+        .when()
+        .post("/api/posts/pst_abc/react")
+        .then()
+        .statusCode(400);
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void react_Returns400_WhenTypeIsInvalidEnum() {
+    given()
+        .contentType(ContentType.JSON)
+        .body("{\"type\":\"DISLIKE\"}")
+        .when()
+        .post("/api/posts/pst_abc/react")
+        .then()
+        .statusCode(400);
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void react_Returns404_WhenPostNotFound() {
+    when(reactToPostUseCase.react(eq("usr_123"), eq("pst_missing"), eq(ReactionType.LIKE)))
+        .thenThrow(new PostNotFoundException("pst_missing"));
+
+    given()
+        .contentType(ContentType.JSON)
+        .body("{\"type\":\"LIKE\"}")
+        .when()
+        .post("/api/posts/pst_missing/react")
+        .then()
+        .statusCode(404)
+        .body("code", equalTo("POST_NOT_FOUND"));
   }
 }

@@ -21,3 +21,4 @@ jwt/
 # Local tooling artifacts (not for committing)
 .atl/
 .codegraph/
+docs/plan/

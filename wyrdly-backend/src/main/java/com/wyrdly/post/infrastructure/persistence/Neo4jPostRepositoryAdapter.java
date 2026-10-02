@@ -1,9 +1,13 @@
 package com.wyrdly.post.infrastructure.persistence;
 
+import com.wyrdly.post.domain.exception.PostNotFoundException;
 import com.wyrdly.post.domain.exception.PostPersistenceException;
 import com.wyrdly.post.domain.model.Author;
 import com.wyrdly.post.domain.model.FeedPost;
 import com.wyrdly.post.domain.model.Post;
+import com.wyrdly.post.domain.model.ReactionResult;
+import com.wyrdly.post.domain.model.ReactionStatus;
+import com.wyrdly.post.domain.model.ReactionType;
 import com.wyrdly.post.domain.repository.PostRepository;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -14,7 +18,6 @@ import java.util.Optional;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
-import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
 
 @ApplicationScoped
@@ -124,8 +127,9 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
    * 1. Posts from users the caller follows
    * 2. The caller's own posts
    *
-   * <p>Counts reactions (LIKE, LOVE, CELEBRATE) and detects user's reaction type.
-   * TODO: Extend to count both legacy (:LIKE/:LOVE/:CELEBRATE) and new (:REACCIONA {tipo}) relationships
+   * <p>Counts reactions via the unified {@code [:REACCIONA {tipo}]} relationship introduced in HU09
+   * (post V100 migration; legacy {@code [:LIKE|:LOVE|:CELEBRATE]} relationships have been migrated
+   * and are no longer present in the graph).
    */
   private static final String FEED_QUERY =
       "MATCH (me:Usuario {id: $userId}) "
@@ -138,18 +142,18 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "  MATCH (me)-[:PUBLICA]->(p:Post) "
           + "  RETURN p, me AS author "
           + "} "
-          + "OPTIONAL MATCH (p)<-[like:LIKE]-() "
-          + "OPTIONAL MATCH (p)<-[love:LOVE]-() "
-          + "OPTIONAL MATCH (p)<-[celebrate:CELEBRATE]-() "
-          + "OPTIONAL MATCH (me)-[userReaction:LIKE|LOVE|CELEBRATE]->(p) "
+          + "OPTIONAL MATCH (p)<-[rlike:REACCIONA {tipo: 'LIKE'}]-() "
+          + "OPTIONAL MATCH (p)<-[rlove:REACCIONA {tipo: 'LOVE'}]-() "
+          + "OPTIONAL MATCH (p)<-[rceleb:REACCIONA {tipo: 'CELEBRATE'}]-() "
+          + "OPTIONAL MATCH (me)-[ur:REACCIONA]->(p) "
           + "WITH DISTINCT p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
           + "              p.createdAt AS createdAt, author.id AS authorId, "
           + "              author.username AS authorUsername, author.fullName AS authorFullName, "
           + "              author.avatarUrl AS authorAvatarUrl, "
-          + "              count(DISTINCT like) AS likeCount, "
-          + "              count(DISTINCT love) AS loveCount, "
-          + "              count(DISTINCT celebrate) AS celebrateCount, "
-          + "              type(userReaction) AS userReactionType "
+          + "              count(DISTINCT rlike) AS likeCount, "
+          + "              count(DISTINCT rlove) AS loveCount, "
+          + "              count(DISTINCT rceleb) AS celebrateCount, "
+          + "              ur.tipo AS userReactionType "
           + "ORDER BY createdAt DESC "
           + "SKIP $skip LIMIT $limit "
           + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
@@ -168,6 +172,41 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "  RETURN p "
           + "} "
           + "RETURN count(DISTINCT p) AS total";
+
+  /**
+   * Atomically toggles the {@code (:Usuario)-[:REACCIONA]->(:Post)} relationship for the supplied
+   * {@code (userId, postId)} pair. Detects the existing state, then runs the matching {@code
+   * FOREACH} branch to either remove, update, or create the relationship. Counts the resulting
+   * total reactions for the post.
+   *
+   * <p>If the post does not exist (the {@code MATCH} for {@code (:Post {id: $postId})} returns 0
+   * rows), this query returns no record and the caller surfaces a {@link PostNotFoundException}.
+   */
+  private static final String REACT_QUERY =
+      "MATCH (u:Usuario {id: $userId}) "
+          + "MATCH (p:Post {id: $postId}) "
+          + "OPTIONAL MATCH (u)-[existing:REACCIONA]->(p) "
+          + "WITH u, p, existing, "
+          + "     CASE "
+          + "       WHEN existing IS NULL              THEN 'ADDED' "
+          + "       WHEN existing.tipo = $tipo         THEN 'REMOVED' "
+          + "       ELSE                                    'UPDATED' "
+          + "     END AS status "
+          + "FOREACH (_ IN CASE WHEN status = 'REMOVED' THEN [1] ELSE [] END | "
+          + "  DELETE existing "
+          + ") "
+          + "FOREACH (_ IN CASE WHEN status = 'UPDATED' THEN [1] ELSE [] END | "
+          + "  SET existing.tipo = $tipo, existing.updatedAt = datetime() "
+          + ") "
+          + "FOREACH (_ IN CASE WHEN status = 'ADDED' THEN [1] ELSE [] END | "
+          + "  CREATE (u)-[r:REACCIONA {tipo: $tipo, createdAt: datetime(), updatedAt: datetime()}]->(p) "
+          + ") "
+          + "WITH p, status "
+          + "OPTIONAL MATCH (p)<-[allR:REACCIONA]-() "
+          + "WITH p, status, count(allR) AS totalReactions "
+          + "RETURN status, "
+          + "       CASE WHEN status = 'REMOVED' THEN null ELSE $tipo END AS reactionType, "
+          + "       totalReactions";
 
   @Override
   public List<FeedPost> findFeedByUserId(String userId, int page, int pageSize) {
@@ -303,5 +342,52 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     String authorId = record.get("authorId").asString();
 
     return new Post(id, authorId, content, mediaUrl, createdAt);
+  }
+
+  /**
+   * Atomically toggles a user's reaction on a post in a single write transaction.
+   *
+   * <p>If the post does not exist the underlying {@code REACT_QUERY} matches zero rows, the
+   * returned record stream is empty, and a {@link PostNotFoundException} is raised. Any other
+   * driver-level failure is wrapped in {@link PostPersistenceException} so the caller can
+   * distinguish a not-found condition from a transient Neo4j problem.
+   */
+  @Override
+  public ReactionResult react(String userId, String postId, ReactionType type) {
+    try (Session session = driver.session()) {
+      Optional<Record> result =
+          session.executeWrite(
+              tx -> {
+                var run =
+                    tx.run(
+                        REACT_QUERY,
+                        Values.parameters(
+                            "userId", userId, "postId", postId, "tipo", type.name()));
+                if (run.hasNext()) {
+                  return Optional.of(run.next());
+                }
+                return Optional.<Record>empty();
+              });
+
+      if (result.isEmpty()) {
+        throw new PostNotFoundException(postId);
+      }
+
+      Record record = result.get();
+      String status = record.get("status").asString();
+      ReactionStatus reactionStatus = ReactionStatus.valueOf(status);
+      String reactionTypeStr =
+          record.get("reactionType").isNull() ? null : record.get("reactionType").asString();
+      ReactionType reactionType =
+          reactionTypeStr == null ? null : ReactionType.valueOf(reactionTypeStr);
+      long total = record.get("totalReactions").asLong();
+
+      return new ReactionResult(postId, reactionStatus, reactionType, total);
+    } catch (PostNotFoundException e) {
+      throw e;
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to react to post: userId=%s postId=%s", userId, postId);
+      throw new PostPersistenceException("Failed to react to post=" + postId, e);
+    }
   }
 }

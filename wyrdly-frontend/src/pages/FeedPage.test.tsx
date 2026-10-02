@@ -51,6 +51,7 @@ vi.mock("../api/posts", () => ({
   postsApi: {
     create: vi.fn(),
     getFeed: vi.fn(),
+    react: vi.fn(),
   },
 }));
 

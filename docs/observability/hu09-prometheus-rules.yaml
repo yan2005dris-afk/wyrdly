@@ -1,0 +1,53 @@
+groups:
+  - name: hu09-reactions-alerts
+    interval: 30s
+    rules:
+      - alert: ReactionsP95LatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(reaction_duration_seconds_bucket{outcome!="error"}[5m]))) > 0.08
+        for: 5m
+        labels:
+          severity: warning
+          service: wyrdly-backend
+        annotations:
+          summary: "Reactions p95 latency > 80ms for 5 minutes"
+          description: "p95 reaction latency is {{ $value | humanizeDuration }} (threshold: 80ms). Investigate Neo4j pool or driver retries."
+
+      - alert: ReactionsP99LatencyCritical
+        expr: histogram_quantile(0.99, sum by (le) (rate(reaction_duration_seconds_bucket{outcome!="error"}[5m]))) > 0.25
+        for: 3m
+        labels:
+          severity: critical
+          service: wyrdly-backend
+        annotations:
+          summary: "Reactions p99 latency > 250ms for 3 minutes"
+          description: "p99 reaction latency is {{ $value | humanizeDuration }} (threshold: 250ms). Likely Neo4j hot node contention."
+
+      - alert: ReactionsErrorRateHigh
+        expr: sum(rate(reaction_errors_total{reason=~"dependency_down|transient"}[5m])) / clamp_min(sum(rate(reaction_duration_seconds_count[5m])), 1) > 0.0005
+        for: 5m
+        labels:
+          severity: warning
+          service: wyrdly-backend
+        annotations:
+          summary: "Reaction 5xx rate > 0.05%"
+          description: "5xx rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: Neo4jHeapHigh
+        expr: (neo4j_jvm_heap_used / neo4j_jvm_heap_max) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+          service: wyrdly-neo4j
+        annotations:
+          summary: "Neo4j heap usage > 80%"
+          description: "Heap at {{ $value | humanizePercentage }}. Consider scaling heap or reducing query concurrency."
+
+      - alert: CircuitBreakerOpen
+        expr: sum(rate(reaction_errors_total{reason="dependency_down"}[1m])) > 0.5
+        for: 1m
+        labels:
+          severity: critical
+          service: wyrdly-backend
+        annotations:
+          summary: "Reaction circuit breaker likely open"
+          description: "More than 0.5 dependency_down errors/s for 1m. Circuit breaker is likely open. Check Neo4j and Redis health."
