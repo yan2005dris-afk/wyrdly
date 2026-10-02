@@ -29,7 +29,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     return null;
   });
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(
+    () => !!localStorage.getItem("wyrdly_user"),
+  );
 
   const logout = useCallback(() => {
     authApi.logout().catch(() => {});
@@ -41,6 +43,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
+      const savedUser = localStorage.getItem("wyrdly_user");
+      if (!savedUser) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const res = await authApi.refresh();
         setAccessToken(res.token);
@@ -52,6 +60,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         setToken(null);
         setUser(null);
         localStorage.removeItem("wyrdly_user");
+      } finally {
+        setIsLoading(false);
       }
     };
 

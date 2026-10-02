@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FC } from "react";
 import { defaultAvatarDataUrl } from "../../utils/defaultAvatar";
+import { getAccessToken } from "../../api/tokenStore";
 
 /**
  * Like a regular <img>, but if `src` points at our own /api/media/{id}
@@ -41,7 +42,7 @@ export const AuthImage: FC<AuthImageProps> = ({
       return;
     }
 
-    const token = localStorage.getItem("wyrdly_token");
+    const token = getAccessToken();
     if (!token) {
       return;
     }
