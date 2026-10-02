@@ -64,8 +64,7 @@ class ReactionServiceTest {
 
   @Test
   void react_ReturnsRemovedResult_FromRepository() {
-    ReactionResult expected =
-        new ReactionResult("pst_1", ReactionStatus.REMOVED, null, 6);
+    ReactionResult expected = new ReactionResult("pst_1", ReactionStatus.REMOVED, null, 6);
     when(postRepository.react(any(), any(), any())).thenReturn(expected);
 
     ReactionResult actual = reactionService.react("u1", "pst_1", ReactionType.LIKE);
@@ -90,8 +89,7 @@ class ReactionServiceTest {
 
   @Test
   void react_PropagatesPostNotFoundException_FromRepository() {
-    when(postRepository.react(any(), any(), any()))
-        .thenThrow(new PostNotFoundException("missing"));
+    when(postRepository.react(any(), any(), any())).thenThrow(new PostNotFoundException("missing"));
 
     assertThrows(
         PostNotFoundException.class,

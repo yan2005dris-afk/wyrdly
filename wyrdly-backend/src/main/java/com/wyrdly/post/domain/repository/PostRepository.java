@@ -25,8 +25,8 @@ public interface PostRepository {
   long countByAuthor(String authorId);
 
   /**
-   * Toggles a user's reaction on a post. The {@code (:Usuario)-[:REACCIONA]->(:Post)} relationship is
-   * created, removed, or updated atomically and a {@link ReactionResult} describes the outcome.
+   * Toggles a user's reaction on a post. The {@code (:Usuario)-[:REACCIONA]->(:Post)} relationship
+   * is created, removed, or updated atomically and a {@link ReactionResult} describes the outcome.
    *
    * @throws com.wyrdly.post.domain.exception.PostNotFoundException if the post does not exist
    */

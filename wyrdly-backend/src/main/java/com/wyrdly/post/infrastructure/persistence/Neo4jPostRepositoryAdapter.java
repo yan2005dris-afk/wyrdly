@@ -87,7 +87,8 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     try (Session session = driver.session()) {
       return session.executeRead(
           tx ->
-              tx.run(
+              tx
+                  .run(
                       "MATCH (author:Usuario)-[:PUBLICA]->(p:Post {id: $id}) "
                           + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
                           + "       p.createdAt AS createdAt, author.id AS authorId",
@@ -103,8 +104,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                             record.get("mediaUrl").isNull()
                                 ? null
                                 : record.get("mediaUrl").asString();
-                        Instant createdAt =
-                            Instant.parse(record.get("createdAt").asString());
+                        Instant createdAt = Instant.parse(record.get("createdAt").asString());
                         String authorId = record.get("authorId").asString();
 
                         return new Post(postId, authorId, content, mediaUrl, createdAt);
@@ -123,9 +123,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
    * Results ordered by createdAt DESC, with SKIP/LIMIT for pagination.
    */
   /**
-   * Feed query combining:
-   * 1. Posts from users the caller follows
-   * 2. The caller's own posts
+   * Feed query combining: 1. Posts from users the caller follows 2. The caller's own posts
    *
    * <p>Counts reactions via the unified {@code [:REACCIONA {tipo}]} relationship introduced in HU09
    * (post V100 migration; legacy {@code [:LIKE|:LOVE|:CELEBRATE]} relationships have been migrated
@@ -278,8 +276,8 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
   /**
    * Finds all posts published by a specific author, with pagination.
    *
-   * <p>Query: (:Usuario {id: authorId})-[:PUBLICA]->(:Post) traversal.
-   * Returns basic post info without reaction counts (used for user profile page).
+   * <p>Query: (:Usuario {id: authorId})-[:PUBLICA]->(:Post) traversal. Returns basic post info
+   * without reaction counts (used for user profile page).
    */
   @Override
   public List<Post> findByAuthor(String authorId, int page, int pageSize) {
@@ -304,9 +302,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     }
   }
 
-  /**
-   * Counts total posts published by a specific author.
-   */
+  /** Counts total posts published by a specific author. */
   @Override
   public long countByAuthor(String authorId) {
     try (Session session = driver.session()) {
@@ -329,8 +325,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
   }
 
   /**
-   * Maps a Neo4j record to a Post domain model.
-   * Used by findByAuthor().
+   * Maps a Neo4j record to a Post domain model. Used by findByAuthor().
    *
    * <p>Expects: id, content, mediaUrl, createdAt, authorId fields.
    */
@@ -361,8 +356,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                 var run =
                     tx.run(
                         REACT_QUERY,
-                        Values.parameters(
-                            "userId", userId, "postId", postId, "tipo", type.name()));
+                        Values.parameters("userId", userId, "postId", postId, "tipo", type.name()));
                 if (run.hasNext()) {
                   return Optional.of(run.next());
                 }

@@ -17,8 +17,8 @@ import java.io.IOException;
  * {@code 429 Too Many Requests} with {@code Retry-After} when the user exceeds the quota.
  *
  * <p>Runs after {@link ReactionIdempotencyFilter} (priority {@code AUTHENTICATION + 200}) so
- * idempotency replays don't consume budget. Redis outages fail open: a missing cache layer
- * degrades gracefully to "no rate limit" rather than refusing all traffic.
+ * idempotency replays don't consume budget. Redis outages fail open: a missing cache layer degrades
+ * gracefully to "no rate limit" rather than refusing all traffic.
  */
 @Provider
 @Priority(Priorities.AUTHENTICATION + 200)
@@ -56,10 +56,7 @@ public class ReactionRateLimitFilter implements ContainerRequestFilter {
         redis.execute("EXPIRE", key, Long.toString(WINDOW_SECONDS));
       }
     } catch (Exception e) {
-      Log.warnf(
-          e,
-          "Rate-limit cache unavailable for key=%s — failing open (request allowed)",
-          key);
+      Log.warnf(e, "Rate-limit cache unavailable for key=%s — failing open (request allowed)", key);
       return;
     }
 

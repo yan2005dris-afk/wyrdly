@@ -70,7 +70,10 @@ public class PostResource {
       failureRatio = 0.5,
       delay = 10,
       delayUnit = ChronoUnit.SECONDS)
-  @Timed(value = "reaction_duration_seconds", description = "Reaction endpoint latency", histogram = true)
+  @Timed(
+      value = "reaction_duration_seconds",
+      description = "Reaction endpoint latency",
+      histogram = true)
   public Response react(@PathParam("postId") String postId, @Valid ReactPostRequest request) {
     String userId = jwt.getSubject();
     ReactionResult result = reactToPostUseCase.react(userId, postId, request.type());

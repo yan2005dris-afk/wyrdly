@@ -20,14 +20,13 @@ import java.io.IOException;
  * verbatim, so a double click does not produce two toggles. Runs after authentication (priority
  * {@code AUTHENTICATION + 100}) and before {@link ReactionRateLimitFilter}.
  *
- * <p>Redis is treated as a best-effort optimization: any cache error degrades gracefully to
- * "no dedup" so the toggle request still reaches the repository. The repository-side query is
- * itself atomic, so a Redis outage cannot corrupt reaction data.
+ * <p>Redis is treated as a best-effort optimization: any cache error degrades gracefully to "no
+ * dedup" so the toggle request still reaches the repository. The repository-side query is itself
+ * atomic, so a Redis outage cannot corrupt reaction data.
  */
 @Provider
 @Priority(Priorities.AUTHENTICATION + 100)
-public class ReactionIdempotencyFilter
-    implements ContainerRequestFilter, ContainerResponseFilter {
+public class ReactionIdempotencyFilter implements ContainerRequestFilter, ContainerResponseFilter {
 
   /** Cache TTL in seconds. Keeps a single in-flight toggle deduplicated. */
   static final long TTL_SECONDS = 1L;
@@ -67,13 +66,13 @@ public class ReactionIdempotencyFilter
         req.abortWith(Response.ok(cached).type("application/json").build());
       }
     } catch (Exception e) {
-      Log.warnf(
-          e, "Idempotency cache lookup failed for key=%s — falling back to repository", key);
+      Log.warnf(e, "Idempotency cache lookup failed for key=%s — falling back to repository", key);
     }
   }
 
   @Override
-  public void filter(ContainerRequestContext req, ContainerResponseContext resp) throws IOException {
+  public void filter(ContainerRequestContext req, ContainerResponseContext resp)
+      throws IOException {
     if (resp.getStatus() != 200) {
       return;
     }

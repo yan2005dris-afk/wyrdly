@@ -39,13 +39,15 @@ class ReactionTypeTest {
   @Test
   void deserialization_FailsOnUnknownValue() {
     String json = "{\"type\":\"DISLIKE\"}";
-    assertThrows(InvalidFormatException.class, () -> mapper.readValue(json, ReactionTypeHolder.class));
+    assertThrows(
+        InvalidFormatException.class, () -> mapper.readValue(json, ReactionTypeHolder.class));
   }
 
   @Test
   void deserialization_FailsOnLowercaseValue() {
     String json = "{\"type\":\"like\"}";
-    assertThrows(InvalidFormatException.class, () -> mapper.readValue(json, ReactionTypeHolder.class));
+    assertThrows(
+        InvalidFormatException.class, () -> mapper.readValue(json, ReactionTypeHolder.class));
   }
 
   /** Simple holder mirroring {@code ReactPostRequest} for Jackson deserialization testing. */

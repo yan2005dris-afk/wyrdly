@@ -12,8 +12,8 @@ import org.eclipse.microprofile.faulttolerance.exceptions.CircuitBreakerOpenExce
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
 /**
- * Maps domain exceptions to RFC-7807-style error responses. Rate-limit rejections are short-circuited
- * by {@link ReactionRateLimitFilter} before reaching this mapper.
+ * Maps domain exceptions to RFC-7807-style error responses. Rate-limit rejections are
+ * short-circuited by {@link ReactionRateLimitFilter} before reaching this mapper.
  */
 @ApplicationScoped
 public class PostExceptionMappers {
@@ -31,13 +31,17 @@ public class PostExceptionMappers {
   @ServerExceptionMapper
   public Response handlePostPersistence(PostPersistenceException ex) {
     return buildResponse(
-        Response.Status.INTERNAL_SERVER_ERROR, "DEPENDENCY_DOWN", "Servicio temporalmente no disponible. Reintenta en unos segundos.");
+        Response.Status.INTERNAL_SERVER_ERROR,
+        "DEPENDENCY_DOWN",
+        "Servicio temporalmente no disponible. Reintenta en unos segundos.");
   }
 
   @ServerExceptionMapper
   public Response handleCircuitBreakerOpen(CircuitBreakerOpenException ex) {
     return buildResponse(
-        Response.Status.SERVICE_UNAVAILABLE, "DEPENDENCY_DOWN", "Servicio temporalmente no disponible. Reintenta en unos segundos.");
+        Response.Status.SERVICE_UNAVAILABLE,
+        "DEPENDENCY_DOWN",
+        "Servicio temporalmente no disponible. Reintenta en unos segundos.");
   }
 
   private Response buildResponse(Response.Status status, String code, String message) {

@@ -9,9 +9,9 @@ import jakarta.inject.Inject;
 import java.util.Objects;
 
 /**
- * Default application-layer orchestration for the {@link ReactToPostUseCase}. The service is a
- * thin pass-through to the repository because rate-limit and idempotency concerns are handled at
- * the REST layer (see {@code ReactionRateLimitFilter} / {@code ReactionIdempotencyFilter}).
+ * Default application-layer orchestration for the {@link ReactToPostUseCase}. The service is a thin
+ * pass-through to the repository because rate-limit and idempotency concerns are handled at the
+ * REST layer (see {@code ReactionRateLimitFilter} / {@code ReactionIdempotencyFilter}).
  */
 @ApplicationScoped
 public class ReactionService implements ReactToPostUseCase {

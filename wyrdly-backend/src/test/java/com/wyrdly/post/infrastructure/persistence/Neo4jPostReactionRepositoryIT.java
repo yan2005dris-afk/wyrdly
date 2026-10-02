@@ -30,9 +30,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.neo4j.Neo4jContainer;
 
 /**
- * Integration tests for the HU09 reaction toggle Cypher query. Runs against a Testcontainers
- * Neo4j 5.26 instance. Exercises the ADDED/REMOVED/UPDATED transitions and a 50-thread fan-in to
- * validate concurrency safety.
+ * Integration tests for the HU09 reaction toggle Cypher query. Runs against a Testcontainers Neo4j
+ * 5.26 instance. Exercises the ADDED/REMOVED/UPDATED transitions and a 50-thread fan-in to validate
+ * concurrency safety.
  *
  * <p>Skipped at compile-time when Docker is unavailable: the {@code skipITs} profile is on by
  * default. Run with {@code -DskipITs=false -Dtest='*IT'} when Docker is present.
