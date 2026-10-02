@@ -65,6 +65,16 @@ export const Avatar: FC<AvatarProps> = ({
     <div
       className={containerClasses}
       onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       data-testid="avatar-container"

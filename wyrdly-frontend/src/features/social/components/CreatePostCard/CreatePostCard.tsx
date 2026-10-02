@@ -91,6 +91,7 @@ export const CreatePostCard: FC<CreatePostCardProps> = ({
             <textarea
               rows={2}
               placeholder="Share an update with your federated graph..."
+              aria-label="Share an update with your federated graph"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className={styles.textarea}
@@ -100,7 +101,10 @@ export const CreatePostCard: FC<CreatePostCardProps> = ({
             {selectedFiles.length > 0 && (
               <div className={styles.attachmentPreviews}>
                 {selectedFiles.map((file, idx) => (
-                  <span key={idx} className={styles.previewPill}>
+                  <span
+                    key={`${file.name}-${idx}`}
+                    className={styles.previewPill}
+                  >
                     <span>{file.name}</span>
                     <button
                       type="button"
@@ -141,6 +145,7 @@ export const CreatePostCard: FC<CreatePostCardProps> = ({
               accept="image/*,video/*"
               className={styles.hiddenFileInput}
               data-testid="file-upload-input"
+              aria-label="Upload media files"
             />
             <button
               type="button"

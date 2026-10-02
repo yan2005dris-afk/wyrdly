@@ -21,10 +21,12 @@ interface UseProfileUsersParams {
  *
  * `direction` selects the endpoint: "followers" or "following".
  */
+const DEFAULT_PARAMS: UseProfileUsersParams = {};
+
 export function useProfileUsers(
   username: string | undefined,
   direction: "followers" | "following",
-  params: UseProfileUsersParams = {},
+  params: UseProfileUsersParams = DEFAULT_PARAMS,
 ): UseProfileUsersReturn {
   const [users, setUsers] = useState<readonly ProfileUserSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(username));

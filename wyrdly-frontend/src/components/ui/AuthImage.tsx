@@ -53,10 +53,12 @@ export const AuthImage: FC<AuthImageProps> = ({
           throw new Error(`Failed to fetch media: ${response.status}`);
         }
         const blob = await response.blob();
-        if (cancelled) return;
-        // setState inside an async callback fires only when the fetch
-        // lifecycle completes. No cascading-render risk.
-        setBlobUrl(URL.createObjectURL(blob));
+        const objectUrl = URL.createObjectURL(blob);
+        if (cancelled) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        setBlobUrl(objectUrl);
       })
       .catch(() => {
         if (!cancelled) {

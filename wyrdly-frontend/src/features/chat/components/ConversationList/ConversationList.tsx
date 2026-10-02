@@ -40,6 +40,12 @@ export const ConversationItem: FC<ConversationItemProps> = ({
     <div
       className={`${styles.item} ${isActive ? styles.itemActive : ""} ${className}`}
       onClick={() => onClick?.(conversation.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.(conversation.id);
+        }
+      }}
       role="button"
       tabIndex={0}
       data-testid={`conversation-item-${conversation.id}`}

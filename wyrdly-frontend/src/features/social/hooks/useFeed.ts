@@ -111,9 +111,7 @@ export function useFeed(): UseFeedReturn {
           console.error("Feed fetch error:", err);
         }
       } finally {
-        if (!ignore) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
