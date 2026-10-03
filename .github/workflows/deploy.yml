@@ -1,0 +1,51 @@
+# Wyrdly production deployment on the dedicated self-hosted runner.
+# Runtime configuration lives outside the checkout or in local .env.
+name: Deploy Wyrdly
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: wyrdly-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, wyrdly]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Determine environment configuration
+        id: config
+        run: |
+          if [ -r /etc/wyrdly/.env ]; then
+            echo "env_file=/etc/wyrdly/.env" >> "$GITHUB_OUTPUT"
+            echo "Using system environment file: /etc/wyrdly/.env"
+          elif [ -r .env ]; then
+            echo "env_file=.env" >> "$GITHUB_OUTPUT"
+            echo "Using repository environment file: .env"
+          else
+            echo "ERROR: required environment file (/etc/wyrdly/.env or .env) is absent or unreadable."
+            exit 1
+          fi
+
+      - name: Build and deploy services
+        env:
+          DOCKER_BUILDKIT: 1
+          COMPOSE_DOCKER_CLI_BUILD: 1
+        run: |
+          docker compose --env-file "${{ steps.config.outputs.env_file }}" up -d --build --remove-orphans
+
+      - name: Show deployment status
+        run: |
+          docker compose --env-file "${{ steps.config.outputs.env_file }}" ps
+
+      - name: Clean up old images
+        run: |
+          docker image prune -f
