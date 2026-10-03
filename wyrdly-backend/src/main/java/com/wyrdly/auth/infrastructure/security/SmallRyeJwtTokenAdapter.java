@@ -40,6 +40,15 @@ public class SmallRyeJwtTokenAdapter implements TokenProviderPort {
 
   private PrivateKey loadPrivateKey(String location) {
     try {
+      java.nio.file.Path path = java.nio.file.Paths.get(location);
+      if (java.nio.file.Files.exists(path)) {
+        String pem = java.nio.file.Files.readString(path);
+        return KeyUtils.decodePrivateKey(pem);
+      }
+    } catch (Exception ignored) {
+    }
+
+    try {
       return KeyUtils.readPrivateKey(location);
     } catch (Exception e) {
       try {
