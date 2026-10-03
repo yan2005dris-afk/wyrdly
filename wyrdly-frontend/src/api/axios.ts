@@ -1,9 +1,17 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import { getAccessToken, setAccessToken } from "./tokenStore";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ??
-  (import.meta.env.DEV ? "http://localhost:8080" : "");
+const resolveBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (typeof envUrl === "string") {
+    const sanitized = envUrl.replace(/^["']+|["']+$/g, "").trim();
+    if (sanitized) return sanitized;
+    return "";
+  }
+  return import.meta.env.DEV ? "http://localhost:8080" : "";
+};
+
+const API_BASE_URL = resolveBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
