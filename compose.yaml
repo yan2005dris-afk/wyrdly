@@ -122,7 +122,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: wyrdly-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
+    command: tunnel --no-autoupdate --protocol http2 run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     networks:
