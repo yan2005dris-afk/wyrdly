@@ -17,6 +17,9 @@ coverage/
 *.pem
 *.key
 jwt/
+# HU11 / TASK-01 (#62) — VAPID keypair location. Never commit key material.
+vapid/
+/deployments/vapid/
 
 # Local tooling artifacts (not for committing)
 .atl/
