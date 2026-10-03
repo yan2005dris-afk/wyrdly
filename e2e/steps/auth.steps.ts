@@ -64,7 +64,7 @@ When("ingresa sus credenciales válidas", async function (this: CustomWorld) {
     const uniqueId = Date.now().toString().slice(-6);
     this.currentUsername = `user_${uniqueId}`;
     this.currentEmail = `user_${uniqueId}@example.com`;
-    await this.page.request.post("http://localhost:8080/api/auth/register", {
+    await this.page.request.post(`${this.baseUrl}/api/auth/register`, {
       data: {
         fullName: `Test User ${uniqueId}`,
         username: this.currentUsername,

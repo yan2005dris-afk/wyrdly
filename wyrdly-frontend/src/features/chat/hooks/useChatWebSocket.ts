@@ -27,8 +27,8 @@ export const useChatWebSocket = ({
 
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.hostname;
-    // Default to port 8080 for dev/local backend if not specified
-    const wsUrl = `${wsProtocol}//${host}:8080/ws/chat?token=${encodeURIComponent(token)}`;
+    const port = window.location.port ? `:${window.location.port}` : "";
+    const wsUrl = `${wsProtocol}//${host}${port}/ws/chat?token=${encodeURIComponent(token)}`;
 
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
