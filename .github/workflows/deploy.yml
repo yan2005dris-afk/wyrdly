@@ -35,6 +35,25 @@ jobs:
             exit 1
           fi
 
+      - name: Ensure external JWT keys exist
+        run: |
+          set -eu
+          jwt_dir=/etc/wyrdly/jwt
+          if ! mkdir -p "$jwt_dir"; then
+            echo "ERROR: runner cannot create or access $jwt_dir."
+            exit 1
+          fi
+          if [ ! -f "$jwt_dir/privateKey.pem" ] || [ ! -f "$jwt_dir/publicKey.pem" ]; then
+            echo "Generating RSA 2048-bit PKCS8 JWT keys in $jwt_dir..."
+            openssl genrsa -out "$jwt_dir/privateKey.raw.pem" 2048 2>/dev/null
+            openssl pkcs8 -topk8 -inform PEM -outform PEM -in "$jwt_dir/privateKey.raw.pem" -out "$jwt_dir/privateKey.pem" -nocrypt
+            rm -f "$jwt_dir/privateKey.raw.pem"
+            openssl rsa -in "$jwt_dir/privateKey.pem" -pubout -out "$jwt_dir/publicKey.pem" 2>/dev/null
+          else
+            echo "JWT keys already exist in $jwt_dir."
+          fi
+          chmod 644 "$jwt_dir/publicKey.pem" "$jwt_dir/privateKey.pem"
+
       - name: Build and deploy services
         env:
           DOCKER_BUILDKIT: 1
