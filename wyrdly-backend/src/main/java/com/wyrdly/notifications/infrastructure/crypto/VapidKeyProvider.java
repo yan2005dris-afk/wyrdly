@@ -145,7 +145,7 @@ public class VapidKeyProvider {
     return generated;
   }
 
-  static VapidKeyPair generateKeyPair() throws Exception {
+  public static VapidKeyPair generateKeyPair() throws Exception {
     KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
     generator.initialize(new ECGenParameterSpec(EC_CURVE_NAME));
     KeyPair pair = generator.generateKeyPair();
