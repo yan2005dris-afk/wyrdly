@@ -33,7 +33,9 @@ jobs:
         run: cp .env.example .env
 
       - name: Generate JWT Keys
-        run: bash scripts/generate-jwt-keys.sh
+        run: |
+          bash scripts/generate-jwt-keys.sh ./jwt
+          bash scripts/generate-jwt-keys.sh wyrdly-backend/src/main/resources/jwt
 
       - name: Build and Start Compose Stack
         run: docker compose up -d --build
@@ -47,6 +49,10 @@ jobs:
           curl -f http://localhost:8080/hello || exit 1
           curl -f http://localhost:3000 || exit 1
           echo "All services are up and healthy!"
+
+      - name: Dump Compose logs on failure
+        if: failure()
+        run: docker compose logs --tail 100
 
       - name: Teardown Cluster
         if: always()

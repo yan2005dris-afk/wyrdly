@@ -55,8 +55,12 @@ public class SmallRyeJwtTokenAdapter implements TokenProviderPort {
         String altLocation = location.startsWith("/") ? location.substring(1) : "/" + location;
         return KeyUtils.readPrivateKey(altLocation);
       } catch (Exception ex) {
-        throw new IllegalStateException(
-            "Failed to load JWT signing private key from: " + location, ex);
+        try {
+          return KeyUtils.readPrivateKey("jwt/privateKey.pem");
+        } catch (Exception fallbackEx) {
+          throw new IllegalStateException(
+              "Failed to load JWT signing private key from: " + location, ex);
+        }
       }
     }
   }
