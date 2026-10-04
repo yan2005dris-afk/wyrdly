@@ -1,6 +1,6 @@
 package com.wyrdly.notifications.infrastructure.crypto;
 
-import com.wyrdly.notifications.domain.model.VapidKeyPair;
+import com.wyrdly.notifications.infrastructure.crypto.VapidKeyPair;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;

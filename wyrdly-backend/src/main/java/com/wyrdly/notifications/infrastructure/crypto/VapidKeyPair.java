@@ -1,4 +1,4 @@
-package com.wyrdly.notifications.domain.model;
+package com.wyrdly.notifications.infrastructure.crypto;
 
 import java.util.Objects;
 
