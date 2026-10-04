@@ -1,5 +1,6 @@
 package com.wyrdly.notifications.infrastructure.push;
 
+import com.wyrdly.notifications.application.port.PushGatewayClientPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.io.IOException;
 import java.net.URI;
@@ -16,7 +17,7 @@ import java.util.Map;
  * later).
  */
 @ApplicationScoped
-public class PushGatewayClient {
+public class PushGatewayClient implements PushGatewayClientPort {
 
   private final HttpClient client;
   private final Duration requestTimeout;
@@ -35,6 +36,7 @@ public class PushGatewayClient {
   }
 
   /** Returns the HTTP status code returned by the Push Service. */
+  @Override
   public int post(URI url, byte[] body, Map<String, String> headers) throws IOException {
     HttpRequest.Builder builder =
         HttpRequest.newBuilder(url)

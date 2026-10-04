@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.wyrdly.notifications.domain.model.VapidKeyPair;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;

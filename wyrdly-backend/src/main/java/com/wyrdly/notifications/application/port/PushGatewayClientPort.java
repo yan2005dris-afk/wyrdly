@@ -1,0 +1,18 @@
+package com.wyrdly.notifications.application.port;
+
+import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
+
+/**
+ * Output port for posting an encrypted Web Push payload to a Push Service URL. Implementations are
+ * expected to be replaceable in tests with a fake/in-memory mock.
+ */
+public interface PushGatewayClientPort {
+
+  /**
+   * Returns the HTTP status code returned by the Push Service. Throws {@link IOException} on
+   * transport failure (after the dispatcher's retry budget is exhausted).
+   */
+  int post(URI url, byte[] body, Map<String, String> headers) throws IOException;
+}

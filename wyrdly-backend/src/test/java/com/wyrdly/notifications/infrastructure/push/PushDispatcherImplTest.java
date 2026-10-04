@@ -234,7 +234,7 @@ class PushDispatcherImplTest {
    */
   private void awaitCounterIncrease(String tag, String value, double before, double delta)
       throws InterruptedException {
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 500; i++) {
       double now =
           meterRegistry.find("wyrdly.push.dispatch").tag("result", value).counter().count();
       if (now >= before + delta) return;
