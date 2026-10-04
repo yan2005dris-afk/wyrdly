@@ -30,7 +30,7 @@ class SubscribeToPushUseCaseImplTest {
   // Generate a real, valid EC P-256 public key once so the use-case validator
   // (which decodes p256dh and asserts the uncompressed point shape) accepts it.
   private static final String REAL_P256DH;
-  private static final String VALID_AUTH = "mock-auth-secret-for-test";
+  private static final String VALID_AUTH = "Y3JhcHBsZWFzZQ";
 
   static {
     try {
