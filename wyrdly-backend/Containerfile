@@ -38,16 +38,18 @@ COPY --chown=quarkus:quarkus --from=build /app/target/quarkus-app/quarkus/ /depl
 
 # VAPID keypair bootstrap script (HU11 / TASK-01 / #62). Idempotent: skips if
 # keys already exist at /deployments/vapid (mounted as a volume in compose).
-COPY --chown=quarkus:quarkus scripts/ /deployments/scripts/
-RUN chmod +x /deployments/scripts/init-vapid-keys.sh
-
-USER 10001
+COPY --chown=root:root scripts/ /deployments/scripts/
+RUN chmod +x /deployments/scripts/init-vapid-keys.sh && \
+    mkdir -p /deployments/vapid && \
+    chown -R quarkus:quarkus /deployments/vapid
 
 EXPOSE 8080
 
 # Bootstrap VAPID keys before starting the JVM. The volume mount
 # ./vapid:/deployments/vapid (declared in compose.yaml) persists them between
 # restarts; the script regenerates if the volume is empty. We intentionally
-# run the script as root (so it can write to the mount) and drop privileges
-# via su-exec before launching the JVM.
+# run the script as root (so it can write to the bind-mounted volume whose
+# host-side permissions are owned by the CI/host user) and drop privileges
+# via su-exec before launching the JVM. The final `quarkus` user is the
+# unprivileged account defined above (uid 10001).
 ENTRYPOINT ["sh", "-c", "/deployments/scripts/init-vapid-keys.sh /deployments/vapid && exec su-exec quarkus java $JAVA_OPTS -jar /deployments/quarkus-run.jar"]
