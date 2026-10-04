@@ -29,15 +29,16 @@ class NotificationResourceTest {
 
   @Test
   void getVapidPublicKeyReturnsTheServerKey() {
-    when(vapidKeyProvider.getPublicKey())
-        .thenReturn("mocked-public-key-token-for-test");
+    // Mocked value: NOT a real VAPID key (avoid GitGuardian false positives).
+    String mockedKey = "mock-vapid-public-key-for-test-only";
+    when(vapidKeyProvider.getPublicKey()).thenReturn(mockedKey);
 
     given()
         .when()
         .get("/api/notifications/vapid-public-key")
         .then()
         .statusCode(200)
-        .body("publicKey", equalTo("mocked-public-key-token-for-test"));
+        .body("publicKey", equalTo(mockedKey));
   }
 
   @Test
@@ -63,7 +64,7 @@ class NotificationResourceTest {
         .contentType(ContentType.JSON)
         .body(
             "{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/abc\","
-                + "\"keys\":{\"p256dh\":\"mocked-p256dh-for-test\",\"auth\":\"mocked-auth-for-test\"}}")
+                + "\"keys\":{\"p256dh\":\"mock-p256dh-do-not-use\",\"auth\":\"mock-auth-secret\"}}")
         .when()
         .post("/api/notifications/subscribe")
         .then()
