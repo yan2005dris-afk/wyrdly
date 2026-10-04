@@ -26,8 +26,10 @@ public class Neo4jPushSubscriptionRepositoryAdapter implements PushSubscriptionR
           + "RETURN u.pushEndpoint AS endpoint, u.pushP256dh AS p256dh, u.pushAuth AS auth";
 
   private static final String CYPHER_SAVE =
-      "MATCH (u:Usuario {id: $userId}) "
-          + "SET u.pushEndpoint = $endpoint, u.pushP256dh = $p256dh, u.pushAuth = $auth";
+      "MERGE (u:Usuario {id: $userId}) "
+          + "SET u.pushEndpoint = $endpoint, u.pushP256dh = $p256dh, u.pushAuth = $auth, "
+          + "u.username = coalesce(u.username, $userId), "
+          + "u.email = coalesce(u.email, $userId)";
 
   private static final String CYPHER_DELETE =
       "MATCH (u:Usuario {id: $userId}) "
