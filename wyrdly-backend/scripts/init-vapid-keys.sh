@@ -45,7 +45,19 @@ openssl ec -in "$PRIVATE_PEM" -conv_form uncompressed -pubout -outform DER \
 shred -u "$PRIVATE_PEM" 2>/dev/null || rm -f "$PRIVATE_PEM"
 
 chmod 644 "$PUBLIC_FILE"
-chmod 640 "$PRIVATE_FILE"
+chmod 644 "$PRIVATE_FILE"
+
+# --- 6. Make the keys readable by the unprivileged runtime user -----------------
+# The script runs as root (so it can write to the bind-mounted volume), but
+# the JVM is launched via `su-exec quarkus`. Two layered safeguards so the
+# runtime can read the files:
+#   (a) chmod 644 (world-readable) on both keys.
+#   (b) best-effort chown to the configured RUNTIME_USER (uid 10001 in our
+#       Docker image) so the JVM process owner matches.
+if command -v chown >/dev/null 2>&1; then
+  chown "${RUNTIME_USER:-quarkus}:${RUNTIME_GROUP:-quarkus}" \
+      "$PUBLIC_FILE" "$PRIVATE_FILE" 2>/dev/null || true
+fi
 
 # --- 5. Self-verify: decode and assert expected lengths ------------------
 PUB_LEN=$(wc -c < "$PUBLIC_FILE")
