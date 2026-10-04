@@ -104,7 +104,7 @@ public class PushDispatcherImpl {
     this.failedCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "failed");
   }
 
-    public void dispatch(PushEvent event) {
+  public void dispatch(PushEvent event) {
     executor.submit(() -> doDispatch(event));
   }
 

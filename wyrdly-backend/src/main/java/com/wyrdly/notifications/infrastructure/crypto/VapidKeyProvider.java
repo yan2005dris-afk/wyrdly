@@ -1,6 +1,5 @@
 package com.wyrdly.notifications.infrastructure.crypto;
 
-import com.wyrdly.notifications.infrastructure.crypto.VapidKeyPair;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
@@ -145,7 +144,7 @@ public class VapidKeyProvider {
     return generated;
   }
 
-public static VapidKeyPair generateKeyPair() throws Exception {
+  public static VapidKeyPair generateKeyPair() throws Exception {
     KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
     generator.initialize(new ECGenParameterSpec(EC_CURVE_NAME));
     KeyPair pair = generator.generateKeyPair();
