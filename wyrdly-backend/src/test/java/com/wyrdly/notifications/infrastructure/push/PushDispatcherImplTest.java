@@ -11,6 +11,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wyrdly.notifications.application.port.PushSubscriptionRepositoryPort;
+
+import com.wyrdly.notifications.application.port.PushGatewayClientPort;
 import com.wyrdly.notifications.domain.model.PushEvent;
 import com.wyrdly.notifications.domain.model.PushSubscription;
 import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
@@ -30,7 +32,7 @@ import org.junit.jupiter.api.Test;
 class PushDispatcherImplTest {
 
   @InjectMock PushSubscriptionRepositoryPort subscriptionRepository;
-  @InjectMock PushGatewayClient gatewayClient;
+  @InjectMock PushGatewayClientPort gatewayClient;
 
   @Inject PushDispatcherImpl dispatcher;
   @Inject VapidKeyProvider vapidKeyProvider;

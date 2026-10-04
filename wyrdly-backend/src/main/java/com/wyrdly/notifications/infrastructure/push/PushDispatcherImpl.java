@@ -2,6 +2,7 @@ package com.wyrdly.notifications.infrastructure.push;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wyrdly.notifications.application.port.PushGatewayClientPort;
 import com.wyrdly.notifications.application.port.PushSubscriptionRepositoryPort;
 import com.wyrdly.notifications.domain.model.PushEvent;
 import com.wyrdly.notifications.domain.model.PushSubscription;
@@ -23,6 +24,7 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 
 /**
  * Fire-and-forget Web Push dispatcher. Encrypts the payload per RFC 8291, signs a VAPID JWT per RFC
@@ -47,7 +49,7 @@ public class PushDispatcherImpl {
 
   private final VapidKeyProvider vapidKeyProvider;
   private final PushSubscriptionRepositoryPort subscriptionRepository;
-  private final PushGatewayClient gatewayClient;
+  private final PushGatewayClientPort gatewayClient;
   private final ObjectMapper objectMapper;
   private final MeterRegistry meterRegistry;
 
@@ -67,7 +69,7 @@ public class PushDispatcherImpl {
   public PushDispatcherImpl(
       VapidKeyProvider vapidKeyProvider,
       PushSubscriptionRepositoryPort subscriptionRepository,
-      PushGatewayClient gatewayClient,
+      PushGatewayClientPort gatewayClient,
       ObjectMapper objectMapper,
       MeterRegistry meterRegistry,
       @ConfigProperty(name = "wyrdly.push.vapid.subject", defaultValue = "mailto:ops@wyrdly.com")
