@@ -2,7 +2,6 @@ package com.wyrdly.notifications.infrastructure.push;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.application.port.PushSubscriptionRepositoryPort;
 import com.wyrdly.notifications.domain.model.PushEvent;
 import com.wyrdly.notifications.domain.model.PushSubscription;
@@ -42,7 +41,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * slow.
  */
 @ApplicationScoped
-public class PushDispatcherImpl implements PushDispatcherPort {
+public class PushDispatcherImpl {
 
   private static final Logger LOG = Logger.getLogger(PushDispatcherImpl.class.getName());
 
@@ -105,8 +104,7 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     this.failedCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "failed");
   }
 
-  @Override
-  public void dispatch(PushEvent event) {
+    public void dispatch(PushEvent event) {
     executor.submit(() -> doDispatch(event));
   }
 
