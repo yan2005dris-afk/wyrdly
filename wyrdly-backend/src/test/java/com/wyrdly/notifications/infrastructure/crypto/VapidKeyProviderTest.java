@@ -153,3 +153,5 @@ class VapidKeyProviderTest {
     assertTrue(provider.areKeysPersisted());
   }
 }
+
+/* re-trigger CI for GitGuardian stale check */
