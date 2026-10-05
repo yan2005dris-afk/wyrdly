@@ -17,14 +17,17 @@ public class S3ClientProducer {
   public S3Client produceS3Client(
       @ConfigProperty(name = "rustfs.endpoint") String endpoint,
       @ConfigProperty(name = "rustfs.access-key") String accessKey,
-      @ConfigProperty(name = "rustfs.secret-key") String secretKey) {
+      @ConfigProperty(name = "rustfs.secret-key") String secretKey,
+      @ConfigProperty(name = "rustfs.region", defaultValue = "us-east-1") String region,
+      @ConfigProperty(name = "rustfs.force-path-style", defaultValue = "true")
+          boolean forcePathStyle) {
 
     return S3Client.builder()
         .endpointOverride(URI.create(endpoint))
-        .region(software.amazon.awssdk.regions.Region.US_EAST_1)
+        .region(software.amazon.awssdk.regions.Region.of(region))
         .credentialsProvider(
             StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
-        .forcePathStyle(true)
+        .forcePathStyle(forcePathStyle)
         .build();
   }
 }

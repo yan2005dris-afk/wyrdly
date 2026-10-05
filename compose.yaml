@@ -75,6 +75,9 @@ services:
       - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
       - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
       - RUSTFS_BUCKET=${RUSTFS_BUCKET:-social-media-assets}
+      - RUSTFS_REGION=${RUSTFS_REGION:-us-east-1}
+      - RUSTFS_FORCE_PATH_STYLE=${RUSTFS_FORCE_PATH_STYLE:-true}
+      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-true}
       - WYRDLY_SEED_ENABLED=${WYRDLY_SEED_ENABLED:-true}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:80,https://wyrdly.yandro.tech}
       - REDIS_HOSTS=${REDIS_HOSTS:-redis://wyrdly-redis:6379}
