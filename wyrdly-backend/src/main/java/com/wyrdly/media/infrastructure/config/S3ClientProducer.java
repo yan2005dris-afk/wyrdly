@@ -19,7 +19,8 @@ public class S3ClientProducer {
       @ConfigProperty(name = "rustfs.access-key") String accessKey,
       @ConfigProperty(name = "rustfs.secret-key") String secretKey,
       @ConfigProperty(name = "rustfs.region", defaultValue = "us-east-1") String region,
-      @ConfigProperty(name = "rustfs.force-path-style", defaultValue = "true") boolean forcePathStyle) {
+      @ConfigProperty(name = "rustfs.force-path-style", defaultValue = "true")
+          boolean forcePathStyle) {
 
     return S3Client.builder()
         .endpointOverride(URI.create(endpoint))
