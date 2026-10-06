@@ -81,8 +81,9 @@ services:
       - WYRDLY_SEED_ENABLED=${WYRDLY_SEED_ENABLED:-true}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:80,https://wyrdly.yandro.tech}
       - REDIS_HOSTS=${REDIS_HOSTS:-redis://wyrdly-redis:6379}
-      - JWT_PUBLIC_KEY_LOCATION=${JWT_PUBLIC_KEY_LOCATION:-/deployments/jwt/publicKey.pem}
-      - JWT_PRIVATE_KEY_LOCATION=${JWT_PRIVATE_KEY_LOCATION:-/deployments/jwt/privateKey.pem}
+      # SmallRye JWT requires a URL-form location. Absolute filesystem paths need the file:// prefix.
+      - JWT_PUBLIC_KEY_LOCATION=${JWT_PUBLIC_KEY_LOCATION:-file:///deployments/jwt/publicKey.pem}
+      - JWT_PRIVATE_KEY_LOCATION=${JWT_PRIVATE_KEY_LOCATION:-file:///deployments/jwt/privateKey.pem}
       # HU11 / TASK-01 (#62) — Web Push VAPID keypair bootstrap.
       - VAPID_PUBLIC_KEY_LOCATION=${VAPID_PUBLIC_KEY_LOCATION:-/deployments/vapid/publicKey.txt}
       - VAPID_PRIVATE_KEY_LOCATION=${VAPID_PRIVATE_KEY_LOCATION:-/deployments/vapid/privateKey.txt}
