@@ -50,18 +50,19 @@ public class SmallRyeJwtTokenAdapter implements TokenProviderPort {
    * Loads the JWT signing private key from {@code location}.
    *
    * <p>Supported forms:
+   *
    * <ul>
    *   <li>Absolute filesystem path: {@code /deployments/jwt/privateKey.pem}
    *   <li>{@code file://} URL with absolute path: {@code file:///deployments/jwt/privateKey.pem}
    *       (preferred for prod — matches {@code mp.jwt.verify.publickey.location} conventions).
-   *   <li>Classpath-relative path: {@code jwt/privateKey.pem} (used in tests via
-   *       {@code JwtKeyGenerator}).
+   *   <li>Classpath-relative path: {@code jwt/privateKey.pem} (used in tests via {@code
+   *       JwtKeyGenerator}).
    * </ul>
    *
    * <p>Failures fail fast with an {@link IllegalStateException} whose message includes the
    * configured location. Previously this method had four silent {@code catch (Exception ignored)}
-   * fallbacks that swallowed the real cause and surfaced an NPE deep inside SmallRye's
-   * {@code KeyUtils.readPrivateKey}, making the deploy cascade failure very hard to trace.
+   * fallbacks that swallowed the real cause and surfaced an NPE deep inside SmallRye's {@code
+   * KeyUtils.readPrivateKey}, making the deploy cascade failure very hard to trace.
    */
   private PrivateKey loadPrivateKey(String location) {
     Path path = resolveKeyLocation(location);
@@ -71,16 +72,22 @@ public class SmallRyeJwtTokenAdapter implements TokenProviderPort {
     }
     if (!Files.exists(path)) {
       throw new IllegalStateException(
-          "JWT signing private key file does not exist at: " + path
-              + " (configured location: " + location + ")");
+          "JWT signing private key file does not exist at: "
+              + path
+              + " (configured location: "
+              + location
+              + ")");
     }
     try {
       String pem = Files.readString(path);
       return KeyUtils.decodePrivateKey(pem);
     } catch (Exception e) {
       throw new IllegalStateException(
-          "Failed to read or decode JWT signing private key from: " + path
-              + " (configured location: " + location + ")",
+          "Failed to read or decode JWT signing private key from: "
+              + path
+              + " (configured location: "
+              + location
+              + ")",
           e);
     }
   }
@@ -89,12 +96,14 @@ public class SmallRyeJwtTokenAdapter implements TokenProviderPort {
    * Resolves a JWT key {@code location} config value to a filesystem {@link Path}.
    *
    * <p>Order:
+   *
    * <ol>
    *   <li>{@code file:} or {@code file://} prefix → strip scheme, treat as absolute path.
    *   <li>Absolute filesystem path → return as-is.
    *   <li>Relative path that exists in the current working dir → return absolute version.
    *   <li>Classpath resource lookup → return the file URL as a {@link Path}.
    * </ol>
+   *
    * Returns {@code null} if none of the above resolve.
    */
   private Path resolveKeyLocation(String location) {
@@ -121,8 +130,7 @@ public class SmallRyeJwtTokenAdapter implements TokenProviderPort {
     }
 
     // 4. Classpath resource (default "jwt/privateKey.pem" for tests/dev).
-    URL classpathUrl =
-        Thread.currentThread().getContextClassLoader().getResource(location);
+    URL classpathUrl = Thread.currentThread().getContextClassLoader().getResource(location);
     if (classpathUrl != null) {
       try {
         return Paths.get(classpathUrl.toURI());
