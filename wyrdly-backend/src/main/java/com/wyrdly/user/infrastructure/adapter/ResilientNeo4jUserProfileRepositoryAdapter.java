@@ -11,7 +11,9 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Logger;
 import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
 import org.eclipse.microprofile.faulttolerance.Fallback;
@@ -172,5 +174,23 @@ public class ResilientNeo4jUserProfileRepositoryAdapter implements UserProfileRe
     LOGGER.warning("CircuitBreaker OPEN - Cannot find following for: " + userId);
     neo4jErrors.increment();
     return List.of();
+  }
+
+  @Override
+  @CircuitBreaker(successThreshold = 2, requestVolumeThreshold = 5, delay = 3000)
+  @Retry(maxRetries = 2, delay = 100)
+  @Timeout(3000)
+  @Fallback(fallbackMethod = "findProfileSummariesByIdsFallback")
+  public Map<String, FollowerSummary> findProfileSummariesByIds(Set<String> userIds) {
+    return neo4jLatency.record(() -> delegate.findProfileSummariesByIds(userIds));
+  }
+
+  public Map<String, FollowerSummary> findProfileSummariesByIdsFallback(Set<String> userIds) {
+    LOGGER.warning(
+        "CircuitBreaker OPEN - Cannot resolve profile summaries for "
+            + (userIds == null ? 0 : userIds.size())
+            + " ids");
+    neo4jErrors.increment();
+    return Map.of();
   }
 }

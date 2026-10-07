@@ -8,8 +8,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.wyrdly.notifications.application.dto.NotificationDto;
+import com.wyrdly.notifications.application.dto.NotificationListResponseDto;
 import com.wyrdly.notifications.application.dto.SubscribeRequestDto;
 import com.wyrdly.notifications.application.dto.SubscribeResponseDto;
+import com.wyrdly.notifications.application.usecase.GetNotificationsForUserUseCase;
+import com.wyrdly.notifications.application.usecase.MarkAllNotificationsReadUseCase;
+import com.wyrdly.notifications.application.usecase.MarkNotificationReadUseCase;
 import com.wyrdly.notifications.application.usecase.SubscribeToPushUseCase;
 import com.wyrdly.notifications.application.usecase.UnsubscribeFromPushUseCase;
 import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
@@ -26,6 +31,9 @@ class NotificationResourceTest {
   @InjectMock VapidKeyProvider vapidKeyProvider;
   @InjectMock SubscribeToPushUseCase subscribeUseCase;
   @InjectMock UnsubscribeFromPushUseCase unsubscribeUseCase;
+  @InjectMock GetNotificationsForUserUseCase getNotificationsUseCase;
+  @InjectMock MarkNotificationReadUseCase markReadUseCase;
+  @InjectMock MarkAllNotificationsReadUseCase markAllReadUseCase;
 
   @Test
   void getVapidPublicKeyReturnsTheServerKey() {
@@ -135,6 +143,89 @@ class NotificationResourceTest {
   @Test
   void unsubscribeRequiresAuth() {
     given().when().delete("/api/notifications/subscribe").then().statusCode(401);
+  }
+
+  // ----- In-app feed -----
+
+  @Test
+  void listReturnsPagedResponseForAuthenticatedUser() {
+    String userId = "usr_alice";
+    NotificationDto dto =
+        new NotificationDto(
+            "ntf_abc",
+            "GRAPH_FOLLOW",
+            "Nuevo seguidor",
+            "Bob comenzó a seguirte",
+            "/feed",
+            null,
+            false,
+            java.time.Instant.parse("2026-01-15T10:00:00Z"),
+            new NotificationDto.ActorDto("usr_bob", "bob", "Bob Marley", "", ""));
+    NotificationListResponseDto body =
+        new NotificationListResponseDto(java.util.List.of(dto), 1L, 0, 20, 1L);
+    when(getNotificationsUseCase.execute(userId, 0, 20)).thenReturn(body);
+
+    given()
+        .auth()
+        .oauth2(jwtFor(userId))
+        .when()
+        .get("/api/notifications")
+        .then()
+        .statusCode(200)
+        .body("unreadCount", equalTo(1))
+        .body("page", equalTo(0))
+        .body("notifications[0].id", equalTo("ntf_abc"))
+        .body("notifications[0].type", equalTo("GRAPH_FOLLOW"))
+        .body("notifications[0].actor.username", equalTo("bob"));
+
+    verify(getNotificationsUseCase).execute(userId, 0, 20);
+  }
+
+  @Test
+  void listRequiresAuth() {
+    given().when().get("/api/notifications").then().statusCode(401);
+  }
+
+  @Test
+  void markAsReadReturnsNoContent() {
+    String userId = "usr_alice";
+
+    given()
+        .auth()
+        .oauth2(jwtFor(userId))
+        .when()
+        .post("/api/notifications/ntf_abc/read")
+        .then()
+        .statusCode(204);
+
+    verify(markReadUseCase).execute(userId, "ntf_abc");
+  }
+
+  @Test
+  void markAsReadRequiresAuth() {
+    given().when().post("/api/notifications/ntf_abc/read").then().statusCode(401);
+  }
+
+  @Test
+  void markAllAsReadReturnsUpdatedCount() {
+    String userId = "usr_alice";
+    when(markAllReadUseCase.execute(userId)).thenReturn(5L);
+
+    given()
+        .auth()
+        .oauth2(jwtFor(userId))
+        .when()
+        .post("/api/notifications/mark-all-read")
+        .then()
+        .statusCode(200)
+        .body("updated", equalTo(5));
+
+    verify(markAllReadUseCase).execute(userId);
+  }
+
+  @Test
+  void markAllAsReadRequiresAuth() {
+    given().when().post("/api/notifications/mark-all-read").then().statusCode(401);
   }
 
   // ---- helpers ------------------------------------------------------------

@@ -1,5 +1,6 @@
 package com.wyrdly.notifications.infrastructure.push;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -68,7 +69,13 @@ class PushDispatcherImplTest {
     dispatcher.dispatch(newEvent(userId));
 
     awaitCounterIncrease("result", "gone", before, 1);
-    verify(subscriptionRepository, times(1)).deleteByUserId(userId);
+    // The dispatcher runs on a dedicated executor; deleteByUserId is invoked
+    // immediately after the counter increment but in a separate tick of the
+    // worker. await() avoids the rare race where verify() runs before the
+    // async side effect has been recorded on the mock.
+    await()
+        .atMost(java.time.Duration.ofSeconds(5))
+        .untilAsserted(() -> verify(subscriptionRepository, times(1)).deleteByUserId(userId));
   }
 
   @Test
@@ -81,7 +88,9 @@ class PushDispatcherImplTest {
     dispatcher.dispatch(newEvent(userId));
 
     awaitCounterIncrease("result", "gone", before, 1);
-    verify(subscriptionRepository, times(1)).deleteByUserId(userId);
+    await()
+        .atMost(java.time.Duration.ofSeconds(5))
+        .untilAsserted(() -> verify(subscriptionRepository, times(1)).deleteByUserId(userId));
   }
 
   @Test
