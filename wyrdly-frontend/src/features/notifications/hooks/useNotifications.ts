@@ -7,8 +7,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "../../../api/axios";
 import type { NotificationListResponseDto } from "../types";
 
-const POLL_INTERVAL_MS = 30_000;
-
 export interface UseNotificationsOptions {
   /** When false the hook is dormant and returns an empty state. */
   readonly enabled?: boolean;
@@ -27,8 +25,8 @@ export interface UseNotificationsResult {
 }
 
 /**
- * Manages the in-app notification feed: fetches the user's notifications, polls every 30s
- * while enabled, and exposes optimistic mark-read helpers.
+ * Manages the in-app notification feed: fetches the user's notifications on mount,
+ * observes incoming Web Push events reactively, and exposes optimistic mark-read helpers.
  */
 export const useNotifications = (
   options: UseNotificationsOptions = {},
@@ -96,20 +94,7 @@ export const useNotifications = (
       navigator.serviceWorker.addEventListener("message", handleSwMessage);
     }
 
-    // 3. Fallback: Smart polling only when tab is visible and browser is online
-    const interval = setInterval(() => {
-      const isVisible =
-        typeof document === "undefined" ||
-        document.visibilityState === "visible";
-      const isOnline =
-        typeof navigator === "undefined" || navigator.onLine !== false;
-
-      if (isVisible && isOnline) {
-        void fetchOnce();
-      }
-    }, POLL_INTERVAL_MS);
-
-    // 4. Refetch on tab focus / visibilitychange when tab becomes visible again
+    // 3. Refetch on tab focus / visibilitychange when tab becomes visible again
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         void fetchOnce();
@@ -121,7 +106,6 @@ export const useNotifications = (
 
     return () => {
       cancelledRef.current = true;
-      clearInterval(interval);
       if (broadcastChannel) {
         broadcastChannel.close();
       }

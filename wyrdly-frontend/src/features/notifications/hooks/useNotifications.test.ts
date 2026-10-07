@@ -85,7 +85,7 @@ describe("useNotifications", () => {
     expect(result.current.notifications).toHaveLength(0);
   });
 
-  it("polls every 30 seconds", async () => {
+  it("refetches when tab visibility changes back to visible", async () => {
     mockedGet.mockResolvedValue({ data: baseResponse });
     renderHook(() => useNotifications());
 
@@ -95,19 +95,13 @@ describe("useNotifications", () => {
     });
     expect(mockedGet).toHaveBeenCalledTimes(1);
 
+    // Simulate tab becoming visible
     await act(async () => {
-      vi.advanceTimersByTime(30_000);
+      document.dispatchEvent(new Event("visibilitychange"));
       await Promise.resolve();
       await Promise.resolve();
     });
     expect(mockedGet).toHaveBeenCalledTimes(2);
-
-    await act(async () => {
-      vi.advanceTimersByTime(30_000);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(mockedGet).toHaveBeenCalledTimes(3);
   });
 
   it("captures error and exposes it", async () => {
@@ -276,41 +270,6 @@ describe("useNotifications", () => {
     } finally {
       Object.defineProperty(globalThis, "navigator", {
         value: origNavigator,
-        configurable: true,
-        writable: true,
-      });
-    }
-  });
-
-  it("does not poll when document is hidden", async () => {
-    mockedGet.mockResolvedValue({ data: baseResponse });
-
-    const origVisibilityState = document.visibilityState;
-    Object.defineProperty(globalThis.document, "visibilityState", {
-      value: "hidden",
-      configurable: true,
-      writable: true,
-    });
-
-    try {
-      renderHook(() => useNotifications());
-      await act(async () => {
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-      expect(mockedGet).toHaveBeenCalledTimes(1);
-
-      // Advance timers while hidden
-      await act(async () => {
-        vi.advanceTimersByTime(30_000);
-        await Promise.resolve();
-      });
-
-      // Still 1: polling was skipped because document is hidden
-      expect(mockedGet).toHaveBeenCalledTimes(1);
-    } finally {
-      Object.defineProperty(globalThis.document, "visibilityState", {
-        value: origVisibilityState,
         configurable: true,
         writable: true,
       });
