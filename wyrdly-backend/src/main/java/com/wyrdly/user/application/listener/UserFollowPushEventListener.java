@@ -4,12 +4,16 @@ import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.domain.model.Notification;
 import com.wyrdly.notifications.domain.repository.NotificationRepository;
 import com.wyrdly.user.domain.event.UserFollowRelationshipChangedEvent;
+import com.wyrdly.user.domain.repository.UserProfileRepository;
+import com.wyrdly.user.domain.repository.UserProfileRepository.FollowerSummary;
+import com.wyrdly.user.infrastructure.qualifier.ResilientNeo4j;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,7 +29,10 @@ import java.util.logging.Logger;
  * </ol>
  *
  * <p>Both side effects are best-effort: errors in persistence do not block dispatch and vice versa,
- * so a failure in one transport does not silently lose the other.
+ * so a failure in one transport does not silently lose the other. The actor's display name is
+ * resolved once and reused in both the persisted notification body and the push payload so the user
+ * always sees who acted (e.g. "Yandris Tech comenzó a seguirte" instead of "Alguien…"). If the
+ * profile lookup fails or the actor no longer exists, the body falls back to "Alguien".
  */
 @ApplicationScoped
 public class UserFollowPushEventListener {
@@ -34,18 +41,23 @@ public class UserFollowPushEventListener {
 
   static final String NOTIFICATION_TYPE = "GRAPH_FOLLOW";
   static final String TITLE = "Nuevo seguidor";
-  static final String BODY = "Alguien comenzó a seguirte en Wyrdly";
+  static final String BODY_FALLBACK = "Alguien comenzó a seguirte en Wyrdly";
   static final String DEEP_LINK = "/feed";
 
   private final PushDispatcherPort dispatcher;
   private final NotificationRepository notificationRepository;
+  private final UserProfileRepository userProfileRepository;
 
   @Inject
   public UserFollowPushEventListener(
-      PushDispatcherPort dispatcher, NotificationRepository notificationRepository) {
+      PushDispatcherPort dispatcher,
+      NotificationRepository notificationRepository,
+      @ResilientNeo4j UserProfileRepository userProfileRepository) {
     this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher must not be null");
     this.notificationRepository =
         Objects.requireNonNull(notificationRepository, "notificationRepository must not be null");
+    this.userProfileRepository =
+        Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
   }
 
   void on(@Observes UserFollowRelationshipChangedEvent event) {
@@ -57,6 +69,9 @@ public class UserFollowPushEventListener {
       return;
     }
 
+    String actorName = resolveActorName(event.followerId());
+    String body = buildBody(actorName);
+
     Notification notification =
         new Notification(
             nextId(),
@@ -64,7 +79,7 @@ public class UserFollowPushEventListener {
             NOTIFICATION_TYPE,
             event.followerId(),
             TITLE,
-            BODY,
+            body,
             DEEP_LINK,
             null,
             false,
@@ -84,10 +99,29 @@ public class UserFollowPushEventListener {
             event.targetUserId(),
             NOTIFICATION_TYPE,
             TITLE,
-            BODY,
+            body,
             DEEP_LINK,
             Map.of("followerId", event.followerId()));
     dispatcher.dispatch(push);
+  }
+
+  private String resolveActorName(String actorId) {
+    try {
+      var actors = userProfileRepository.findProfileSummariesByIds(Set.of(actorId));
+      FollowerSummary actor = actors.get(actorId);
+      if (actor == null || actor.fullName() == null || actor.fullName().isBlank()) {
+        return null;
+      }
+      return actor.fullName();
+    } catch (RuntimeException lookupError) {
+      LOG.log(
+          Level.WARNING, "Failed to resolve follower's display name for " + actorId, lookupError);
+      return null;
+    }
+  }
+
+  private static String buildBody(String actorName) {
+    return actorName == null ? BODY_FALLBACK : actorName + " comenzó a seguirte en Wyrdly";
   }
 
   private static String nextId() {
