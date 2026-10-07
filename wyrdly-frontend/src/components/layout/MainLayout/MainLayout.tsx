@@ -55,7 +55,9 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
       ? (new URLSearchParams(location.search).get("q") ?? "")
       : "";
 
-  const [searchQueryOverride, setSearchQueryOverride] = useState<string | null>(null);
+  const [searchQueryOverride, setSearchQueryOverride] = useState<string | null>(
+    null,
+  );
   // When the user has typed into the search input, prefer that value; otherwise
   // mirror the URL's ?q= parameter so back/forward navigation stays in sync.
   const searchQuery = searchQueryOverride ?? searchParamQ;
