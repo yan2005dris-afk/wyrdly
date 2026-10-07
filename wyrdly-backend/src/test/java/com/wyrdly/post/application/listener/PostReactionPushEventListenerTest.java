@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.wyrdly.notifications.application.port.PushDispatcherPort;
+import com.wyrdly.notifications.domain.repository.NotificationRepository;
 import com.wyrdly.post.domain.event.PostReactionEvent;
 import com.wyrdly.post.domain.model.ReactionType;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,20 +17,34 @@ import org.junit.jupiter.api.Test;
 class PostReactionPushEventListenerTest {
 
   private PushDispatcherPort dispatcher;
+  private NotificationRepository notificationRepository;
   private PostReactionPushEventListener listener;
 
   @BeforeEach
   void setUp() {
     dispatcher = mock(PushDispatcherPort.class);
-    listener = new PostReactionPushEventListener(dispatcher);
+    notificationRepository = mock(NotificationRepository.class);
+    listener = new PostReactionPushEventListener(dispatcher, notificationRepository);
   }
 
   @Test
-  void mapsLikeReactionToPostLike() {
+  void persistsNotificationAndDispatchesPushOnLike() {
     var event = new PostReactionEvent("pst_1", "usr_author", "usr_reactor", ReactionType.LIKE);
 
     listener.on(event);
 
+    verify(notificationRepository)
+        .save(
+            argThat(
+                n -> {
+                  assertEquals("usr_author", n.recipientUserId());
+                  assertEquals("POST_LIKE", n.type());
+                  assertEquals("usr_reactor", n.actorId());
+                  assertEquals("/posts/pst_1", n.deepLink());
+                  assertEquals("pst_1", n.targetResourceId());
+                  assertNotNull(n.id());
+                  return true;
+                }));
     verify(dispatcher)
         .dispatch(
             argThat(
@@ -51,6 +66,7 @@ class PostReactionPushEventListenerTest {
 
     listener.on(event);
 
+    verify(notificationRepository).save(argThat(n -> "POST_LOVE".equals(n.type())));
     verify(dispatcher).dispatch(argThat(push -> "POST_LOVE".equals(push.type())));
   }
 
@@ -60,24 +76,39 @@ class PostReactionPushEventListenerTest {
 
     listener.on(event);
 
+    verify(notificationRepository).save(argThat(n -> "POST_CELEBRATE".equals(n.type())));
     verify(dispatcher).dispatch(argThat(push -> "POST_CELEBRATE".equals(push.type())));
   }
 
   @Test
-  void doesNotDispatchOnSelfReactionDefensively() {
+  void stillDispatchesPushWhenPersistenceFails() {
+    var event = new PostReactionEvent("pst_1", "usr_author", "usr_reactor", ReactionType.LIKE);
+    org.mockito.Mockito.doThrow(new RuntimeException("neo4j down"))
+        .when(notificationRepository)
+        .save(org.mockito.ArgumentMatchers.any());
+
+    listener.on(event);
+
+    verify(dispatcher).dispatch(argThat(push -> "usr_author".equals(push.recipientUserId())));
+  }
+
+  @Test
+  void doesNotPersistOrDispatchOnSelfReactionDefensively() {
     var event = new PostReactionEvent("pst_1", "usr_same", "usr_same", ReactionType.LIKE);
 
     listener.on(event);
 
     verifyNoInteractions(dispatcher);
+    verifyNoInteractions(notificationRepository);
   }
 
   @Test
-  void doesNotDispatchWhenReactionTypeIsNull() {
+  void doesNotPersistOrDispatchWhenReactionTypeIsNull() {
     var event = new PostReactionEvent("pst_1", "usr_author", "usr_reactor", null);
 
     listener.on(event);
 
     verifyNoInteractions(dispatcher);
+    verifyNoInteractions(notificationRepository);
   }
 }

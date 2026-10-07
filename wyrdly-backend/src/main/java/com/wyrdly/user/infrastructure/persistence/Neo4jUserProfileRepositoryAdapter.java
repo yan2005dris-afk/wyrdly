@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
@@ -294,6 +295,42 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
     } catch (Exception e) {
       Log.errorf(e, "Failed to query following for userId=%s", userId);
       throw new RuntimeException("Failed to query following", e);
+    }
+  }
+
+  @Override
+  public Map<String, UserProfileRepository.FollowerSummary> findProfileSummariesByIds(
+      Set<String> userIds) {
+    if (userIds == null || userIds.isEmpty()) {
+      return Map.of();
+    }
+    String cypher =
+        "MATCH (u:Usuario) WHERE u.id IN $ids "
+            + "RETURN u.id AS id, u.username AS username, u.fullName AS fullName, "
+            + "       u.avatarUrl AS avatarUrl, false AS isFollowing";
+
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx -> {
+            Result result = tx.run(cypher, Map.of("ids", userIds));
+            Map<String, UserProfileRepository.FollowerSummary> out = new HashMap<>();
+            while (result.hasNext()) {
+              var record = result.next();
+              String id = record.get("id").asString();
+              out.put(
+                  id,
+                  new UserProfileRepository.FollowerSummary(
+                      id,
+                      record.get("username").asString(""),
+                      record.get("fullName").asString(""),
+                      record.get("avatarUrl").isNull() ? "" : record.get("avatarUrl").asString(""),
+                      false));
+            }
+            return out;
+          });
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query profile summaries for ids=%s", userIds);
+      throw new RuntimeException("Failed to query profile summaries", e);
     }
   }
 }

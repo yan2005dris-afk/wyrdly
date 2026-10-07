@@ -1,8 +1,20 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./MainLayout";
 import { AuthProvider } from "../../../context/AuthContext";
+
+vi.mock("../../../features/notifications/hooks/useNotifications", () => ({
+  useNotifications: () => ({
+    notifications: [],
+    unreadCount: 0,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+  }),
+}));
 
 describe("MainLayout Component", () => {
   it("renders navbar, persistent sidebar, and child outlet route content", () => {
