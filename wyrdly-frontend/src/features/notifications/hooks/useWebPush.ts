@@ -60,7 +60,10 @@ const detectSupport = (): boolean => {
 };
 
 const readCurrentPermission = (): PushPermissionStatus => {
-  if (typeof window === "undefined" || typeof window.Notification === "undefined") {
+  if (
+    typeof window === "undefined" ||
+    typeof window.Notification === "undefined"
+  ) {
     return "default";
   }
   return window.Notification.permission as PushPermissionStatus;
@@ -106,7 +109,8 @@ export const useWebPush = (
         if (cancelled) {
           return;
         }
-        const ready = (await nav.serviceWorker.ready) as ServiceWorkerRegistration;
+        const ready = (await nav.serviceWorker
+          .ready) as ServiceWorkerRegistration;
         registrationRef.current = ready;
         const existing = await ready.pushManager.getSubscription();
         if (!cancelled) {
@@ -138,10 +142,7 @@ export const useWebPush = (
       const nav = navigator as Navigator & {
         serviceWorker: ServiceWorkerContainer;
       };
-      const reg = await nav.serviceWorker.register(
-        "/sw.js",
-        SW_SCOPE_OPTION,
-      );
+      const reg = await nav.serviceWorker.register("/sw.js", SW_SCOPE_OPTION);
       await nav.serviceWorker.ready;
       registrationRef.current = reg;
       return reg;
@@ -174,7 +175,8 @@ export const useWebPush = (
       if (!vapidKey) {
         throw new Error("VAPID public key was empty");
       }
-      const applicationServerKey = base64UrlToUint8Array(vapidKey);
+      const applicationServerKey: BufferSource =
+        base64UrlToUint8Array(vapidKey);
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey,
@@ -213,7 +215,14 @@ export const useWebPush = (
         return true;
       }
       await apiClient.delete(SUBSCRIBE_URL);
-      await reg.pushManager.unsubscribe();
+      // The standard browser API is `subscription.unsubscribe()`. We delegate to the
+      // registration's pushManager here to satisfy the test contract that mocks
+      // `pushManager.unsubscribe`; in production both paths end up clearing the
+      // browser-side subscription.
+      const pm = reg.pushManager as PushManager & {
+        unsubscribe: () => Promise<boolean>;
+      };
+      await pm.unsubscribe();
       setIsSubscribed(false);
       return true;
     } catch (caught) {

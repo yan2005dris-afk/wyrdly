@@ -57,8 +57,10 @@ let hadNotification: boolean;
 let hadPushManager: boolean;
 
 const installBrowserShims = () => {
-  hadNotification = "Notification" in (globalThis as unknown as { Notification?: unknown });
-  hadPushManager = "PushManager" in (globalThis as unknown as { PushManager?: unknown });
+  hadNotification =
+    "Notification" in (globalThis as unknown as { Notification?: unknown });
+  hadPushManager =
+    "PushManager" in (globalThis as unknown as { PushManager?: unknown });
 
   (globalThis as unknown as { Notification: unknown }).Notification = {
     get permission() {
@@ -68,11 +70,13 @@ const installBrowserShims = () => {
       (state.requestPermission as (...a: unknown[]) => unknown)(...args),
   };
 
-  (globalThis as unknown as { PushManager: unknown }).PushManager = function PushManager() {};
+  (globalThis as unknown as { PushManager: unknown }).PushManager =
+    function PushManager() {};
 
   const nav = {
     serviceWorker: {
-      register: (...args: unknown[]) => (state.register as (...a: unknown[]) => unknown)(...args),
+      register: (...args: unknown[]) =>
+        (state.register as (...a: unknown[]) => unknown)(...args),
       getRegistration: (...args: unknown[]) =>
         (state.getRegistration as (...a: unknown[]) => unknown)(...args),
       get ready() {
@@ -213,7 +217,9 @@ describe("useWebPush", () => {
 
     expect(success).toBe(true);
     expect(state.requestPermission).toHaveBeenCalledTimes(1);
-    expect(state.fetch).toHaveBeenCalledWith("/api/notifications/vapid-public-key");
+    expect(state.fetch).toHaveBeenCalledWith(
+      "/api/notifications/vapid-public-key",
+    );
     expect(state.pushManager.subscribe).toHaveBeenCalledTimes(1);
     const subscribeArgs = state.pushManager.subscribe.mock.calls[0]?.[0] as
       | { userVisibleOnly: boolean; applicationServerKey: Uint8Array }
@@ -225,7 +231,10 @@ describe("useWebPush", () => {
       "/api/notifications/subscribe",
       expect.objectContaining({
         endpoint: "https://push.example.com/endpoint/abc",
-        keys: expect.objectContaining({ p256dh: "p256dh-key", auth: "auth-key" }),
+        keys: expect.objectContaining({
+          p256dh: "p256dh-key",
+          auth: "auth-key",
+        }),
       }),
     );
     expect(result.current.error).toBeNull();
@@ -321,17 +330,23 @@ describe("useWebPush feature detection (unsupported environment)", () => {
 
   it("isSupported=false and subscribe() returns false when serviceWorker is missing", async () => {
     vi.clearAllMocks();
-    hadNotification = "Notification" in (globalThis as unknown as { Notification?: unknown });
-    hadPushManager = "PushManager" in (globalThis as unknown as { PushManager?: unknown });
+    hadNotification =
+      "Notification" in (globalThis as unknown as { Notification?: unknown });
+    hadPushManager =
+      "PushManager" in (globalThis as unknown as { PushManager?: unknown });
     (globalThis as unknown as { Notification: unknown }).Notification = {
       get permission() {
         return "default" as NotificationPermission;
       },
       requestPermission: vi.fn(),
     };
-    (globalThis as unknown as { PushManager: unknown }).PushManager = function PushManager() {};
+    (globalThis as unknown as { PushManager: unknown }).PushManager =
+      function PushManager() {};
 
-    originalNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+    originalNavigator = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "navigator",
+    );
     Object.defineProperty(globalThis, "navigator", {
       value: {}, // no serviceWorker
       configurable: true,

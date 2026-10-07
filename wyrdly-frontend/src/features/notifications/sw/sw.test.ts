@@ -105,7 +105,10 @@ describe("service worker handlers", () => {
     await sw.handlePush(event);
 
     expect(showNotification).toHaveBeenCalledTimes(1);
-    const [title, options] = showNotification.mock.calls[0] as [string, Record<string, unknown>];
+    const [title, options] = showNotification.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
     expect(title).toBe("Nuevo seguidor");
     expect(options.body).toBe("Ana comenzó a seguirte");
     expect(options.icon).toBe("/icons/x.png");
@@ -133,7 +136,10 @@ describe("service worker handlers", () => {
     await sw.handlePush(event);
 
     expect(showNotification).toHaveBeenCalledTimes(1);
-    const [, options] = showNotification.mock.calls[0] as [string, Record<string, unknown>];
+    const [, options] = showNotification.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
     expect(options.body).toBe("raw text");
   });
 
@@ -147,9 +153,11 @@ describe("service worker handlers", () => {
     (globalThis as unknown as { self: unknown }).self = {
       location: { origin: "https://app.wyrdly.com" },
       clients: {
-        matchAll: vi.fn().mockResolvedValue([
-          { url: "https://app.wyrdly.com/feed", focus, navigate },
-        ]),
+        matchAll: vi
+          .fn()
+          .mockResolvedValue([
+            { url: "https://app.wyrdly.com/feed", focus, navigate },
+          ]),
         openWindow,
       },
     };
@@ -197,7 +205,9 @@ describe("service worker handlers", () => {
 
   it("handleSubscriptionChange re-subscribes and POSTs the new subscription", async () => {
     const sw = await loadSW();
-    const newSub = { toJSON: () => ({ endpoint: "https://push.example.com/new" }) };
+    const newSub = {
+      toJSON: () => ({ endpoint: "https://push.example.com/new" }),
+    };
     const subscribe = vi.fn().mockResolvedValue(newSub);
     const fetchMock = vi
       .fn()
@@ -218,7 +228,10 @@ describe("service worker handlers", () => {
       applicationServerKey: expect.any(Uint8Array),
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [url, init] = fetchMock.mock.calls[1] as [string, Record<string, unknown>];
+    const [url, init] = fetchMock.mock.calls[1] as [
+      string,
+      Record<string, unknown>,
+    ];
     expect(url).toBe("/api/notifications/subscribe");
     expect(init.method).toBe("POST");
     expect(JSON.parse(String(init.body))).toEqual({
