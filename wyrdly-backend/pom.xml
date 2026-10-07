@@ -17,6 +17,9 @@
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <testcontainers.version>2.0.5</testcontainers.version>
+        <quarkus-neo4j.version>6.7.2</quarkus-neo4j.version>
+        <!-- Must match the neo4j-java-driver version shipped by quarkus-neo4j -->
+        <neo4j-driver.version>6.2.1</neo4j-driver.version>
     </properties>
 
     <dependencyManagement>
@@ -42,6 +45,13 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>org.neo4j.driver</groupId>
+                <artifactId>neo4j-java-driver-bom</artifactId>
+                <version>${neo4j-driver.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -49,7 +59,11 @@
         <dependency>
             <groupId>io.quarkiverse.neo4j</groupId>
             <artifactId>quarkus-neo4j</artifactId>
-            <version>6.7.2</version>
+            <version>${quarkus-neo4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver-observation-metrics</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
