@@ -4,7 +4,12 @@ import type {
 } from "../../../types/domain";
 
 export type NotificationType =
-  "POST_LIKE" | "POST_BOOST" | "GRAPH_FOLLOW" | "CHAT_MESSAGE";
+  | "POST_LIKE"
+  | "POST_LOVE"
+  | "POST_CELEBRATE"
+  | "POST_BOOST"
+  | "GRAPH_FOLLOW"
+  | "CHAT_MESSAGE";
 
 export interface SocialNotification {
   readonly id: string;

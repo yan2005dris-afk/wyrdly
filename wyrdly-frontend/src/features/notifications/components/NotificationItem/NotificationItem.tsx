@@ -1,5 +1,12 @@
 import type { FC } from "react";
-import { Heart, Repeat, UserPlus, MessageSquare } from "lucide-react";
+import {
+  Heart,
+  HeartHandshake,
+  PartyPopper,
+  Repeat,
+  UserPlus,
+  MessageSquare,
+} from "lucide-react";
 import type { NotificationItemProps } from "./NotificationItem.types";
 import type { NotificationType } from "../../types";
 import { Avatar } from "../../../../components/ui/Avatar";
@@ -12,6 +19,14 @@ const TYPE_CONFIG: Record<
   POST_LIKE: {
     badgeClass: styles.badgeLike,
     icon: <Heart className="w-2.5 h-2.5 fill-current" />,
+  },
+  POST_LOVE: {
+    badgeClass: styles.badgeLike,
+    icon: <HeartHandshake className="w-2.5 h-2.5" />,
+  },
+  POST_CELEBRATE: {
+    badgeClass: styles.badgeBoost,
+    icon: <PartyPopper className="w-2.5 h-2.5" />,
   },
   POST_BOOST: {
     badgeClass: styles.badgeBoost,

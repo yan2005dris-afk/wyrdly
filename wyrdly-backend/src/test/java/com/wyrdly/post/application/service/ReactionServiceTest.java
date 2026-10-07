@@ -7,14 +7,20 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.wyrdly.post.domain.event.PostReactionEvent;
 import com.wyrdly.post.domain.exception.PostNotFoundException;
+import com.wyrdly.post.domain.model.Post;
 import com.wyrdly.post.domain.model.ReactionResult;
 import com.wyrdly.post.domain.model.ReactionStatus;
 import com.wyrdly.post.domain.model.ReactionType;
 import com.wyrdly.post.domain.repository.PostRepository;
+import jakarta.enterprise.event.Event;
+import java.time.Instant;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,12 +31,18 @@ import org.junit.jupiter.api.Test;
 class ReactionServiceTest {
 
   private PostRepository postRepository;
+
+  @SuppressWarnings("unchecked")
+  private Event<PostReactionEvent> reactionEvent = mock(Event.class);
+
   private ReactionService reactionService;
 
   @BeforeEach
+  @SuppressWarnings("unchecked")
   void setUp() {
     postRepository = mock(PostRepository.class);
-    reactionService = new ReactionService(postRepository);
+    reactionEvent = mock(Event.class);
+    reactionService = new ReactionService(postRepository, reactionEvent);
   }
 
   @Test
@@ -94,5 +106,75 @@ class ReactionServiceTest {
     assertThrows(
         PostNotFoundException.class,
         () -> reactionService.react("u1", "missing", ReactionType.LIKE));
+  }
+
+  @Test
+  void react_FiresPostReactionEvent_WhenReactionIsAdded() {
+    String reactor = "usr_reactor";
+    String author = "usr_author";
+    String postId = "pst_1";
+    when(postRepository.react(eq(reactor), eq(postId), eq(ReactionType.LIKE)))
+        .thenReturn(new ReactionResult(postId, ReactionStatus.ADDED, ReactionType.LIKE, 1));
+    when(postRepository.findById(postId))
+        .thenReturn(Optional.of(new Post(postId, author, "hola", null, Instant.now())));
+
+    reactionService.react(reactor, postId, ReactionType.LIKE);
+
+    verify(reactionEvent).fire(new PostReactionEvent(postId, author, reactor, ReactionType.LIKE));
+  }
+
+  @Test
+  void react_FiresPostReactionEvent_WhenReactionIsUpdated() {
+    String reactor = "usr_reactor";
+    String author = "usr_author";
+    String postId = "pst_2";
+    when(postRepository.react(eq(reactor), eq(postId), eq(ReactionType.CELEBRATE)))
+        .thenReturn(new ReactionResult(postId, ReactionStatus.UPDATED, ReactionType.CELEBRATE, 4));
+    when(postRepository.findById(postId))
+        .thenReturn(Optional.of(new Post(postId, author, "feliz", null, Instant.now())));
+
+    reactionService.react(reactor, postId, ReactionType.CELEBRATE);
+
+    verify(reactionEvent)
+        .fire(new PostReactionEvent(postId, author, reactor, ReactionType.CELEBRATE));
+  }
+
+  @Test
+  void react_DoesNotFireEvent_WhenReactionIsRemoved() {
+    String reactor = "usr_reactor";
+    String postId = "pst_3";
+    when(postRepository.react(eq(reactor), eq(postId), eq(ReactionType.LIKE)))
+        .thenReturn(new ReactionResult(postId, ReactionStatus.REMOVED, null, 0));
+
+    reactionService.react(reactor, postId, ReactionType.LIKE);
+
+    verify(reactionEvent, never()).fire(any());
+  }
+
+  @Test
+  void react_DoesNotFireEvent_OnSelfReaction() {
+    String user = "usr_same";
+    String postId = "pst_self";
+    when(postRepository.react(eq(user), eq(postId), eq(ReactionType.LOVE)))
+        .thenReturn(new ReactionResult(postId, ReactionStatus.ADDED, ReactionType.LOVE, 1));
+    when(postRepository.findById(postId))
+        .thenReturn(Optional.of(new Post(postId, user, "mi post", null, Instant.now())));
+
+    reactionService.react(user, postId, ReactionType.LOVE);
+
+    verify(reactionEvent, never()).fire(any());
+  }
+
+  @Test
+  void react_DoesNotFireEvent_WhenPostLookupFailsAfterReact() {
+    String reactor = "usr_reactor";
+    String postId = "pst_ghost";
+    when(postRepository.react(eq(reactor), eq(postId), eq(ReactionType.LIKE)))
+        .thenReturn(new ReactionResult(postId, ReactionStatus.ADDED, ReactionType.LIKE, 1));
+    when(postRepository.findById(postId)).thenReturn(Optional.empty());
+
+    reactionService.react(reactor, postId, ReactionType.LIKE);
+
+    verify(reactionEvent, never()).fire(any());
   }
 }
