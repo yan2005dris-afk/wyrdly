@@ -4,6 +4,8 @@ import type { MainLayoutProps } from "./MainLayout.types";
 import type { UserProfileSummary } from "../../../types/domain";
 import {
   NotificationPopover,
+  PushPermissionBanner,
+  useWebPush,
   type SocialNotification,
 } from "../../../features/notifications";
 import { useAuth } from "../../../features/auth";
@@ -72,8 +74,25 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
   const [notifications, setNotifications] = useState<
     readonly SocialNotification[]
   >(INITIAL_NOTIFICATIONS);
+  const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
   const { profile: apiProfile } = useUserProfile(user?.username);
+
+  const { isSupported, permission, subscribe } = useWebPush({
+    enabled: Boolean(user),
+  });
+  const showPushBanner =
+    !pushBannerDismissed && isSupported && permission === "default";
+
+  const handleEnablePush = async () => {
+    setIsSubscribing(true);
+    try {
+      await subscribe();
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
 
   const currentUserSummary: UserProfileSummary = apiProfile ?? {
     id: user?.id || "usr-current",
@@ -146,6 +165,14 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           />
+          {showPushBanner ? (
+            <PushPermissionBanner
+              onEnable={handleEnablePush}
+              onDismiss={() => setPushBannerDismissed(true)}
+              isLoading={isSubscribing}
+              className={styles.pushBanner}
+            />
+          ) : null}
         </aside>
 
         {/* Dynamic Route Content */}
