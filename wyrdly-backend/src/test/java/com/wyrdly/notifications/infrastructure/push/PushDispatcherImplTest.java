@@ -176,6 +176,7 @@ class PushDispatcherImplTest {
     // went through the gateway client with the right payload).
     java.util.Map<String, String> headers = captured.poll(5, java.util.concurrent.TimeUnit.SECONDS);
     assertNotNull(headers, "headers should have been captured by the gateway mock");
+    assertEquals("high", headers.get("Urgency"));
     assertEquals("aes128gcm", headers.get("Content-Encoding"));
     String authz = headers.get("Authorization");
     assertTrue(
