@@ -7,8 +7,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "../../../api/axios";
 import type { NotificationListResponseDto } from "../types";
 
-const POLL_INTERVAL_MS = 30_000;
-
 export interface UseNotificationsOptions {
   /** When false the hook is dormant and returns an empty state. */
   readonly enabled?: boolean;
@@ -27,8 +25,8 @@ export interface UseNotificationsResult {
 }
 
 /**
- * Manages the in-app notification feed: fetches the user's notifications, polls every 30s
- * while enabled, and exposes optimistic mark-read helpers.
+ * Manages the in-app notification feed: fetches the user's notifications on mount,
+ * observes incoming Web Push events reactively, and exposes optimistic mark-read helpers.
  */
 export const useNotifications = (
   options: UseNotificationsOptions = {},
@@ -67,13 +65,66 @@ export const useNotifications = (
     if (!enabled) {
       return;
     }
+
+    // Initial fetch
     void fetchOnce();
-    const interval = setInterval(() => {
+
+    const onPushReceived = () => {
+      // 1. Optimistic feedback: immediately increment the badge so the UI responds without waiting for network I/O
+      setUnreadCount((prev) => prev + 1);
+      // 2. Fetch fresh list from server to populate popover
       void fetchOnce();
-    }, POLL_INTERVAL_MS);
+    };
+
+    // 1. Observer: Listen to BroadcastChannel from Service Worker
+    let broadcastChannel: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        broadcastChannel = new BroadcastChannel("wyrdly-notifications");
+        broadcastChannel.onmessage = (event: MessageEvent) => {
+          if (event.data?.type === "wyrdly:push-received") {
+            onPushReceived();
+          }
+        };
+      } catch {
+        /* BroadcastChannel fallback */
+      }
+    }
+
+    // 2. Observer: Listen to navigator.serviceWorker message events
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === "wyrdly:push-received") {
+        onPushReceived();
+      }
+    };
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    }
+
+    // 3. Refetch on tab focus / visibilitychange when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void fetchOnce();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
     return () => {
       cancelledRef.current = true;
-      clearInterval(interval);
+      if (broadcastChannel) {
+        broadcastChannel.close();
+      }
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
+      }
     };
   }, [enabled, fetchOnce]);
 

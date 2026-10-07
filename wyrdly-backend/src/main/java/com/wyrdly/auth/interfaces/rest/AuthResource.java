@@ -49,6 +49,9 @@ public class AuthResource {
   @ConfigProperty(name = "wyrdly.auth.cookie.refresh-token-name", defaultValue = "refreshToken")
   String refreshTokenCookieName;
 
+  @ConfigProperty(name = "wyrdly.auth.cookie.path", defaultValue = "/")
+  String cookiePath;
+
   @ConfigProperty(name = "wyrdly.auth.cookie.max-age", defaultValue = "604800")
   int cookieMaxAge;
 
@@ -92,16 +95,20 @@ public class AuthResource {
   @Consumes(MediaType.APPLICATION_JSON)
   public Response refreshWithBody(
       @CookieParam("refreshToken") Cookie cookieToken, RefreshTokenRequest request) {
-    String token =
-        (request != null && request.refreshToken() != null && !request.refreshToken().isBlank())
-            ? request.refreshToken()
-            : (cookieToken != null ? cookieToken.getValue() : null);
+    String token = null;
+    if (request != null && request.refreshToken() != null && !request.refreshToken().isBlank()) {
+      token = request.refreshToken();
+    } else if (cookieToken != null
+        && cookieToken.getValue() != null
+        && !cookieToken.getValue().isBlank()) {
+      token = cookieToken.getValue();
+    }
     return executeRefresh(token);
   }
 
   @POST
   @Path("/refresh")
-  public Response refreshWithCookie(@CookieParam("refreshToken") Cookie cookieToken) {
+  public Response refreshWithCookieOnly(@CookieParam("refreshToken") Cookie cookieToken) {
     String token = cookieToken != null ? cookieToken.getValue() : null;
     return executeRefresh(token);
   }
@@ -151,7 +158,7 @@ public class AuthResource {
 
     return new NewCookie.Builder(refreshTokenCookieName)
         .value(refreshToken != null ? refreshToken : "")
-        .path("/api/auth")
+        .path(cookiePath)
         .maxAge(cookieMaxAge)
         .secure(cookieSecure)
         .httpOnly(true)
@@ -167,7 +174,7 @@ public class AuthResource {
 
     return new NewCookie.Builder(refreshTokenCookieName)
         .value("")
-        .path("/api/auth")
+        .path(cookiePath)
         .maxAge(0)
         .secure(cookieSecure)
         .httpOnly(true)
