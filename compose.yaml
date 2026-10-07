@@ -89,6 +89,11 @@ services:
       - VAPID_PRIVATE_KEY_LOCATION=${VAPID_PRIVATE_KEY_LOCATION:-/deployments/vapid/privateKey.txt}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:ops@wyrdly.com}
       - VAPID_GENERATE_IF_MISSING=${VAPID_GENERATE_IF_MISSING:-true}
+      # HU11 / TASK-04 (#32) — push dispatcher pool + follower fan-out tuning.
+      - PUSH_DISPATCH_POOL_SIZE=${PUSH_DISPATCH_POOL_SIZE:-8}
+      - PUSH_DISPATCH_QUEUE_CAPACITY=${PUSH_DISPATCH_QUEUE_CAPACITY:-5000}
+      - PUSH_FANOUT_BATCH_SIZE=${PUSH_FANOUT_BATCH_SIZE:-200}
+      - PUSH_FANOUT_MAX_RECIPIENTS=${PUSH_FANOUT_MAX_RECIPIENTS:-10000}
     volumes:
       - ${JWT_KEYS_DIR:-./jwt}:/deployments/jwt:ro
       - ${VAPID_KEYS_DIR:-./vapid}:/deployments/vapid:rw
