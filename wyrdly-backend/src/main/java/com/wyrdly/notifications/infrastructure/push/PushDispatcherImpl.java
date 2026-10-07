@@ -2,6 +2,7 @@ package com.wyrdly.notifications.infrastructure.push;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.application.port.PushGatewayClientPort;
 import com.wyrdly.notifications.application.port.PushSubscriptionRepositoryPort;
 import com.wyrdly.notifications.domain.model.PushEvent;
@@ -42,7 +43,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * slow.
  */
 @ApplicationScoped
-public class PushDispatcherImpl {
+public class PushDispatcherImpl implements PushDispatcherPort {
 
   private static final Logger LOG = Logger.getLogger(PushDispatcherImpl.class.getName());
 
