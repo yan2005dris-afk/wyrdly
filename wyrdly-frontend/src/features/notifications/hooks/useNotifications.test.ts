@@ -65,7 +65,9 @@ describe("useNotifications", () => {
       await Promise.resolve();
     });
 
-    expect(mockedGet).toHaveBeenCalledWith("/api/notifications?page=0&pageSize=20");
+    expect(mockedGet).toHaveBeenCalledWith(
+      "/api/notifications?page=0&pageSize=20",
+    );
     expect(result.current.notifications).toHaveLength(2);
     expect(result.current.unreadCount).toBe(1);
     expect(result.current.error).toBeNull();

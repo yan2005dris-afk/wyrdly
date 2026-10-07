@@ -1,3 +1,8 @@
+/* eslint-disable react-hooks/set-state-in-effect --
+   This hook intentionally calls setState after an async fetch inside a useEffect
+   (the standard data-fetching pattern). The setState calls are guarded by
+   cancelledRef so an unmount during a pending request does not cause a
+   "setState on unmounted component" warning. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "../../../api/axios";
 import type { NotificationListResponseDto } from "../types";

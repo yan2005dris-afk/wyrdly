@@ -42,42 +42,8 @@ const toSocialNotification = (dto: NotificationDto): SocialNotification => {
   };
 };
 
-const INITIAL_NOTIFICATIONS: readonly SocialNotification[] = [
-  {
-    id: "notif-1",
-    type: "POST_BOOST",
-    actor: {
-      id: "user-alice",
-      username: "alice",
-      fullName: "Alice Chen",
-      avatarUrl:
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-      isVerified: true,
-      instanceUrl: "wyrdly.app",
-      stats: { postsCount: 45, followersCount: 120, followingCount: 80 },
-    },
-    message: "boosted your relay announcement post",
-    createdAt: "10m ago",
-    isRead: false,
-  },
-  {
-    id: "notif-2",
-    type: "GRAPH_FOLLOW",
-    actor: {
-      id: "user-jonas",
-      username: "jonas",
-      fullName: "Jonas Weber",
-      avatarUrl:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-      isVerified: true,
-      instanceUrl: "mastodon.social",
-      stats: { postsCount: 180, followersCount: 4200, followingCount: 650 },
-    },
-    message: "started following your activity graph",
-    createdAt: "1h ago",
-    isRead: false,
-  },
-];
+// Notifications used to be hardcoded here; they now come from useNotifications
+// (real data persisted by the backend when follow/reaction listeners fire).
 
 export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
   const { user, logout } = useAuth();
@@ -89,13 +55,11 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
       ? (new URLSearchParams(location.search).get("q") ?? "")
       : "";
 
-  const [lastSyncedQ, setLastSyncedQ] = useState(searchParamQ);
-  const [searchQuery, setSearchQuery] = useState(searchParamQ);
-
-  if (lastSyncedQ !== searchParamQ) {
-    setLastSyncedQ(searchParamQ);
-    setSearchQuery(searchParamQ);
-  }
+  const [searchQueryOverride, setSearchQueryOverride] = useState<string | null>(null);
+  // When the user has typed into the search input, prefer that value; otherwise
+  // mirror the URL's ?q= parameter so back/forward navigation stays in sync.
+  const searchQuery = searchQueryOverride ?? searchParamQ;
+  const setSearchQuery = (q: string) => setSearchQueryOverride(q);
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
