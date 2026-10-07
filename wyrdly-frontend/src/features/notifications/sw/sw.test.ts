@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type SW = {
   handlePush: (event: unknown) => Promise<void>;
+  broadcastPushReceived: (payload: unknown) => Promise<void>;
   handleNotificationClick: (event: unknown) => Promise<void>;
   handleSubscriptionChange: (event: unknown) => Promise<void>;
   handleInstall: (event: unknown) => void;
@@ -141,6 +142,48 @@ describe("service worker handlers", () => {
       Record<string, unknown>,
     ];
     expect(options.body).toBe("raw text");
+  });
+  it("broadcastPushReceived notifies BroadcastChannel and clients.matchAll", async () => {
+    const sw = await loadSW();
+    const postMessageClient = vi.fn();
+    (globalThis as unknown as { self: unknown }).self = {
+      clients: {
+        matchAll: vi
+          .fn()
+          .mockResolvedValue([{ postMessage: postMessageClient }]),
+      },
+    };
+
+    const channelPostMessage = vi.fn();
+    const channelClose = vi.fn();
+    class MockBroadcastChannel {
+      readonly name: string;
+      constructor(name: string) {
+        this.name = name;
+      }
+      postMessage = channelPostMessage;
+      close = channelClose;
+    }
+    const origBroadcastChannel = globalThis.BroadcastChannel;
+    (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+      MockBroadcastChannel;
+
+    try {
+      await sw.broadcastPushReceived({ title: "Test", body: "Hello" });
+      expect(channelPostMessage).toHaveBeenCalledWith({
+        type: "wyrdly:push-received",
+        payload: { title: "Test", body: "Hello" },
+      });
+      expect(channelClose).toHaveBeenCalled();
+      expect(postMessageClient).toHaveBeenCalledWith({
+        type: "wyrdly:push-received",
+        payload: { title: "Test", body: "Hello" },
+      });
+    } finally {
+      (
+        globalThis as unknown as { BroadcastChannel: unknown }
+      ).BroadcastChannel = origBroadcastChannel;
+    }
   });
 
   it("handleNotificationClick focuses an existing tab and navigates when the URL differs", async () => {

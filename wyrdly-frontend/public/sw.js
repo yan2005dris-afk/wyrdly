@@ -41,6 +41,41 @@ function urlBase64ToUint8Array(base64String) {
   return out;
 }
 
+async function broadcastPushReceived(payload) {
+  const message = {
+    type: "wyrdly:push-received",
+    payload,
+  };
+
+  // 1. Try BroadcastChannel if available
+  if (typeof BroadcastChannel !== "undefined") {
+    try {
+      const channel = new BroadcastChannel("wyrdly-notifications");
+      channel.postMessage(message);
+      channel.close();
+    } catch (_err) {
+      /* BroadcastChannel error fallback */
+    }
+  }
+
+  // 2. Also postMessage to matched window clients
+  if (self.clients && typeof self.clients.matchAll === "function") {
+    try {
+      const windowClients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of windowClients) {
+        if ("postMessage" in client) {
+          client.postMessage(message);
+        }
+      }
+    } catch (_err) {
+      /* clients.matchAll fallback */
+    }
+  }
+}
+
 async function handlePush(event) {
   if (!event || !event.data) {
     return;
@@ -59,6 +94,7 @@ async function handlePush(event) {
     data: payload.data || {},
   };
   await self.registration.showNotification(title, options);
+  await broadcastPushReceived(payload);
 }
 
 async function handleNotificationClick(event) {
@@ -149,6 +185,7 @@ function handleActivate(event) {
 if (typeof globalThis !== "undefined") {
   globalThis.__wyrdlySW = {
     handlePush,
+    broadcastPushReceived,
     handleNotificationClick,
     handleSubscriptionChange,
     handleInstall,

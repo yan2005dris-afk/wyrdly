@@ -67,13 +67,73 @@ export const useNotifications = (
     if (!enabled) {
       return;
     }
+
+    // Initial fetch
     void fetchOnce();
+
+    // 1. Observer: Listen to BroadcastChannel from Service Worker
+    let broadcastChannel: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        broadcastChannel = new BroadcastChannel("wyrdly-notifications");
+        broadcastChannel.onmessage = (event: MessageEvent) => {
+          if (event.data?.type === "wyrdly:push-received") {
+            void fetchOnce();
+          }
+        };
+      } catch {
+        /* BroadcastChannel fallback */
+      }
+    }
+
+    // 2. Observer: Listen to navigator.serviceWorker message events
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === "wyrdly:push-received") {
+        void fetchOnce();
+      }
+    };
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    }
+
+    // 3. Fallback: Smart polling only when tab is visible and browser is online
     const interval = setInterval(() => {
-      void fetchOnce();
+      const isVisible =
+        typeof document === "undefined" ||
+        document.visibilityState === "visible";
+      const isOnline =
+        typeof navigator === "undefined" || navigator.onLine !== false;
+
+      if (isVisible && isOnline) {
+        void fetchOnce();
+      }
     }, POLL_INTERVAL_MS);
+
+    // 4. Refetch on tab focus / visibilitychange when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void fetchOnce();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
     return () => {
       cancelledRef.current = true;
       clearInterval(interval);
+      if (broadcastChannel) {
+        broadcastChannel.close();
+      }
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
+      }
     };
   }, [enabled, fetchOnce]);
 

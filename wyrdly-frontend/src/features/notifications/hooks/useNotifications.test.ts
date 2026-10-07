@@ -187,4 +187,133 @@ describe("useNotifications", () => {
     // After the failed POST the hook refetches; the server-reported unreadCount wins.
     expect(result.current.unreadCount).toBe(1);
   });
+
+  it("refetches reactively when a push message is received via BroadcastChannel", async () => {
+    mockedGet.mockResolvedValue({ data: baseResponse });
+
+    let channelListener: ((event: MessageEvent) => void) | null = null;
+    class MockBroadcastChannel {
+      readonly name: string;
+      constructor(name: string) {
+        this.name = name;
+      }
+      set onmessage(fn: (event: MessageEvent) => void) {
+        channelListener = fn;
+      }
+      close = vi.fn();
+    }
+    const origBroadcastChannel = globalThis.BroadcastChannel;
+    (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+      MockBroadcastChannel;
+
+    try {
+      renderHook(() => useNotifications());
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mockedGet).toHaveBeenCalledTimes(1);
+
+      // Simulate incoming push event broadcast
+      await act(async () => {
+        channelListener?.({
+          data: { type: "wyrdly:push-received" },
+        } as MessageEvent);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(mockedGet).toHaveBeenCalledTimes(2);
+    } finally {
+      (
+        globalThis as unknown as { BroadcastChannel: unknown }
+      ).BroadcastChannel = origBroadcastChannel;
+    }
+  });
+
+  it("refetches reactively when navigator.serviceWorker fires a push message", async () => {
+    mockedGet.mockResolvedValue({ data: baseResponse });
+
+    let swMessageListener: ((event: MessageEvent) => void) | null = null;
+    const addEventListener = vi.fn(
+      (event: string, fn: (e: MessageEvent) => void) => {
+        if (event === "message") swMessageListener = fn;
+      },
+    );
+    const removeEventListener = vi.fn();
+
+    const origNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        ...origNavigator,
+        serviceWorker: {
+          addEventListener,
+          removeEventListener,
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      renderHook(() => useNotifications());
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mockedGet).toHaveBeenCalledTimes(1);
+
+      // Simulate incoming serviceWorker postMessage
+      await act(async () => {
+        swMessageListener?.({
+          data: { type: "wyrdly:push-received" },
+        } as MessageEvent);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(mockedGet).toHaveBeenCalledTimes(2);
+    } finally {
+      Object.defineProperty(globalThis, "navigator", {
+        value: origNavigator,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it("does not poll when document is hidden", async () => {
+    mockedGet.mockResolvedValue({ data: baseResponse });
+
+    const origVisibilityState = document.visibilityState;
+    Object.defineProperty(globalThis.document, "visibilityState", {
+      value: "hidden",
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      renderHook(() => useNotifications());
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mockedGet).toHaveBeenCalledTimes(1);
+
+      // Advance timers while hidden
+      await act(async () => {
+        vi.advanceTimersByTime(30_000);
+        await Promise.resolve();
+      });
+
+      // Still 1: polling was skipped because document is hidden
+      expect(mockedGet).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(globalThis.document, "visibilityState", {
+        value: origVisibilityState,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
 });
