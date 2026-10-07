@@ -175,8 +175,9 @@ export const useWebPush = (
       if (!vapidKey) {
         throw new Error("VAPID public key was empty");
       }
-      const applicationServerKey: BufferSource =
-        base64UrlToUint8Array(vapidKey);
+      const applicationServerKey = base64UrlToUint8Array(
+        vapidKey,
+      ) as BufferSource;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey,
