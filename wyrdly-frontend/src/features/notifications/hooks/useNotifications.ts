@@ -69,6 +69,13 @@ export const useNotifications = (
     // Initial fetch
     void fetchOnce();
 
+    const onPushReceived = () => {
+      // 1. Optimistic feedback: immediately increment the badge so the UI responds without waiting for network I/O
+      setUnreadCount((prev) => prev + 1);
+      // 2. Fetch fresh list from server to populate popover
+      void fetchOnce();
+    };
+
     // 1. Observer: Listen to BroadcastChannel from Service Worker
     let broadcastChannel: BroadcastChannel | null = null;
     if (typeof BroadcastChannel !== "undefined") {
@@ -76,7 +83,7 @@ export const useNotifications = (
         broadcastChannel = new BroadcastChannel("wyrdly-notifications");
         broadcastChannel.onmessage = (event: MessageEvent) => {
           if (event.data?.type === "wyrdly:push-received") {
-            void fetchOnce();
+            onPushReceived();
           }
         };
       } catch {
@@ -87,7 +94,7 @@ export const useNotifications = (
     // 2. Observer: Listen to navigator.serviceWorker message events
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === "wyrdly:push-received") {
-        void fetchOnce();
+        onPushReceived();
       }
     };
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {

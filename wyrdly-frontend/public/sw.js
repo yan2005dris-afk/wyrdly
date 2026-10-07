@@ -87,10 +87,17 @@ async function handlePush(event) {
     payload = { title: "Wyrdly", body: event.data.text() };
   }
   const title = payload.title || "Wyrdly";
+  const tag = payload.data?.postId
+    ? `post-${payload.data.postId}`
+    : payload.data?.type
+      ? `type-${payload.data.type}`
+      : undefined;
+
   const options = {
     body: payload.body || "",
     icon: payload.icon || "/icons/wyrdly-icon-192.png",
     badge: payload.badge || "/icons/wyrdly-badge-72.png",
+    tag,
     data: payload.data || {},
   };
   await self.registration.showNotification(title, options);

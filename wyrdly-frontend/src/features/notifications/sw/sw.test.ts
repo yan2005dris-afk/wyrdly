@@ -114,6 +114,7 @@ describe("service worker handlers", () => {
     expect(options.body).toBe("Ana comenzó a seguirte");
     expect(options.icon).toBe("/icons/x.png");
     expect(options.badge).toBe("/icons/b.png");
+    expect(options.tag).toBe("type-GRAPH_FOLLOW");
     expect(options.data).toEqual({ url: "/profile/ana", type: "GRAPH_FOLLOW" });
   });
 
