@@ -3,70 +3,33 @@ package com.wyrdly.post.infrastructure.persistence;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.wyrdly.post.domain.model.Author;
 import com.wyrdly.post.domain.model.Comment;
+import com.wyrdly.testsupport.Neo4jTestContainer;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Session;
-import org.testcontainers.DockerClientFactory;
-import org.testcontainers.containers.Neo4jContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-/**
- * Integration tests for {@link Neo4jCommentRepositoryAdapter}. Each test assumes Docker is
- * available; if not, the test class compiles but is silently skipped (Jupiter {@code assumeTrue}
- * aborts the test). The default build skips {@code *IT} tests via {@code -DskipITs=true}.
- */
-@Testcontainers
 class Neo4jCommentRepositoryAdapterIT {
 
-  @Container
-  static final Neo4jContainer<?> NEO4J_CONTAINER =
-      new Neo4jContainer<>("neo4j:5.26-community").withoutAuthentication();
-
-  static Driver driver;
+  static final Driver driver = Neo4jTestContainer.driver();
 
   Neo4jCommentRepositoryAdapter adapter;
-
-  @BeforeAll
-  static void setUpDriver() {
-    // Skip the whole class when Docker is not available.
-    assumeTrue(
-        DockerClientFactory.instance().isDockerAvailable(),
-        "Docker is not available — skipping Neo4j integration tests.");
-    driver = GraphDatabase.driver(NEO4J_CONTAINER.getBoltUrl(), AuthTokens.none());
-  }
-
-  @AfterAll
-  static void tearDownDriver() {
-    if (driver != null) {
-      driver.close();
-    }
-  }
 
   @BeforeEach
   void setUp() {
     adapter = new Neo4jCommentRepositoryAdapter(driver);
   }
 
-  @AfterEach
+  @BeforeEach
   void cleanDatabase() {
-    try (Session session = driver.session()) {
-      session.run("MATCH (n) DETACH DELETE n");
-    }
+    Neo4jTestContainer.deleteAllData();
   }
 
   @Test
@@ -151,15 +114,16 @@ class Neo4jCommentRepositoryAdapterIT {
               .run(
                   "MATCH (c:Comentario {id: $id})-[r]-() RETURN count(r) AS n",
                   Map.of("id", "cmt_1"))
-              .list()
-              .size();
+              .single()
+              .get("n")
+              .asLong();
       assertEquals(0L, relCount, "All relationships must be detached");
     }
   }
 
   @Test
   void findByIdReturnsCommentWithAuthor() {
-    seedUser("usr_alice", "alice");
+    seedUser("usr_alice", "alice", "Alice Doe", "https://avatar.jpg");
     seedPost("pst_abc", "usr_alice");
     Author author = new Author("usr_alice", "alice", "Alice Doe", "https://avatar.jpg");
     adapter.save(
@@ -183,10 +147,14 @@ class Neo4jCommentRepositoryAdapterIT {
   // ---------------------------------------------------------------------------
 
   private void seedUser(String userId, String username) {
+    seedUser(userId, username, "Test User", "");
+  }
+
+  private void seedUser(String userId, String username, String fullName, String avatarUrl) {
     try (Session session = driver.session()) {
       session.run(
           "CREATE (u:Usuario {id: $id, username: $username, fullName: $fullName, "
-              + "bio: '', avatarUrl: '', email: $email, passwordHash: 'x', "
+              + "bio: '', avatarUrl: $avatarUrl, email: $email, passwordHash: 'x', "
               + "createdAt: datetime($createdAt)})",
           Map.of(
               "id",
@@ -194,7 +162,9 @@ class Neo4jCommentRepositoryAdapterIT {
               "username",
               username,
               "fullName",
-              "Test User",
+              fullName,
+              "avatarUrl",
+              avatarUrl == null ? "" : avatarUrl,
               "email",
               username + "@yaga.social",
               "createdAt",

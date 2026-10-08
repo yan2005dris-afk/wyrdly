@@ -109,7 +109,7 @@ backend_unit_tests() {
 backend_integration_tests() {
   step "Backend · Integration Tests (Failsafe + Testcontainers)"
   if command -v docker &>/dev/null; then
-    if (cd wyrdly-backend && ./mvnw verify -q 2>&1 | tail -8); then
+    if (cd wyrdly-backend && ./mvnw verify -DskipUnitTests -q 2>&1 | tail -8); then
       ok "Failsafe + Testcontainers"
     else
       fail "Failsafe + Testcontainers"
@@ -121,7 +121,7 @@ backend_integration_tests() {
 
 backend_coverage() {
   step "Backend · Code Coverage (JaCoCo)"
-  if (cd wyrdly-backend && ./mvnw verify -q 2>&1 | tail -5); then
+  if (cd wyrdly-backend && ./mvnw verify -DskipITs -q 2>&1 | tail -5); then
     ok "JaCoCo coverage"
     echo -e "       ${BOLD}Report:${NC} wyrdly-backend/target/site/jacoco/index.html"
   else

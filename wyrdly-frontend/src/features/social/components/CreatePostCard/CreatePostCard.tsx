@@ -155,7 +155,6 @@ export const CreatePostCard: FC<CreatePostCardProps> = ({
             >
               <Image className="w-3.5 h-3.5" />
               <span>Media</span>
-              <span className={styles.storageBadge}>S3 • RustFS</span>
             </button>
 
             <button

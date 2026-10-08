@@ -1,14 +1,13 @@
-import { useCallback, useState, type FC } from "react";
+import { useCallback, useMemo, useState, type FC } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Share2, Edit3, AlertCircle } from "lucide-react";
-import type { PostApiResponse } from "../types/feed";
+import type { PostApiResponse, ReactionType } from "../types/feed";
+import { mapPostApiResponseToPost } from "../types/feed";
 import type { UpdateProfilePayload } from "../api/users";
 import { useAuth } from "../features/auth";
 import {
   ProfileHeaderCard,
   ProfileHeaderSkeleton,
-  PostGridItem,
-  PostGridItemSkeleton,
   EditProfileModal,
   useUserProfile,
   useUserPosts,
@@ -17,11 +16,14 @@ import {
   type ProfileUserSummary,
 } from "../features/profile";
 import {
+  PostCard,
+  PostCardSkeleton,
   GraphSuggestionsCard,
   UserListRow,
   UserListRowSkeleton,
   useGraphSuggestions,
   useFollow,
+  useReaction,
 } from "../features/social";
 import { Button } from "../components/ui/Button";
 
@@ -42,6 +44,84 @@ export const ProfilePage: FC = () => {
   );
 
   const { posts, isLoading: postsLoading } = useUserPosts(profileUsername);
+  const [reactionOverrides, setReactionOverrides] = useState<
+    Record<
+      string,
+      {
+        userReaction: ReactionType | null;
+        reactionCounts: {
+          likeCount: number;
+          loveCount: number;
+          celebrateCount: number;
+        };
+      }
+    >
+  >({});
+  const { react: reactToPost, isPending: isReactionPending } = useReaction();
+
+  const displayPosts = useMemo(() => {
+    return posts.map((post) => {
+      const override = reactionOverrides[post.id];
+      if (!override) return post;
+      return {
+        ...post,
+        userReaction: override.userReaction,
+        reactionCounts: override.reactionCounts,
+      };
+    });
+  }, [posts, reactionOverrides]);
+
+  const handleReaction = useCallback(
+    (postId: string, reaction: ReactionType) => {
+      const originalPost = posts.find((p) => p.id === postId);
+      if (!originalPost) return;
+
+      const currentOverride = reactionOverrides[postId];
+      const currentUserReaction =
+        currentOverride !== undefined
+          ? currentOverride.userReaction
+          : originalPost.userReaction;
+
+      const currentCounts =
+        currentOverride !== undefined
+          ? currentOverride.reactionCounts
+          : {
+              likeCount: originalPost.reactionCounts?.likeCount ?? 0,
+              loveCount: originalPost.reactionCounts?.loveCount ?? 0,
+              celebrateCount: originalPost.reactionCounts?.celebrateCount ?? 0,
+            };
+
+      const isActive = currentUserReaction === reaction;
+      const diff = isActive ? -1 : 1;
+      const newCounts = { ...currentCounts };
+      if (reaction === "LIKE") {
+        newCounts.likeCount = Math.max(0, newCounts.likeCount + diff);
+      } else if (reaction === "LOVE") {
+        newCounts.loveCount = Math.max(0, newCounts.loveCount + diff);
+      } else if (reaction === "CELEBRATE") {
+        newCounts.celebrateCount = Math.max(0, newCounts.celebrateCount + diff);
+      }
+
+      setReactionOverrides((prev) => ({
+        ...prev,
+        [postId]: {
+          userReaction: isActive ? null : reaction,
+          reactionCounts: newCounts,
+        },
+      }));
+
+      void reactToPost(postId, reaction, {
+        onRollback: () => {
+          setReactionOverrides((prev) => {
+            const next = { ...prev };
+            delete next[postId];
+            return next;
+          });
+        },
+      });
+    },
+    [posts, reactionOverrides, reactToPost],
+  );
   const {
     users: followers,
     isLoading: followersLoading,
@@ -121,9 +201,9 @@ export const ProfilePage: FC = () => {
     return (
       <div className="w-full flex flex-col gap-6" data-testid="profile-loading">
         <ProfileHeaderSkeleton />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="flex flex-col gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <PostGridItemSkeleton key={i} />
+            <PostCardSkeleton key={i} />
           ))}
         </div>
       </div>
@@ -234,8 +314,10 @@ export const ProfilePage: FC = () => {
 
           {activeTab === "posts" && (
             <PostsTab
-              posts={posts}
-              isLoading={postsLoading && posts.length === 0}
+              posts={displayPosts}
+              isLoading={postsLoading && displayPosts.length === 0}
+              onReaction={handleReaction}
+              isReactionPending={isReactionPending}
             />
           )}
 
@@ -292,17 +374,21 @@ export const ProfilePage: FC = () => {
 interface PostsTabProps {
   readonly posts: readonly PostApiResponse[];
   readonly isLoading: boolean;
+  readonly onReaction?: (postId: string, reaction: ReactionType) => void;
+  readonly isReactionPending?: (postId: string) => boolean;
 }
 
-const PostsTab: FC<PostsTabProps> = ({ posts, isLoading }) => {
+const PostsTab: FC<PostsTabProps> = ({
+  posts,
+  isLoading,
+  onReaction,
+  isReactionPending,
+}) => {
   if (isLoading) {
     return (
-      <div
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-        data-testid="profile-posts-loading"
-      >
-        {Array.from({ length: 6 }).map((_, i) => (
-          <PostGridItemSkeleton key={i} />
+      <div className="flex flex-col gap-4" data-testid="profile-posts-loading">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <PostCardSkeleton key={i} />
         ))}
       </div>
     );
@@ -320,18 +406,13 @@ const PostsTab: FC<PostsTabProps> = ({ posts, isLoading }) => {
   }
 
   return (
-    <div
-      className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-      data-testid="profile-posts-grid"
-    >
+    <div className="flex flex-col gap-4" data-testid="profile-posts-grid">
       {posts.map((post) => (
-        <PostGridItem
+        <PostCard
           key={post.id}
-          id={post.id}
-          imageUrl={post.mediaUrl ?? ""}
-          title={post.content.slice(0, 80)}
-          likesCount={0}
-          repliesCount={0}
+          post={mapPostApiResponseToPost(post)}
+          onReaction={onReaction}
+          isReactionPending={isReactionPending?.(post.id)}
         />
       ))}
     </div>

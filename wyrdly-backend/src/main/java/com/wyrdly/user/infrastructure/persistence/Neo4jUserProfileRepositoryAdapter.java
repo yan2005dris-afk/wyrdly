@@ -99,26 +99,27 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
   }
 
   @Override
-  public void followUser(String followerId, String followingId) {
+  public boolean followUser(String followerId, String followingId) {
+    // MERGE matches on the pattern only: a property in it (e.g. a timestamp) would never match
+    // the existing relationship and create a duplicate on every call. With both endpoints bound,
+    // Neo4j locks them, so concurrent follows still converge on a single relationship.
     String cypher =
         "MATCH (follower:Usuario {id: $followerId}), (following:Usuario {id: $followingId}) "
-            + "MERGE (follower)-[r:SIGUE {fecha: datetime()}]->(following)";
+            + "MERGE (follower)-[r:SIGUE]->(following) "
+            + "ON CREATE SET r.createdAt = datetime()";
 
     Map<String, Object> params = new HashMap<>();
     params.put("followerId", followerId);
     params.put("followingId", followingId);
 
     try (Session session = driver.session()) {
-      session.executeWrite(
-          tx -> {
-            tx.run(cypher, params).consume();
-            return null;
-          });
+      return session.executeWrite(
+          tx -> tx.run(cypher, params).consume().counters().relationshipsCreated() > 0);
     }
   }
 
   @Override
-  public void unfollowUser(String followerId, String followingId) {
+  public boolean unfollowUser(String followerId, String followingId) {
     String cypher =
         "MATCH (follower:Usuario {id: $followerId})-[r:SIGUE]->(following:Usuario {id: $followingId}) "
             + "DELETE r";
@@ -128,11 +129,8 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
     params.put("followingId", followingId);
 
     try (Session session = driver.session()) {
-      session.executeWrite(
-          tx -> {
-            tx.run(cypher, params).consume();
-            return null;
-          });
+      return session.executeWrite(
+          tx -> tx.run(cypher, params).consume().counters().relationshipsDeleted() > 0);
     }
   }
 

@@ -37,11 +37,11 @@ describe("SidebarNav Component", () => {
     expect(handleNewPost).toHaveBeenCalledTimes(1);
   });
 
-  it("renders connected relays status and latency", () => {
-    renderWithRouter(<SidebarNav connectedRelaysCount={5} pingMs={38} />);
+  it("does not render mock relay telemetry or node status card", () => {
+    renderWithRouter(<SidebarNav />);
 
-    expect(screen.getByText("5 relays connected")).toBeInTheDocument();
-    expect(screen.getByText("38ms")).toBeInTheDocument();
+    expect(screen.queryByTestId("sidebar-node-status")).not.toBeInTheDocument();
+    expect(screen.queryByText(/relays connected/i)).not.toBeInTheDocument();
   });
 
   it("renders the log out button only when onLogout is provided", () => {

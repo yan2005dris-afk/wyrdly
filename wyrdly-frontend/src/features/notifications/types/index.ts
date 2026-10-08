@@ -10,7 +10,8 @@ export type NotificationType =
   | "POST_BOOST"
   | "GRAPH_FOLLOW"
   | "CHAT_MESSAGE"
-  | "POST_COMMENT";
+  | "POST_COMMENT"
+  | "NEW_POST_FROM_FOLLOWED";
 
 export interface SocialNotification {
   readonly id: string;

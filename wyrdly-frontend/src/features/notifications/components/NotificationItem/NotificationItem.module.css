@@ -51,6 +51,10 @@
   background-color: #f59e0b;
 }
 
+.badgePost {
+  background-color: #0ea5e9;
+}
+
 .contentCol {
   flex: 1;
   min-width: 0;

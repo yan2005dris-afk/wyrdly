@@ -70,18 +70,19 @@ public class Neo4jCommentRepositoryAdapter implements CommentRepository {
       session.executeWrite(
           tx ->
               tx.run(
-                  SAVE_QUERY,
-                  Values.parameters(
-                      "id",
-                      comment.id(),
-                      "authorId",
-                      comment.author().id(),
-                      "postId",
-                      comment.postId(),
-                      "content",
-                      comment.content(),
-                      "createdAt",
-                      comment.createdAt().toString())));
+                      SAVE_QUERY,
+                      Values.parameters(
+                          "id",
+                          comment.id(),
+                          "authorId",
+                          comment.author().id(),
+                          "postId",
+                          comment.postId(),
+                          "content",
+                          comment.content(),
+                          "createdAt",
+                          comment.createdAt().toString()))
+                  .consume());
       Log.infof(
           "Comment saved to Neo4j: id=%s, postId=%s, authorId=%s",
           comment.id(), comment.postId(), comment.author().id());
