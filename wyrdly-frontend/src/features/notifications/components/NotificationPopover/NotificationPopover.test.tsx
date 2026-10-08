@@ -51,4 +51,21 @@ describe("NotificationPopover Component", () => {
     fireEvent.click(screen.getByTestId("mark-all-read-btn"));
     expect(handleMarkRead).toHaveBeenCalledTimes(1);
   });
+
+  it("calls onNotificationClick when a notification item is clicked", () => {
+    const handleNotificationClick = vi.fn();
+    render(
+      <NotificationPopover
+        notifications={MOCK_NOTIFICATIONS}
+        onNotificationClick={handleNotificationClick}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("notification-item-notif-1"));
+    expect(handleNotificationClick).toHaveBeenCalledTimes(1);
+    expect(handleNotificationClick).toHaveBeenCalledWith(
+      "notif-1",
+      MOCK_NOTIFICATIONS[0],
+    );
+  });
 });
