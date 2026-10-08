@@ -6,6 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.wyrdly.post.application.dto.PostResponse;
+import com.wyrdly.post.domain.model.Author;
+import com.wyrdly.post.domain.model.FeedPost;
 import com.wyrdly.post.domain.repository.PostRepository;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
@@ -13,6 +16,7 @@ import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
 import com.wyrdly.user.domain.model.UserProfile;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -106,5 +110,49 @@ class UserProfileServiceTest {
     assertThrows(
         UserProfileNotFoundException.class,
         () -> userProfileService.updateProfile("usr_ghost", request));
+  }
+
+  @Test
+  void getUserPosts_ReturnsPostsWithCommentsCountAndReactions() {
+    UserProfile profile =
+        new UserProfile(
+            "usr_123",
+            "juanperez",
+            "Juan Perez",
+            "Bio",
+            "http://avatar",
+            42L,
+            18L,
+            5L,
+            true,
+            Instant.parse("2026-09-24T18:30:00Z"));
+
+    when(userProfileRepository.findProfileByUsername("juanperez", null))
+        .thenReturn(Optional.of(profile));
+
+    FeedPost feedPost =
+        new FeedPost(
+            "post_1",
+            "Hola mundo",
+            null,
+            Instant.parse("2026-09-24T19:00:00Z"),
+            new Author("usr_123", "juanperez", "Juan Perez", "http://avatar"),
+            5L,
+            2L,
+            1L,
+            7L,
+            null);
+
+    when(postRepository.findByAuthor("usr_123", 1, 20)).thenReturn(List.of(feedPost));
+
+    List<PostResponse> posts = userProfileService.getUserPosts("juanperez", 1, 20);
+
+    assertEquals(1, posts.size());
+    PostResponse post = posts.get(0);
+    assertEquals("post_1", post.id());
+    assertEquals(7L, post.commentsCount());
+    assertEquals(5L, post.reactionCounts().likeCount());
+    assertEquals(2L, post.reactionCounts().loveCount());
+    assertEquals(1L, post.reactionCounts().celebrateCount());
   }
 }
