@@ -11,7 +11,7 @@ const resolveBaseUrl = (): string => {
   return import.meta.env.DEV ? "http://localhost:8080" : "";
 };
 
-const API_BASE_URL = resolveBaseUrl();
+export const API_BASE_URL = resolveBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

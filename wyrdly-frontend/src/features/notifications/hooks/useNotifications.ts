@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../../api/axios";
 import type { NotificationListResponseDto } from "../types";
+import { useNotificationStream } from "./useNotificationStream";
 
 export interface UseNotificationsOptions {
   /** When false the hook is dormant and returns an empty state. */
@@ -27,8 +28,8 @@ export const notificationsQueryKey = (pageSize: number) => [
 
 /**
  * Manages the in-app notification feed using TanStack Query:
- * fetches the user's notifications on mount, invalidates the query on incoming
- * Web Push events or tab refocus, and provides optimistic mark-read mutations.
+ * fetches the user's notifications on mount, streams real-time updates via SSE,
+ * reconciles on tab refocus, and provides optimistic mark-read mutations.
  */
 export const useNotifications = (
   options: UseNotificationsOptions = {},
@@ -37,6 +38,12 @@ export const useNotifications = (
   const queryClient = useQueryClient();
   // Stabilise queryKey so push-listener useEffect doesn't tear down on every render
   const queryKey = useMemo(() => notificationsQueryKey(pageSize), [pageSize]);
+
+  // Connect to reactive SSE stream for instantaneous in-app delivery
+  useNotificationStream({
+    enabled,
+    queryKey,
+  });
 
   const {
     data,
