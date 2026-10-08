@@ -49,6 +49,7 @@ class GetNotificationsForUserUseCaseImplTest {
             Instant.parse("2026-01-15T10:00:00Z"));
     when(notificationRepository.findByRecipient("usr_alice", 0, 20)).thenReturn(List.of(n));
     when(notificationRepository.countUnread("usr_alice")).thenReturn(1L);
+    when(notificationRepository.countTotal("usr_alice")).thenReturn(1L);
     when(userProfileRepository.findProfileSummariesByIds(anySet()))
         .thenReturn(
             Map.of("usr_bob", new FollowerSummary("usr_bob", "bob", "Bob Marley", "", false)));
@@ -57,6 +58,7 @@ class GetNotificationsForUserUseCaseImplTest {
 
     assertEquals(1, result.notifications().size());
     assertEquals(1L, result.unreadCount());
+    assertEquals(1L, result.totalElements());
     assertEquals(0, result.page());
     assertEquals(20, result.pageSize());
 
@@ -67,6 +69,18 @@ class GetNotificationsForUserUseCaseImplTest {
     assertEquals("usr_bob", dto.actor().id());
     assertEquals("bob", dto.actor().username());
     assertEquals("Bob Marley", dto.actor().fullName());
+  }
+
+  @Test
+  void returnsActualTotalCountFromRepository() {
+    when(notificationRepository.findByRecipient("usr_alice", 1, 10)).thenReturn(List.of());
+    when(notificationRepository.countUnread("usr_alice")).thenReturn(0L);
+    when(notificationRepository.countTotal("usr_alice")).thenReturn(42L);
+    when(userProfileRepository.findProfileSummariesByIds(anySet())).thenReturn(Map.of());
+
+    NotificationListResponseDto result = useCase.execute("usr_alice", 1, 10);
+
+    assertEquals(42L, result.totalElements());
   }
 
   @Test

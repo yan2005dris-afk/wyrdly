@@ -46,6 +46,9 @@ public class Neo4jNotificationRepositoryAdapter implements NotificationRepositor
       "MATCH (n:Notificacion {recipientUserId: $recipientUserId, isRead: false}) "
           + "RETURN count(n) AS total";
 
+  private static final String CYPHER_COUNT_TOTAL =
+      "MATCH (n:Notificacion {recipientUserId: $recipientUserId}) " + "RETURN count(n) AS total";
+
   private static final String CYPHER_MARK_READ =
       "MATCH (n:Notificacion {id: $id, recipientUserId: $userId}) " + "SET n.isRead = true";
 
@@ -107,6 +110,15 @@ public class Neo4jNotificationRepositoryAdapter implements NotificationRepositor
     try (Session session = driver.session()) {
       Result result =
           session.run(CYPHER_COUNT_UNREAD, Values.parameters("recipientUserId", recipientUserId));
+      return result.single().get("total").asLong(0L);
+    }
+  }
+
+  @Override
+  public long countTotal(String recipientUserId) {
+    try (Session session = driver.session()) {
+      Result result =
+          session.run(CYPHER_COUNT_TOTAL, Values.parameters("recipientUserId", recipientUserId));
       return result.single().get("total").asLong(0L);
     }
   }
