@@ -20,7 +20,7 @@ public interface PostRepository {
 
   long countFeedByUserId(String userId);
 
-  List<Post> findByAuthor(String authorId, int page, int pageSize);
+  List<FeedPost> findByAuthor(String authorId, int page, int pageSize);
 
   long countByAuthor(String authorId);
 

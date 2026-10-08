@@ -7,6 +7,7 @@ export interface ChatWindowProps {
   readonly isLoadingMessages?: boolean;
   readonly isSending?: boolean;
   readonly onSendMessage: (text: string, file?: File) => Promise<void> | void;
+  readonly onBack?: () => void;
   readonly onCallClick?: () => void;
   readonly onVideoClick?: () => void;
   readonly onOptionsClick?: () => void;

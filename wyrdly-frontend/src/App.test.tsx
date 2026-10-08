@@ -23,4 +23,13 @@ describe("App Component", () => {
       screen.getAllByRole("button", { name: /sign in/i }).length,
     ).toBeGreaterThanOrEqual(1);
   });
+
+  it("renders NotFoundPage when navigating to an unknown route", () => {
+    window.history.replaceState({}, "", "/non-existent-route-404");
+
+    render(<App />);
+
+    expect(screen.getByTestId("not-found-page")).toBeInTheDocument();
+    expect(screen.getByText("Page not found")).toBeInTheDocument();
+  });
 });

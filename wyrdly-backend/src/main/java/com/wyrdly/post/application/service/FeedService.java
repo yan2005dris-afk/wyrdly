@@ -72,6 +72,7 @@ public class FeedService implements GetFeedUseCase {
         feedPost.createdAt(),
         authorDto,
         reactionCounts,
+        feedPost.commentsCount(),
         feedPost.userReaction());
   }
 }

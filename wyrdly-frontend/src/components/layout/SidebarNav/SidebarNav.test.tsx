@@ -14,17 +14,19 @@ describe("SidebarNav Component", () => {
     expect(screen.getByText("Feed")).toBeInTheDocument();
     expect(screen.getByText("Explore")).toBeInTheDocument();
     expect(screen.getByText("Messages")).toBeInTheDocument();
-    expect(screen.getByText("Alerts")).toBeInTheDocument();
+    expect(screen.getByText("Notifications")).toBeInTheDocument();
     expect(screen.queryByTestId("nav-link-profile")).not.toBeInTheDocument();
   });
 
-  it("renders message and alert badge counts", () => {
+  it("renders message and notification badge counts", () => {
     renderWithRouter(
-      <SidebarNav unreadMessagesCount={4} unreadAlertsCount={12} />,
+      <SidebarNav unreadMessagesCount={4} unreadNotificationsCount={12} />,
     );
 
     expect(screen.getByTestId("nav-badge-messages")).toHaveTextContent("4");
-    expect(screen.getByTestId("nav-badge-alerts")).toHaveTextContent("9+");
+    expect(screen.getByTestId("nav-badge-notifications")).toHaveTextContent(
+      "9+",
+    );
   });
 
   it("renders New Post button and fires callback on click", () => {
