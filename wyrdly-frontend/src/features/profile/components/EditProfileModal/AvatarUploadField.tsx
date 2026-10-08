@@ -11,6 +11,7 @@ interface AvatarUploadFieldProps {
   isUploading: boolean;
   isDisabled: boolean;
   error: string | null;
+  successMessage?: string | null;
   onFileSelect: (file: File) => void;
 }
 
@@ -21,6 +22,7 @@ export const AvatarUploadField: FC<AvatarUploadFieldProps> = ({
   isUploading,
   isDisabled,
   error,
+  successMessage,
   onFileSelect,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,6 +99,16 @@ export const AvatarUploadField: FC<AvatarUploadFieldProps> = ({
           data-testid="edit-profile-avatar-error"
         >
           {error}
+        </span>
+      )}
+
+      {successMessage && !error && (
+        <span
+          className={styles.avatarSuccess}
+          role="status"
+          data-testid="edit-profile-avatar-success"
+        >
+          {successMessage}
         </span>
       )}
     </div>
