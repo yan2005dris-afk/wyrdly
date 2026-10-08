@@ -5,12 +5,14 @@ export interface UseChatWebSocketOptions {
   token: string | null;
   onMessageReceived?: (message: MessageResponse) => void;
   onUserTyping?: (userId: string) => void;
+  onError?: (errorMessage: string) => void;
 }
 
 export const useChatWebSocket = ({
   token,
   onMessageReceived,
   onUserTyping,
+  onError,
 }: UseChatWebSocketOptions) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +54,13 @@ export const useChatWebSocket = ({
           if (payload.userId) {
             onUserTyping?.(payload.userId);
           }
+        } else if (payload.action === "ERROR") {
+          const errText =
+            typeof payload.message === "string"
+              ? payload.message
+              : "WebSocket chat error";
+          setError(errText);
+          onError?.(errText);
         }
       } catch {
         // Ignored or invalid json frame
@@ -59,13 +68,17 @@ export const useChatWebSocket = ({
     };
 
     ws.onerror = () => {
-      setError("WebSocket connection error");
+      const errText = "WebSocket connection error";
+      setError(errText);
+      onError?.(errText);
     };
 
     ws.onclose = (event) => {
       setIsConnected(false);
       if (event.code === 4401) {
-        setError("Unauthorized token (close code 4401)");
+        const errText = "Unauthorized token (close code 4401)";
+        setError(errText);
+        onError?.(errText);
       }
     };
 
@@ -74,7 +87,7 @@ export const useChatWebSocket = ({
       socketRef.current = null;
       setIsConnected(false);
     };
-  }, [token, onMessageReceived, onUserTyping]);
+  }, [token, onMessageReceived, onUserTyping, onError]);
 
   const sendMessage = useCallback((recipientId: string, content: string) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
