@@ -228,6 +228,35 @@ class NotificationResourceTest {
     given().when().post("/api/notifications/mark-all-read").then().statusCode(401);
   }
 
+  @Test
+  void streamRequiresAuth() {
+    given().when().get("/api/notifications/stream").then().statusCode(401);
+  }
+
+  @io.quarkus.test.common.http.TestHTTPResource("/api/notifications/stream")
+  java.net.URI streamUri;
+
+  @Test
+  void streamReturnsEventStreamForAuthenticatedUser() throws Exception {
+    String userId = "usr_stream_tester";
+    try (java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient()) {
+      java.net.http.HttpRequest request =
+          java.net.http.HttpRequest.newBuilder()
+              .uri(streamUri)
+              .header("Authorization", "Bearer " + jwtFor(userId))
+              .GET()
+              .build();
+
+      java.net.http.HttpResponse<java.io.InputStream> response =
+          client.send(request, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+
+      org.junit.jupiter.api.Assertions.assertEquals(200, response.statusCode());
+      org.junit.jupiter.api.Assertions.assertTrue(
+          response.headers().firstValue("content-type").orElse("").contains("text/event-stream"));
+      response.body().close();
+    }
+  }
+
   // ---- helpers ------------------------------------------------------------
 
   /** Mints a JWT whose subject claim equals {@code userId}; required by @Authenticated. */
