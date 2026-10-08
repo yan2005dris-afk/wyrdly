@@ -1,4 +1,4 @@
-import { useCallback, useState, type FC } from "react";
+import { useCallback, type FC } from "react";
 import type { CreatePostPayload } from "../types/feed";
 import { mapPostApiResponseToPost } from "../types/feed";
 import type { UserProfileSummary } from "../types/domain";
@@ -14,19 +14,9 @@ import {
   useOptimisticReaction,
 } from "../features/social";
 import { useMediaUpload } from "../hooks/useMediaUpload";
-import { Tabs, type TabItem } from "../components/ui/Tabs";
-
-type FeedFilter = "for_you" | "latest" | "relays";
-
-const FEED_FILTER_TABS: readonly TabItem<FeedFilter>[] = [
-  { id: "for_you", label: "For you (Graph Feed)" },
-  { id: "latest", label: "Latest" },
-  { id: "relays", label: "Relays near you" },
-];
 
 export const FeedPage: FC = () => {
   const { user } = useAuth();
-  const [activeFilter, setActiveFilter] = useState<FeedFilter>("for_you");
 
   const {
     suggestions: apiSuggestions,
@@ -107,15 +97,6 @@ export const FeedPage: FC = () => {
           uploadMedia={handleUploadMedia}
           isUploadingMedia={isUploadingMedia}
         />
-
-        <div className="py-2">
-          <Tabs<FeedFilter>
-            items={FEED_FILTER_TABS}
-            activeTab={activeFilter}
-            onChange={setActiveFilter}
-            variant="underline"
-          />
-        </div>
 
         <div className="flex flex-col gap-4">
           {isFeedLoading ? (

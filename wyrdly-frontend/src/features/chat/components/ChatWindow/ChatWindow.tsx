@@ -13,6 +13,7 @@ export const ChatWindow: FC<ChatWindowProps> = ({
   isLoadingMessages = false,
   isSending = false,
   onSendMessage,
+  onBack,
   onCallClick,
   onVideoClick,
   onOptionsClick,
@@ -36,6 +37,7 @@ export const ChatWindow: FC<ChatWindowProps> = ({
           conversation.typingStatus ||
           (conversation.isOnline ? "Online" : "Offline")
         }
+        onBack={onBack}
         onCallClick={onCallClick}
         onVideoClick={onVideoClick}
         onOptionsClick={onOptionsClick}

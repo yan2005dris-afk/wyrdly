@@ -40,6 +40,7 @@ describe("MainLayout Component", () => {
     expect(screen.getByTestId("view-profile-link")).toBeInTheDocument();
     expect(screen.queryByTestId("user-summary-stats")).not.toBeInTheDocument();
     expect(screen.getByTestId("sidebar-nav")).toBeInTheDocument();
+    expect(screen.getByTestId("bottom-nav")).toBeInTheDocument();
     expect(screen.getByTestId("test-child")).toHaveTextContent("Child Content");
   });
 
