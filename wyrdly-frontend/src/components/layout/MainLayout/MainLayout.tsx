@@ -129,9 +129,12 @@ export const MainLayout: FC<MainLayoutProps> = ({
     void markAllReadApi();
   }, [markAllReadApi]);
 
-  // Allow the popover to mark a single item read; currently the popover only
-  // exposes "mark all", but the hook API is here for future item-level clicks.
-  void markReadApi;
+  const handleNotificationClick = useCallback(
+    (id: string) => {
+      void markReadApi(id);
+    },
+    [markReadApi],
+  );
 
   return (
     <div
@@ -155,6 +158,11 @@ export const MainLayout: FC<MainLayoutProps> = ({
           <NotificationPopover
             notifications={notifications}
             onMarkAllAsRead={handleMarkAllRead}
+            onNotificationClick={handleNotificationClick}
+            onViewAllActivity={() => {
+              setIsNotificationsOpen(false);
+              navigate("/notifications");
+            }}
           />
         }
         onLogout={logout}
