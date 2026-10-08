@@ -71,7 +71,7 @@ describe("ProfilePage Component", () => {
     vi.mocked(usersApi.getUserFollowing).mockResolvedValue([]);
   });
 
-  it("renders profile header and post grid items without debug badges", async () => {
+  it("renders profile header and timeline post cards without debug badges", async () => {
     renderProfilePage();
 
     await waitFor(() => {
@@ -83,6 +83,7 @@ describe("ProfilePage Component", () => {
         screen.queryByTestId("cover-rustfs-badge"),
       ).not.toBeInTheDocument();
       expect(screen.getByTestId("profile-posts-grid")).toBeInTheDocument();
+      expect(screen.getByTestId("post-card-post-maya-1")).toBeInTheDocument();
       expect(
         screen.getByText("Night deploys hit different..."),
       ).toBeInTheDocument();
@@ -124,7 +125,7 @@ describe("ProfilePage Component", () => {
 
     expect(screen.getByTestId("profile-loading")).toBeInTheDocument();
     expect(screen.getByTestId("profile-header-skeleton")).toBeInTheDocument();
-    expect(screen.getAllByTestId("post-grid-item-skeleton")).toHaveLength(3);
+    expect(screen.getAllByTestId("post-skeleton")).toHaveLength(3);
   });
 
   it("renders post grid skeletons while user posts are loading", async () => {
@@ -134,7 +135,7 @@ describe("ProfilePage Component", () => {
     await waitFor(() => {
       expect(screen.getByTestId("profile-posts-loading")).toBeInTheDocument();
     });
-    expect(screen.getAllByTestId("post-grid-item-skeleton")).toHaveLength(6);
+    expect(screen.getAllByTestId("post-skeleton")).toHaveLength(3);
   });
 
   it("renders user row skeletons while followers are loading", async () => {
