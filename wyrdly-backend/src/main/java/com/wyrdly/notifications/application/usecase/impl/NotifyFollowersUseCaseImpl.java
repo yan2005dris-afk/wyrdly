@@ -9,9 +9,6 @@ import com.wyrdly.notifications.domain.model.Notification;
 import com.wyrdly.notifications.domain.model.PushMessage;
 import com.wyrdly.notifications.domain.model.PushTarget;
 import com.wyrdly.notifications.domain.repository.NotificationRepository;
-import com.wyrdly.user.domain.repository.UserProfileRepository;
-import com.wyrdly.user.domain.repository.UserProfileRepository.FollowerSummary;
-import com.wyrdly.user.infrastructure.qualifier.ResilientNeo4j;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.logging.Log;
@@ -21,7 +18,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -48,7 +44,6 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
   private final PushDispatcherPort dispatcher;
   private final NotificationBroadcasterPort broadcaster;
   private final NotificationRepository notificationRepository;
-  private final UserProfileRepository userProfileRepository;
   private final int batchSize;
   private final int maxRecipients;
   private final Counter completedCounter;
@@ -61,7 +56,6 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
       PushDispatcherPort dispatcher,
       NotificationBroadcasterPort broadcaster,
       NotificationRepository notificationRepository,
-      @ResilientNeo4j UserProfileRepository userProfileRepository,
       MeterRegistry meterRegistry,
       @ConfigProperty(name = "wyrdly.push.fanout.batch-size", defaultValue = "200") int batchSize,
       @ConfigProperty(name = "wyrdly.push.fanout.max-recipients", defaultValue = "10000")
@@ -77,8 +71,6 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
     this.broadcaster = Objects.requireNonNull(broadcaster, "broadcaster must not be null");
     this.notificationRepository =
         Objects.requireNonNull(notificationRepository, "notificationRepository must not be null");
-    this.userProfileRepository =
-        Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
     this.batchSize = batchSize;
     this.maxRecipients = maxRecipients;
     this.completedCounter = meterRegistry.counter(METRIC, "result", "completed");
@@ -91,8 +83,7 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
     Objects.requireNonNull(authorId, "authorId must not be null");
     Objects.requireNonNull(message, "message must not be null");
 
-    FollowerSummary authorSummary = resolveAuthorSummary(authorId);
-    NotificationDto.ActorDto authorActorDto = buildAuthorActorDto(authorId, authorSummary);
+    NotificationDto.ActorDto authorActorDto = buildAuthorActorDto(authorId, message);
     String postId = extractPostId(message);
 
     String cursor = "";
@@ -168,27 +159,13 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
     }
   }
 
-  private FollowerSummary resolveAuthorSummary(String authorId) {
-    try {
-      var actors = userProfileRepository.findProfileSummariesByIds(Set.of(authorId));
-      return actors.get(authorId);
-    } catch (RuntimeException lookupError) {
-      Log.warnf(lookupError, "Failed to resolve author summary for %s", authorId);
-      return null;
-    }
-  }
-
   private static NotificationDto.ActorDto buildAuthorActorDto(
-      String authorId, FollowerSummary authorSummary) {
-    if (authorSummary == null) {
-      return NotificationDto.ActorDto.placeholder(authorId);
+      String authorId, PushMessage message) {
+    String username = null;
+    if (message.data() != null && message.data().get("authorUsername") != null) {
+      username = String.valueOf(message.data().get("authorUsername"));
     }
-    return new NotificationDto.ActorDto(
-      authorSummary.id(),
-      authorSummary.username(),
-      authorSummary.fullName(),
-      authorSummary.avatarUrl(),
-      null);
+    return new NotificationDto.ActorDto(authorId, username, username, null, null);
   }
 
   private static String extractPostId(PushMessage message) {

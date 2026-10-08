@@ -47,7 +47,7 @@ class Neo4jPushAudienceQueryAdapterIT {
   }
 
   @Test
-  void returnsOnlySubscribedFollowersWithTheirSubscription() {
+  void returnsFollowersWithTheirSubscriptionIfPresent() {
     follower("u1", true);
     follower("u2", false);
     try (Session session = driver.session()) {
@@ -59,32 +59,34 @@ class Neo4jPushAudienceQueryAdapterIT {
       session.run("MATCH (a:Usuario {id: 'author'}) CREATE (a)-[:SIGUE]->(a)");
     }
 
-    List<PushTarget> result = adapter.findSubscribedFollowers("author", "", 100);
+    List<PushTarget> result = adapter.findAllFollowers("author", "", 100);
 
-    assertEquals(1, result.size());
-    PushTarget target = result.get(0);
-    assertEquals("u1", target.userId());
-    assertEquals("https://push/u1", target.subscription().endpoint());
-    assertEquals("p256dh-u1", target.subscription().p256dh());
-    assertEquals("auth-u1", target.subscription().auth());
+    assertEquals(2, result.size());
+    PushTarget u1 = result.stream().filter(t -> t.userId().equals("u1")).findFirst().orElseThrow();
+    assertEquals("https://push/u1", u1.subscription().endpoint());
+    assertEquals("p256dh-u1", u1.subscription().p256dh());
+    assertEquals("auth-u1", u1.subscription().auth());
+
+    PushTarget u2 = result.stream().filter(t -> t.userId().equals("u2")).findFirst().orElseThrow();
+    org.junit.jupiter.api.Assertions.assertNull(u2.subscription());
   }
 
   @Test
   void returnsEmptyWhenAuthorHasNoFollowersOrDoesNotExist() {
-    assertTrue(adapter.findSubscribedFollowers("author", "", 100).isEmpty());
-    assertTrue(adapter.findSubscribedFollowers("ghost", "", 100).isEmpty());
+    assertTrue(adapter.findAllFollowers("author", "", 100).isEmpty());
+    assertTrue(adapter.findAllFollowers("ghost", "", 100).isEmpty());
   }
 
   @Test
   void keysetPaginationVisitsEveryFollowerExactlyOnceInOrder() {
     for (int i = 0; i < 7; i++) {
-      follower("u" + i, true);
+      follower("u" + i, i % 2 == 0);
     }
 
     List<String> visited = new ArrayList<>();
     String cursor = "";
     while (true) {
-      List<PushTarget> page = adapter.findSubscribedFollowers("author", cursor, 3);
+      List<PushTarget> page = adapter.findAllFollowers("author", cursor, 3);
       if (page.isEmpty()) {
         break;
       }
@@ -93,21 +95,6 @@ class Neo4jPushAudienceQueryAdapterIT {
     }
 
     assertEquals(List.of("u0", "u1", "u2", "u3", "u4", "u5", "u6"), visited);
-  }
-
-  @Test
-  void findAllFollowersReturnsBothSubscribedAndUnsubscribed() {
-    follower("u1", true);
-    follower("u2", false);
-
-    List<PushTarget> result = adapter.findAllFollowers("author", "", 100);
-
-    assertEquals(2, result.size());
-    PushTarget t1 = result.stream().filter(t -> t.userId().equals("u1")).findFirst().orElseThrow();
-    assertEquals("https://push/u1", t1.subscription().endpoint());
-
-    PushTarget t2 = result.stream().filter(t -> t.userId().equals("u2")).findFirst().orElseThrow();
-    org.junit.jupiter.api.Assertions.assertNull(t2.subscription());
   }
 }
 

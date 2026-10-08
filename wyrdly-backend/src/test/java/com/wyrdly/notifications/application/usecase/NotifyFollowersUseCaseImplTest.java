@@ -47,13 +47,12 @@ class NotifyFollowersUseCaseImplTest {
           "Nueva publicación de alice",
           "hola",
           "/posts/pst_1",
-          Map.of("postId", "pst_1"));
+          Map.of("postId", "pst_1", "authorId", AUTHOR, "authorUsername", "alice"));
 
   private PushAudienceQueryPort audience;
   private PushDispatcherPort dispatcher;
   private NotificationBroadcasterPort broadcaster;
   private NotificationRepository notificationRepository;
-  private UserProfileRepository userProfileRepository;
   private MeterRegistry meterRegistry;
 
   @BeforeEach
@@ -62,14 +61,8 @@ class NotifyFollowersUseCaseImplTest {
     dispatcher = mock(PushDispatcherPort.class);
     broadcaster = mock(NotificationBroadcasterPort.class);
     notificationRepository = mock(NotificationRepository.class);
-    userProfileRepository = mock(UserProfileRepository.class);
     meterRegistry = new SimpleMeterRegistry();
     when(dispatcher.dispatchTo(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
-    when(userProfileRepository.findProfileSummariesByIds(Set.of(AUTHOR)))
-        .thenReturn(
-            Map.of(
-                AUTHOR,
-                new FollowerSummary(AUTHOR, "alice", "Alice Wonder", "https://avatar.png", false)));
   }
 
   private NotifyFollowersUseCaseImpl useCase(int batchSize, int maxRecipients) {
@@ -78,7 +71,6 @@ class NotifyFollowersUseCaseImplTest {
         dispatcher,
         broadcaster,
         notificationRepository,
-        userProfileRepository,
         meterRegistry,
         batchSize,
         maxRecipients);
@@ -136,7 +128,7 @@ class NotifyFollowersUseCaseImplTest {
     // SSE Broadcast for all 3
     ArgumentCaptor<NotificationDto> sseCaptor = ArgumentCaptor.forClass(NotificationDto.class);
     verify(broadcaster, times(3)).broadcast(anyString(), sseCaptor.capture());
-    assertEquals("Alice Wonder", sseCaptor.getAllValues().get(0).actor().fullName());
+    assertEquals("alice", sseCaptor.getAllValues().get(0).actor().fullName());
 
     // Push dispatched ONLY for the 2 subscribed users
     ArgumentCaptor<PushSubscription> subs = ArgumentCaptor.forClass(PushSubscription.class);

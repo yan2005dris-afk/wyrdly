@@ -4,22 +4,20 @@ import com.wyrdly.notifications.domain.model.PushTarget;
 import java.util.List;
 
 /**
- * Output port that resolves the push audience of a fan-out: the users that follow an author AND
- * have an active push subscription. Followers without a subscription never leave the database.
+ * Output port that resolves the audience of an author's post fan-out:
+ * all followers, attaching their active Web Push subscription if present.
  */
 public interface PushAudienceQueryPort {
 
   /**
-   * Returns up to {@code limit} subscribed followers of {@code authorId} whose id is strictly
-   * greater than {@code afterUserId}, ordered by user id (keyset pagination). Pass an empty string
-   * to start from the beginning; an empty list means the audience is exhausted. The author is never
-   * part of their own audience.
-   */
-  List<PushTarget> findSubscribedFollowers(String authorId, String afterUserId, int limit);
-
-  /**
    * Reads a keyset page of all followers of {@code authorId} (with or without active Web Push
    * subscription). If a follower has a valid push subscription, it is attached; otherwise null.
+   *
+   * @param authorId author user id
+   * @param afterUserId cursor for keyset pagination (strictly greater than)
+   * @param limit maximum number of recipients to fetch in this batch
+   * @return list of followers with their optional push subscription
    */
   List<PushTarget> findAllFollowers(String authorId, String afterUserId, int limit);
 }
+
