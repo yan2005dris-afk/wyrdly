@@ -113,7 +113,9 @@ export const ProfilePage: FC = () => {
     }
   }, [navigate, profile]);
 
-  if (isLoading) {
+  // Full-page skeleton only on first load. Background refetches
+  // (e.g. after follow/unfollow) keep the current content visible.
+  if (isLoading && !profile) {
     return (
       <div className="w-full flex flex-col gap-6" data-testid="profile-loading">
         <ProfileHeaderSkeleton />
@@ -229,13 +231,16 @@ export const ProfilePage: FC = () => {
           />
 
           {activeTab === "posts" && (
-            <PostsTab posts={posts} isLoading={postsLoading} />
+            <PostsTab
+              posts={posts}
+              isLoading={postsLoading && posts.length === 0}
+            />
           )}
 
           {activeTab === "followers" && (
             <FollowersOrFollowingTab
               users={followers}
-              isLoading={followersLoading}
+              isLoading={followersLoading && followers.length === 0}
               emptyMessage={`@${profile.username} has no followers yet`}
               testId="profile-followers-list"
               onAfterToggle={handleAfterToggle}
@@ -245,7 +250,7 @@ export const ProfilePage: FC = () => {
           {activeTab === "following" && (
             <FollowersOrFollowingTab
               users={following}
-              isLoading={followingLoading}
+              isLoading={followingLoading && following.length === 0}
               emptyMessage={`@${profile.username} isn't following anyone yet`}
               testId="profile-following-list"
               onAfterToggle={handleAfterToggle}
