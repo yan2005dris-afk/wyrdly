@@ -82,14 +82,7 @@ export const ProfilePage: FC = () => {
     } catch (err) {
       console.error("Failed to toggle follow", err);
     }
-  }, [
-    profile,
-    follow,
-    unfollow,
-    refetch,
-    refetchFollowers,
-    refetchFollowing,
-  ]);
+  }, [profile, follow, unfollow, refetch, refetchFollowers, refetchFollowing]);
 
   const handleSaveProfile = async (payload: UpdateProfilePayload) => {
     setIsSaving(true);
