@@ -7,7 +7,8 @@
  *  - `push` — decode JSON payload, render `showNotification` with title/body/icon/data,
  *    sync OS-level app badge, and broadcast event to open windows.
  *  - `notificationclick` — focus existing window on same origin or open target URL.
- *  - `pushsubscriptionchange` — re-subscribe silently and POST to backend.
+ *  - `pushsubscriptionchange` — re-subscribe silently and POST to backend. If non-2xx
+ *    or error, notify open windows via `push-subscription-change-failed`.
  */
 const VAPID_PUBLIC_KEY_URL = "/api/notifications/vapid-public-key";
 const SUBSCRIBE_URL = "/api/notifications/subscribe";
@@ -169,17 +170,29 @@ async function handleSubscriptionChange(event) {
         `VAPID public key fetch failed: ${response.status} ${response.statusText}`,
       );
     }
-    const vapidKey = (await response.text()).trim();
+    const { publicKey } = await response.json();
+    const vapidKey = String(publicKey || "").trim();
+    if (!vapidKey) {
+      throw new Error("VAPID public key was empty");
+    }
     const newSub = await self.registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey),
     });
-    await fetch(SUBSCRIBE_URL, {
+    // The SW has no access token, so this call usually ends in 401. A non-2xx
+    // response must reach the catch below so open pages re-subscribe instead
+    // of the subscription silently going stale.
+    const subscribeResponse = await fetch(SUBSCRIBE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newSub.toJSON ? newSub.toJSON() : newSub),
       credentials: "include",
     });
+    if (!subscribeResponse.ok) {
+      throw new Error(
+        `Subscription sync failed: ${subscribeResponse.status} ${subscribeResponse.statusText}`,
+      );
+    }
   } catch (err) {
     const clients = await self.clients.matchAll({
       type: "window",

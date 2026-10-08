@@ -6,54 +6,30 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.wyrdly.testsupport.Neo4jTestContainer;
 import com.wyrdly.user.application.dto.UserSearchResultDto;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Session;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.neo4j.Neo4jContainer;
 
-@Testcontainers
 class Neo4jUserSearchRepositoryAdapterIT {
 
-  @Container
-  static final Neo4jContainer NEO4J_CONTAINER =
-      new Neo4jContainer("neo4j:5.26-community").withoutAuthentication();
-
-  static Driver driver;
+  static final Driver driver = Neo4jTestContainer.driver();
 
   Neo4jUserSearchRepositoryAdapter adapter;
-
-  @BeforeAll
-  static void setUpDriver() {
-    driver = GraphDatabase.driver(NEO4J_CONTAINER.getBoltUrl(), AuthTokens.none());
-  }
-
-  @AfterAll
-  static void tearDownDriver() {
-    driver.close();
-  }
 
   @BeforeEach
   void setUp() {
     adapter = new Neo4jUserSearchRepositoryAdapter(driver);
   }
 
-  @AfterEach
+  @BeforeEach
   void cleanDatabase() {
-    try (Session session = driver.session()) {
-      session.run("MATCH (n) DETACH DELETE n");
-    }
+    Neo4jTestContainer.deleteAllData();
   }
 
   @Test
@@ -108,9 +84,9 @@ class Neo4jUserSearchRepositoryAdapterIT {
 
   @Test
   void findByText_returnsIsFollowingTrue_whenViewerFollowsUser() {
-    seedUser("usr_viewer", "viewer", "Viewer", null);
     seedUser("usr_alice", "alice", "Alice Chen", null);
     seedUser("usr_bob", "bob", "Bob Stone", null);
+    seedUser("usr_viewer", "viewer", "Viewer", null);
     createFollow("usr_viewer", "usr_bob");
 
     List<UserSearchResultDto> results = adapter.findByText("bob", "usr_viewer", 0, 20);
@@ -204,13 +180,13 @@ class Neo4jUserSearchRepositoryAdapterIT {
   void countByText_returnsCorrectTotal() {
     seedUser("usr_alice", "alice", "Alice Chen", null);
     seedUser("usr_alicia", "alicia", "Alicia Keys", null);
-    seedUser("usr_alfredo", "alfredo", "Alfredo", null);
+    // Matches through fullName only, not username.
+    seedUser("usr_rosa", "rosa", "Rosalia Vidal", null);
     seedUser("usr_bob", "bob", "Bob", null);
 
     int total = adapter.countByText("ali", "usr_viewer");
 
-    // "ali" matches alice and alicia; "alfredo"/"Alfredo" contains no "ali".
-    assertEquals(2, total);
+    assertEquals(3, total);
   }
 
   @Test
@@ -256,10 +232,17 @@ class Neo4jUserSearchRepositoryAdapterIT {
 
   private void createFollow(String followerId, String followingId) {
     try (Session session = driver.session()) {
-      session.run(
-          "MATCH (a:Usuario {id: $follower}), (b:Usuario {id: $following}) "
-              + "MERGE (a)-[:SIGUE {fecha: datetime()}]->(b)",
-          Map.of("follower", followerId, "following", followingId));
+      int created =
+          session
+              .run(
+                  "MATCH (a:Usuario {id: $follower}), (b:Usuario {id: $following}) "
+                      + "MERGE (a)-[r:SIGUE]->(b) ON CREATE SET r.createdAt = datetime()",
+                  Map.of("follower", followerId, "following", followingId))
+              .consume()
+              .counters()
+              .relationshipsCreated();
+      // Fail loudly on a missing user instead of silently seeding nothing.
+      assertEquals(1, created, "both users must be seeded before creating the follow");
     }
   }
 }

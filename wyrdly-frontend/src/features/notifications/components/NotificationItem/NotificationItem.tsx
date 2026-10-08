@@ -6,6 +6,7 @@ import {
   Repeat,
   UserPlus,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import type { NotificationItemProps } from "./NotificationItem.types";
 import type { NotificationType } from "../../types";

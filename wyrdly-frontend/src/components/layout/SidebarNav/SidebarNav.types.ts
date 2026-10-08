@@ -16,7 +16,5 @@ export interface SidebarNavProps {
   readonly unreadAlertsCount?: number;
   readonly onNewPostClick?: () => void;
   readonly onLogout?: () => void;
-  readonly connectedRelaysCount?: number;
-  readonly pingMs?: number;
   readonly className?: string;
 }

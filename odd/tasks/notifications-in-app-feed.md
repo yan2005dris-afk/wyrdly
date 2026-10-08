@@ -51,7 +51,7 @@ POST /api/notifications/mark-all-read ──► MarkAllNotificationsReadUseCase 
 ```
 
 - `:Notificacion` node con propiedades: `id`, `recipientUserId`, `type`, `actorId`, `title`, `body`, `deepLink`, `targetResourceId`, `isRead`, `createdAt`.
-- Migration `V005__add_notification_indexes.cypher` con constraint sobre `id` e index compuesto `(recipientUserId, createdAt)` para listar ordenado.
+- Migration `V101__add_notification_indexes.cypher` con constraint sobre `id` e index compuesto `(recipientUserId, createdAt)` para listar ordenado.
 - Lookup del actor (`:Usuario`) se hace vía JOIN en el adapter al listar; si el actor no existe, devuelve un placeholder `{id, username, fullName: "Someone", avatarUrl: null, instanceUrl: "", isVerified: false}`.
 
 ### 3.2 Frontend
@@ -84,7 +84,7 @@ MainLayout → useNotifications() ──► GET /api/notifications ──► sta
   - `notifications/domain/model/Notification.java` (record).
   - `notifications/domain/repository/NotificationRepository.java` (port).
   - `notifications/infrastructure/persistence/Neo4jNotificationRepositoryAdapter.java` con Cypher.
-  - `resources/neo4j/migrations/V005__add_notification_indexes.cypher`.
+  - `resources/neo4j/migrations/V101__add_notification_indexes.cypher`.
   - Tests: `Neo4jNotificationRepositoryIT` (integration test con Neo4j embebido o testcontainers).
 - [ ] **TASK-02 (use cases):**
   - `GetNotificationsForUserUseCase` + impl + test.
