@@ -54,6 +54,7 @@ const TYPE_CONFIG: Record<
 export const NotificationItem: FC<NotificationItemProps> = ({
   notification,
   onClick,
+  onDoubleClick,
   className = "",
 }) => {
   const config = TYPE_CONFIG[notification.type];
@@ -61,11 +62,12 @@ export const NotificationItem: FC<NotificationItemProps> = ({
   return (
     <div
       className={`${styles.item} ${!notification.isRead ? styles.itemUnread : ""} ${className}`}
-      onClick={() => onClick?.(notification.id)}
+      onClick={() => onClick?.(notification.id, notification)}
+      onDoubleClick={() => onDoubleClick?.(notification)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onClick?.(notification.id);
+          onClick?.(notification.id, notification);
         }
       }}
       role="button"

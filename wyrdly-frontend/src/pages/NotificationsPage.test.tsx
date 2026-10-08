@@ -1,10 +1,20 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NotificationsPage } from "./NotificationsPage";
 import { useNotifications } from "../features/notifications";
 import { useGraphSuggestions } from "../features/social";
+import { AuthProvider } from "../context/AuthContext";
+import { postsApi } from "../api/posts";
 import type { SocialNotification } from "../features/notifications";
+
+vi.mock("../api/posts", () => ({
+  postsApi: {
+    getById: vi.fn(),
+    react: vi.fn(),
+  },
+}));
 
 vi.mock("../features/notifications", async () => {
   const actual = await vi.importActual<
@@ -42,6 +52,7 @@ const mockNotifications: SocialNotification[] = [
     },
     message: "liked your post",
     targetSnippet: "Federated graph traversal",
+    targetResourceId: "pst_123",
     createdAt: "5m ago",
     isRead: false,
   },
@@ -69,10 +80,22 @@ const mockRefetch = vi.fn();
 const mockRefetchSuggestions = vi.fn();
 
 const renderPage = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
   return render(
-    <BrowserRouter>
-      <NotificationsPage />
-    </BrowserRouter>,
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <NotificationsPage />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </AuthProvider>,
   );
 };
 
@@ -141,13 +164,28 @@ describe("NotificationsPage Component", () => {
     expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
   });
 
-  it("calls markRead when an individual notification is clicked", () => {
+  it("calls markRead when an individual unread notification without targetResourceId is clicked", () => {
+    vi.mocked(useNotifications).mockReturnValue({
+      notifications: [
+        {
+          ...mockNotifications[1],
+          isRead: false,
+        },
+      ],
+      unreadCount: 1,
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+      markRead: mockMarkRead,
+      markAllRead: mockMarkAllRead,
+    });
+
     renderPage();
 
-    const notifItem = screen.getByTestId("notification-item-notif-1");
+    const notifItem = screen.getByTestId("notification-item-notif-2");
     fireEvent.click(notifItem);
 
-    expect(mockMarkRead).toHaveBeenCalledWith("notif-1");
+    expect(mockMarkRead).toHaveBeenCalledWith("notif-2");
   });
 
   it("renders loading skeletons when isLoading is true", () => {
@@ -233,5 +271,105 @@ describe("NotificationsPage Component", () => {
     const retryBtn = screen.getByTestId("retry-btn");
     fireEvent.click(retryBtn);
     expect(mockRefetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens PostDetailModal and marks notification as read when clicking a notification with targetResourceId", async () => {
+    vi.mocked(postsApi.getById).mockResolvedValueOnce({
+      id: "pst_123",
+      content: "Post content from notification",
+      mediaUrl: null,
+      createdAt: "2026-10-08T12:00:00Z",
+      author: {
+        id: "usr_alice",
+        username: "alice",
+        fullName: "Alice Chen",
+        avatarUrl: null,
+      },
+      reactionCounts: { likeCount: 2, loveCount: 0, celebrateCount: 0 },
+      userReaction: null,
+      commentsCount: 1,
+    });
+
+    renderPage();
+
+    const notifItem = screen.getByTestId("notification-item-notif-1");
+    fireEvent.click(notifItem);
+
+    expect(mockMarkRead).toHaveBeenCalledWith("notif-1");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-detail-modal")).toBeInTheDocument();
+      expect(
+        screen.getByText("Post content from notification"),
+      ).toBeInTheDocument();
+    });
+
+    // Close the modal
+    const closeBtn = screen.getByTestId("post-detail-modal-close");
+    fireEvent.click(closeBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("post-detail-modal")).not.toBeInTheDocument();
+    });
+  });
+
+  it("opens PostDetailModal when pressing Enter key on notification item", async () => {
+    vi.mocked(postsApi.getById).mockResolvedValueOnce({
+      id: "pst_123",
+      content: "Keyboard activated post",
+      mediaUrl: null,
+      createdAt: "2026-10-08T12:00:00Z",
+      author: {
+        id: "usr_alice",
+        username: "alice",
+        fullName: "Alice Chen",
+        avatarUrl: null,
+      },
+      reactionCounts: { likeCount: 0, loveCount: 0, celebrateCount: 0 },
+      userReaction: null,
+      commentsCount: 0,
+    });
+
+    renderPage();
+
+    const notifItem = screen.getByTestId("notification-item-notif-1");
+    fireEvent.keyDown(notifItem, { key: "Enter" });
+
+    expect(mockMarkRead).toHaveBeenCalledWith("notif-1");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-detail-modal")).toBeInTheDocument();
+      expect(screen.getByText("Keyboard activated post")).toBeInTheDocument();
+    });
+  });
+
+  it("opens PostDetailModal on notification double click", async () => {
+    vi.mocked(postsApi.getById).mockResolvedValueOnce({
+      id: "pst_123",
+      content: "Double click post",
+      mediaUrl: null,
+      createdAt: "2026-10-08T12:00:00Z",
+      author: {
+        id: "usr_alice",
+        username: "alice",
+        fullName: "Alice Chen",
+        avatarUrl: null,
+      },
+      reactionCounts: { likeCount: 0, loveCount: 0, celebrateCount: 0 },
+      userReaction: null,
+      commentsCount: 0,
+    });
+
+    renderPage();
+
+    const notifItem = screen.getByTestId("notification-item-notif-1");
+    fireEvent.doubleClick(notifItem);
+
+    expect(mockMarkRead).toHaveBeenCalledWith("notif-1");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-detail-modal")).toBeInTheDocument();
+      expect(screen.getByText("Double click post")).toBeInTheDocument();
+    });
   });
 });

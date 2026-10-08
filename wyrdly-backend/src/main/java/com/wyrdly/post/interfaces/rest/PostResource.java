@@ -5,6 +5,7 @@ import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.post.application.dto.ReactPostRequest;
 import com.wyrdly.post.application.dto.ReactPostResponse;
 import com.wyrdly.post.application.usecase.CreatePostUseCase;
+import com.wyrdly.post.application.usecase.GetPostUseCase;
 import com.wyrdly.post.application.usecase.ReactToPostUseCase;
 import com.wyrdly.post.domain.model.ReactionResult;
 import io.micrometer.core.annotation.Timed;
@@ -13,6 +14,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -32,17 +34,20 @@ public class PostResource {
 
   private final CreatePostUseCase createPostUseCase;
   private final ReactToPostUseCase reactToPostUseCase;
+  private final GetPostUseCase getPostUseCase;
   private final JsonWebToken jwt;
 
   @Inject
   public PostResource(
       CreatePostUseCase createPostUseCase,
       ReactToPostUseCase reactToPostUseCase,
+      GetPostUseCase getPostUseCase,
       JsonWebToken jwt) {
     this.createPostUseCase =
         Objects.requireNonNull(createPostUseCase, "createPostUseCase must not be null");
     this.reactToPostUseCase =
         Objects.requireNonNull(reactToPostUseCase, "reactToPostUseCase must not be null");
+    this.getPostUseCase = Objects.requireNonNull(getPostUseCase, "getPostUseCase must not be null");
     this.jwt = Objects.requireNonNull(jwt, "jwt must not be null");
   }
 
@@ -79,5 +84,14 @@ public class PostResource {
     String userId = jwt.getSubject();
     ReactionResult result = reactToPostUseCase.react(userId, postId, request.type());
     return new ReactPostResponse(result.status(), result.reactionType(), result.totalReactions());
+  }
+
+  @GET
+  @Path("/{postId}")
+  @Authenticated
+  public Response getPost(@PathParam("postId") String postId) {
+    String userId = jwt.getSubject();
+    PostResponse response = getPostUseCase.getPost(userId, postId);
+    return Response.ok(response).build();
   }
 }

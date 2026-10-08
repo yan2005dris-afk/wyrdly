@@ -9,6 +9,7 @@ import {
 import { GraphSuggestionsCard, useGraphSuggestions } from "../features/social";
 import { Button } from "../components/ui/Button";
 import { Tabs, type TabItem } from "../components/ui/Tabs";
+import { PostDetailModal } from "../components/common/PostDetailModal";
 
 type NotificationFilter = "all" | "unread";
 
@@ -52,6 +53,8 @@ function normalizeNotification(
 
 export const NotificationsPage: FC = () => {
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>("all");
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
   const {
     notifications,
@@ -62,6 +65,21 @@ export const NotificationsPage: FC = () => {
     markRead,
     markAllRead,
   } = useNotifications();
+
+  const handleNotificationInteract = (notification: SocialNotification) => {
+    if (!notification.isRead) {
+      void markRead(notification.id);
+    }
+    if (notification.targetResourceId) {
+      setSelectedPostId(notification.targetResourceId);
+      setIsPostModalOpen(true);
+    }
+  };
+
+  const handleClosePostModal = () => {
+    setIsPostModalOpen(false);
+    setSelectedPostId(null);
+  };
 
   const {
     suggestions,
@@ -226,7 +244,8 @@ export const NotificationsPage: FC = () => {
               <NotificationItem
                 key={notif.id}
                 notification={notif}
-                onClick={(id) => void markRead(id)}
+                onClick={(_id, n) => handleNotificationInteract(n ?? notif)}
+                onDoubleClick={(n) => handleNotificationInteract(n)}
               />
             ))}
           </div>
@@ -243,6 +262,13 @@ export const NotificationsPage: FC = () => {
           }}
         />
       </aside>
+
+      {/* Post Detail Modal */}
+      <PostDetailModal
+        postId={selectedPostId}
+        isOpen={isPostModalOpen}
+        onClose={handleClosePostModal}
+      />
     </div>
   );
 };

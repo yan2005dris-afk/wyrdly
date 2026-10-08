@@ -18,4 +18,5 @@ export interface PostCardProps {
    * Driven by useReaction.isPending(postId) in FeedPage.
    */
   readonly isReactionPending?: boolean;
+  readonly defaultCommentsOpen?: boolean;
 }

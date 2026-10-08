@@ -59,6 +59,13 @@ export const postsApi = {
     return response.data;
   },
 
+  async getById(postId: string): Promise<PostApiResponse> {
+    const response = await apiClient.get<PostApiResponse>(
+      `/api/posts/${postId}`,
+    );
+    return response.data;
+  },
+
   async getFeed(
     pageOrOptions?: number | GetFeedOptions,
     pageSizeArg?: number,

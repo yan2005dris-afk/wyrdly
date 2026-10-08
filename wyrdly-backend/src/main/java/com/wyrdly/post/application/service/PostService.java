@@ -4,9 +4,12 @@ import com.wyrdly.post.application.dto.CreatePostRequest;
 import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.post.application.dto.PostResponse.AuthorDto;
 import com.wyrdly.post.application.usecase.CreatePostUseCase;
+import com.wyrdly.post.application.usecase.GetPostUseCase;
 import com.wyrdly.post.domain.event.PostPublishedEvent;
+import com.wyrdly.post.domain.exception.PostNotFoundException;
 import com.wyrdly.post.domain.exception.PostValidationException;
 import com.wyrdly.post.domain.model.Author;
+import com.wyrdly.post.domain.model.FeedPost;
 import com.wyrdly.post.domain.model.Post;
 import com.wyrdly.post.domain.repository.AuthorRepository;
 import com.wyrdly.post.domain.repository.PostRepository;
@@ -19,7 +22,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 @ApplicationScoped
-public class PostService implements CreatePostUseCase {
+public class PostService implements CreatePostUseCase, GetPostUseCase {
 
   private final PostRepository postRepository;
   private final AuthorRepository authorRepository;
@@ -73,5 +76,27 @@ public class PostService implements CreatePostUseCase {
         new PostResponse.ReactionCounts(0, 0, 0),
         0L,
         null);
+  }
+
+  @Override
+  public PostResponse getPost(String userId, String postId) {
+    FeedPost feedPost =
+        postRepository
+            .findFeedPostById(postId, userId)
+            .orElseThrow(() -> new PostNotFoundException("Post not found: " + postId));
+    return new PostResponse(
+        feedPost.id(),
+        feedPost.content(),
+        feedPost.mediaUrl(),
+        feedPost.createdAt(),
+        new AuthorDto(
+            feedPost.author().id(),
+            feedPost.author().username(),
+            feedPost.author().fullName(),
+            feedPost.author().avatarUrl()),
+        new PostResponse.ReactionCounts(
+            feedPost.likeCount(), feedPost.loveCount(), feedPost.celebrateCount()),
+        feedPost.commentsCount(),
+        feedPost.userReaction());
   }
 }

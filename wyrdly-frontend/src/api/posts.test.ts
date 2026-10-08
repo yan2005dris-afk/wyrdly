@@ -205,3 +205,19 @@ describe("postsApi.react (HU09)", () => {
     expect(result.totalReactions).toBe(0);
   });
 });
+
+describe("postsApi.getById", () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+  });
+
+  it("calls GET /api/posts/{postId} and returns the data", async () => {
+    mockedGet.mockResolvedValueOnce({ data: successResponse });
+
+    const result = await postsApi.getById("post-abc");
+
+    expect(mockedGet).toHaveBeenCalledTimes(1);
+    expect(mockedGet).toHaveBeenCalledWith("/api/posts/post-abc");
+    expect(result).toEqual(successResponse);
+  });
+});

@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import com.wyrdly.post.application.dto.CreatePostRequest;
 import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.post.domain.event.PostPublishedEvent;
+import com.wyrdly.post.domain.exception.PostNotFoundException;
 import com.wyrdly.post.domain.exception.PostPersistenceException;
 import com.wyrdly.post.domain.exception.PostValidationException;
 import com.wyrdly.post.domain.model.Author;
@@ -199,5 +200,45 @@ class PostServiceTest {
     assertNotNull(response1.id());
     assertNotNull(response2.id());
     assertNotEquals(response1.id(), response2.id());
+  }
+
+  @Test
+  void getPost_ReturnsPostResponse_WhenPostExists() {
+    String userId = "usr_123";
+    String postId = "pst_abc";
+    com.wyrdly.post.domain.model.FeedPost feedPost =
+        new com.wyrdly.post.domain.model.FeedPost(
+            postId,
+            "Sample content",
+            null,
+            java.time.Instant.now(),
+            sampleAuthor("usr_author"),
+            10L,
+            5L,
+            2L,
+            4L,
+            "LIKE");
+
+    when(postRepository.findFeedPostById(postId, userId)).thenReturn(Optional.of(feedPost));
+
+    PostResponse response = postService.getPost(userId, postId);
+
+    assertNotNull(response);
+    assertEquals(postId, response.id());
+    assertEquals("Sample content", response.content());
+    assertEquals("testuser", response.author().username());
+    assertEquals(10L, response.reactionCounts().likeCount());
+    assertEquals(4L, response.commentsCount());
+    assertEquals("LIKE", response.userReaction());
+  }
+
+  @Test
+  void getPost_ThrowsPostNotFoundException_WhenPostDoesNotExist() {
+    String userId = "usr_123";
+    String postId = "pst_missing";
+
+    when(postRepository.findFeedPostById(postId, userId)).thenReturn(Optional.empty());
+
+    assertThrows(PostNotFoundException.class, () -> postService.getPost(userId, postId));
   }
 }
