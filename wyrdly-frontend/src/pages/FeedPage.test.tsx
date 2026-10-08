@@ -508,4 +508,16 @@ describe("FeedPage Component", () => {
     expect(screen.getByTestId("graph-suggestions-loading")).toBeInTheDocument();
     expect(screen.getAllByTestId("user-list-row-skeleton")).toHaveLength(3);
   });
+
+  it("does not render mock relay health widget or telemetry", async () => {
+    renderFeedPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("feed-page")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("relay-health-widget")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Relay health/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/federating with/i)).not.toBeInTheDocument();
+  });
 });
