@@ -1,0 +1,73 @@
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+}
+
+.authorName {
+  font-weight: 700;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.authorName:hover {
+  color: #4f46e5;
+}
+
+.authorHandle {
+  color: #94a3b8;
+}
+
+.timestamp {
+  font-size: 0.625rem;
+  color: #94a3b8;
+}
+
+.content {
+  font-size: 0.75rem;
+  color: #334155;
+  line-height: 1.4;
+  margin: 0.25rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.delete {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  transition:
+    color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out;
+}
+
+.delete:hover {
+  color: #e11d48;
+  background-color: #fef2f2;
+}
+
+.delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
