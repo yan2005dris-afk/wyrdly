@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usersApi } from "../../../api/users";
 import type { PostApiResponse } from "../../../types/feed";
 
 interface UseUserPostsReturn {
   readonly posts: readonly PostApiResponse[];
   readonly isLoading: boolean;
+  readonly isRefreshing: boolean;
   readonly error: string | null;
   readonly refetch: () => void;
 }
@@ -33,21 +34,29 @@ export function useUserPosts(
 ): UseUserPostsReturn {
   const [posts, setPosts] = useState<readonly PostApiResponse[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(username));
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const hasDataRef = useRef(false);
 
   const fetchPosts = useCallback(async () => {
     if (!username) {
       setPosts([]);
       setIsLoading(false);
+      setIsRefreshing(false);
       return;
     }
 
-    setIsLoading(true);
+    if (hasDataRef.current) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
       const data = await usersApi.getUserPosts(username, params);
       setPosts(data);
+      hasDataRef.current = true;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load posts";
@@ -55,6 +64,7 @@ export function useUserPosts(
       setPosts([]);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [username, params]);
 
@@ -70,6 +80,7 @@ export function useUserPosts(
         const data = await usersApi.getUserPosts(username, params);
         if (!isCancelled) {
           setPosts(data);
+          hasDataRef.current = true;
           setError(null);
         }
       } catch (err) {
@@ -93,5 +104,5 @@ export function useUserPosts(
     };
   }, [username, params]);
 
-  return { posts, isLoading, error, refetch: fetchPosts };
+  return { posts, isLoading, isRefreshing, error, refetch: fetchPosts };
 }
