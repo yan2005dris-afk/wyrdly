@@ -134,4 +134,14 @@ describe("CreatePostCard Component", () => {
     const indicator = screen.getByTestId("uploading-indicator");
     expect(indicator).toHaveTextContent(/uploading/i);
   });
+
+  it("renders Media button without internal S3 RustFS storage badge", () => {
+    render(<CreatePostCard onPublish={vi.fn()} />);
+
+    const mediaBtn = screen.getByTestId("add-media-btn");
+    expect(mediaBtn).toHaveTextContent("Media");
+    expect(mediaBtn).not.toHaveTextContent(/S3/i);
+    expect(mediaBtn).not.toHaveTextContent(/RustFS/i);
+    expect(screen.queryByText(/S3 • RustFS/i)).not.toBeInTheDocument();
+  });
 });
