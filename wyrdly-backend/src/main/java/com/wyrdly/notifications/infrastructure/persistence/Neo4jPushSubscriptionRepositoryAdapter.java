@@ -83,4 +83,20 @@ public class Neo4jPushSubscriptionRepositoryAdapter implements PushSubscriptionR
       session.run(CYPHER_DELETE, Values.parameters("userId", userId));
     }
   }
+
+  @Override
+  public long countActive() {
+    try (Session session = driver.session()) {
+      Result result =
+          session.run(
+              "MATCH (u:Usuario) WHERE u.pushEndpoint IS NOT NULL AND u.pushEndpoint <> '' RETURN"
+                  + " count(u) AS active");
+      if (result.hasNext()) {
+        return result.single().get("active").asLong(0L);
+      }
+      return 0L;
+    } catch (Exception e) {
+      return 0L;
+    }
+  }
 }

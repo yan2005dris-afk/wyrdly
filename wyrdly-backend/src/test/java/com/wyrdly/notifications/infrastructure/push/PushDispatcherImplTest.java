@@ -185,6 +185,89 @@ class PushDispatcherImplTest {
         authz.contains(",k="), "Authorization must include the public key ',k=' got: " + authz);
   }
 
+  @Test
+  void reportsActiveSubscriptionsGauge() {
+    when(subscriptionRepository.countActive()).thenReturn(7L);
+    assertEquals(7.0, meterRegistry.find("wyrdly.push.subscriptions").gauge().value());
+  }
+
+  @Test
+  void recordsDurationAndBytesMetricsOnSuccess() throws Exception {
+    String userId = "usr_metrics";
+    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(201);
+
+    double beforeOk = counterValue("result", "ok");
+    dispatcher.dispatch(newEvent(userId));
+
+    awaitCounterIncrease("result", "ok", beforeOk, 1);
+    assertNotNull(
+        meterRegistry
+            .find("wyrdly.push.dispatch.duration")
+            .tag("type", "POST_LIKE")
+            .tag("result", "ok")
+            .timer());
+    assertNotNull(
+        meterRegistry.find("wyrdly.push.dispatch.bytes").tag("type", "POST_LIKE").summary());
+  }
+
+  @Test
+  void rateLimitsRapidPushesToSameRecipient() throws Exception {
+    String userId = "usr_storm";
+    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(201);
+
+    double beforeOk = counterValue("result", "ok");
+    double beforeRateLimited = counterValue("result", "rate_limited");
+
+    // Send 100 rapid pushes to the same recipient in a tight loop
+    for (int i = 0; i < 100; i++) {
+      dispatcher.dispatch(newEvent(userId));
+    }
+
+    awaitCounterIncrease("result", "ok", beforeOk, 1);
+    awaitCounterIncrease("result", "rate_limited", beforeRateLimited, 99);
+
+    // Verify gateway client was only invoked once for this recipient
+    verify(gatewayClient, times(1)).post(any(URI.class), any(byte[].class), anyMap());
+  }
+
+  @Test
+  void rateLimitsWhenGlobalCapacityExceeded() {
+    PushDispatcherImpl customDispatcher =
+        new PushDispatcherImpl(
+            vapidKeyProvider,
+            subscriptionRepository,
+            gatewayClient,
+            new com.fasterxml.jackson.databind.ObjectMapper(),
+            meterRegistry,
+            "mailto:ops@wyrdly.com",
+            1,
+            10,
+            10, // global rate limit = 10
+            0); // recipient rate limit disabled
+
+    double before = counterValue("result", "rate_limited");
+    for (int i = 0; i < 25; i++) {
+      customDispatcher.dispatch(newEvent("usr_global_" + i));
+    }
+    assertEquals(before + 15, counterValue("result", "rate_limited"), 0.0);
+    customDispatcher.shutdown();
+  }
+
+  @Test
+  void incrementsNetworkErrorCounterOnConnectionFailure() throws Exception {
+    String userId = "usr_neterr";
+    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap()))
+        .thenThrow(new java.io.IOException("Connection refused"));
+
+    double before = counterValue("result", "network_error");
+    dispatcher.dispatch(newEvent(userId));
+
+    awaitCounterIncrease("result", "network_error", before, 1);
+  }
+
   // ---- helpers ------------------------------------------------------------
 
   private static PushEvent newEvent(String userId) {
@@ -228,16 +311,9 @@ class PushDispatcherImplTest {
   }
 
   private double counterValue(String resultTag, String resultValue) {
-    Counter counter =
-        meterRegistry
-            .find("wyrdly.push.dispatch")
-            .tags(
-                "result",
-                resultTag.equals("result") ? resultValue : resultTag,
-                "result",
-                resultValue)
-            .counter();
-    return counter == null ? 0.0 : counter.count();
+    return meterRegistry.find("wyrdly.push.dispatch").tag("result", resultValue).counters().stream()
+        .mapToDouble(Counter::count)
+        .sum();
   }
 
   /**
@@ -246,8 +322,7 @@ class PushDispatcherImplTest {
   private void awaitCounterIncrease(String tag, String value, double before, double delta)
       throws InterruptedException {
     for (int i = 0; i < 500; i++) {
-      double now =
-          meterRegistry.find("wyrdly.push.dispatch").tag("result", value).counter().count();
+      double now = counterValue(tag, value);
       if (now >= before + delta) return;
       Thread.sleep(20);
     }
@@ -259,7 +334,7 @@ class PushDispatcherImplTest {
             + " (before="
             + before
             + ", now="
-            + meterRegistry.find("wyrdly.push.dispatch").tag("result", value).counter().count()
+            + counterValue(tag, value)
             + ")");
   }
 
