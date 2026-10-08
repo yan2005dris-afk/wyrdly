@@ -189,9 +189,21 @@ describe("FeedPage Component", () => {
 
     expect(screen.getByTestId("feed-page")).toBeInTheDocument();
     expect(screen.getByTestId("create-post-card")).toBeInTheDocument();
-    expect(screen.getByText("For you (Graph Feed)")).toBeInTheDocument();
     // The feed starts empty — no PostCards rendered yet.
     expect(screen.queryAllByTestId(/^post-card-/)).toHaveLength(0);
+  });
+
+  it("does not render dead-end filter tabs (unified feed without unsupported tabs)", async () => {
+    renderFeedPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("feed-page")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("tabs-container")).not.toBeInTheDocument();
+    expect(screen.queryByText("For you (Graph Feed)")).not.toBeInTheDocument();
+    expect(screen.queryByText("Latest")).not.toBeInTheDocument();
+    expect(screen.queryByText("Relays near you")).not.toBeInTheDocument();
   });
 
   it("publishes a new post to the timeline after a successful createPost call", async () => {
