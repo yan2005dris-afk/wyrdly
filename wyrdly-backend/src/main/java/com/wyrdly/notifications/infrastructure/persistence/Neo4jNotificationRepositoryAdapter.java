@@ -131,9 +131,12 @@ public class Neo4jNotificationRepositoryAdapter implements NotificationRepositor
   @Override
   public long countTotal(String recipientUserId) {
     try (Session session = driver.session()) {
-      Result result =
-          session.run(CYPHER_COUNT_TOTAL, Values.parameters("recipientUserId", recipientUserId));
-      return result.single().get("total").asLong(0L);
+      return session.executeRead(
+          tx -> {
+            Result result =
+                tx.run(CYPHER_COUNT_TOTAL, Values.parameters("recipientUserId", recipientUserId));
+            return result.single().get("total").asLong(0L);
+          });
     }
   }
 
