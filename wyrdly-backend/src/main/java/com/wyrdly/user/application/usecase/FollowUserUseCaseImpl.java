@@ -31,9 +31,11 @@ public class FollowUserUseCaseImpl implements FollowUserUseCase {
     }
 
     repository.validateUserExists(targetUserId);
-    repository.followUser(userId, targetUserId);
+    boolean created = repository.followUser(userId, targetUserId);
 
-    if (followEvent != null) {
+    // Only a real state change is announced: a repeated follow (stale UI, second tab, retry)
+    // must not push another "new follower" notification.
+    if (created && followEvent != null) {
       followEvent.fire(new UserFollowRelationshipChangedEvent(userId, targetUserId, true));
     }
 

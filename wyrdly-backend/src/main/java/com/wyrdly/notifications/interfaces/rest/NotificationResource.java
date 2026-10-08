@@ -1,9 +1,11 @@
 package com.wyrdly.notifications.interfaces.rest;
 
+import com.wyrdly.notifications.application.dto.NotificationDto;
 import com.wyrdly.notifications.application.dto.NotificationListResponseDto;
 import com.wyrdly.notifications.application.dto.SubscribeRequestDto;
 import com.wyrdly.notifications.application.dto.SubscribeResponseDto;
 import com.wyrdly.notifications.application.dto.VapidPublicKeyResponseDto;
+import com.wyrdly.notifications.application.port.NotificationBroadcasterPort;
 import com.wyrdly.notifications.application.usecase.GetNotificationsForUserUseCase;
 import com.wyrdly.notifications.application.usecase.MarkAllNotificationsReadUseCase;
 import com.wyrdly.notifications.application.usecase.MarkNotificationReadUseCase;
@@ -11,6 +13,7 @@ import com.wyrdly.notifications.application.usecase.SubscribeToPushUseCase;
 import com.wyrdly.notifications.application.usecase.UnsubscribeFromPushUseCase;
 import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
 import io.quarkus.security.Authenticated;
+import io.smallrye.mutiny.Multi;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
@@ -25,6 +28,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.jboss.resteasy.reactive.RestStreamElementType;
 
 /**
  * REST surface for the notifications bounded context.
@@ -55,6 +59,7 @@ public class NotificationResource {
   private final GetNotificationsForUserUseCase getNotificationsUseCase;
   private final MarkNotificationReadUseCase markReadUseCase;
   private final MarkAllNotificationsReadUseCase markAllReadUseCase;
+  private final NotificationBroadcasterPort broadcaster;
   private final JsonWebToken jwt;
 
   @Inject
@@ -65,6 +70,7 @@ public class NotificationResource {
       GetNotificationsForUserUseCase getNotificationsUseCase,
       MarkNotificationReadUseCase markReadUseCase,
       MarkAllNotificationsReadUseCase markAllReadUseCase,
+      NotificationBroadcasterPort broadcaster,
       JsonWebToken jwt) {
     this.vapidKeyProvider = vapidKeyProvider;
     this.subscribeUseCase = subscribeUseCase;
@@ -72,6 +78,7 @@ public class NotificationResource {
     this.getNotificationsUseCase = getNotificationsUseCase;
     this.markReadUseCase = markReadUseCase;
     this.markAllReadUseCase = markAllReadUseCase;
+    this.broadcaster = broadcaster;
     this.jwt = jwt;
   }
 
@@ -130,6 +137,16 @@ public class NotificationResource {
     String userId = currentUserId();
     long updated = markAllReadUseCase.execute(userId);
     return Response.ok(java.util.Map.of("updated", updated)).build();
+  }
+
+  @GET
+  @Path("/stream")
+  @Produces(MediaType.SERVER_SENT_EVENTS)
+  @RestStreamElementType(MediaType.APPLICATION_JSON)
+  @Authenticated
+  public Multi<NotificationDto> stream() {
+    String userId = currentUserId();
+    return broadcaster.subscribe(userId);
   }
 
   private String currentUserId() {

@@ -8,7 +8,6 @@ import {
   PostCard,
   PostCardSkeleton,
   GraphSuggestionsCard,
-  RelayHealthWidget,
   useGraphSuggestions,
   useCreatePost,
   useFeed,
@@ -158,7 +157,6 @@ export const FeedPage: FC = () => {
           isLoading={isSuggestionsLoading}
           onAfterToggle={handleAfterToggle}
         />
-        <RelayHealthWidget />
       </aside>
     </div>
   );

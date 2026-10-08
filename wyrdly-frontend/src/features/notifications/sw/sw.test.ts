@@ -360,7 +360,10 @@ describe("service worker handlers", () => {
     const subscribe = vi.fn().mockResolvedValue(newSub);
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve("AQID") })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ publicKey: "AQID" }),
+      })
       .mockResolvedValueOnce({ ok: true });
 
     (globalThis as unknown as { fetch: unknown }).fetch = fetchMock;
@@ -413,6 +416,65 @@ describe("service worker handlers", () => {
     expect(postMessage).toHaveBeenCalledTimes(1);
     const payload = postMessage.mock.calls[0]?.[0] as { type: string };
     expect(payload.type).toBe("push-subscription-change-failed");
+  });
+
+  it("handleSubscriptionChange notifies clients when the backend rejects the new subscription (401)", async () => {
+    const sw = await loadSW();
+    const postMessage = vi.fn();
+    const subscribe = vi.fn().mockResolvedValue({
+      toJSON: () => ({ endpoint: "https://push.example.com/new" }),
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ publicKey: "AQID" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+      });
+
+    (globalThis as unknown as { fetch: unknown }).fetch = fetchMock;
+    (globalThis as unknown as { self: unknown }).self = {
+      clients: { matchAll: vi.fn().mockResolvedValue([{ postMessage }]) },
+      registration: { pushManager: { subscribe } },
+      location: { origin: "https://app.wyrdly.com" },
+    };
+
+    await sw.handleSubscriptionChange({});
+
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    const payload = postMessage.mock.calls[0]?.[0] as {
+      type: string;
+      error: string;
+    };
+    expect(payload.type).toBe("push-subscription-change-failed");
+    expect(payload.error).toContain("401");
+  });
+
+  it("handleSubscriptionChange notifies clients and skips subscribe when the VAPID key is empty", async () => {
+    const sw = await loadSW();
+    const postMessage = vi.fn();
+    const subscribe = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ publicKey: "" }),
+    });
+
+    (globalThis as unknown as { fetch: unknown }).fetch = fetchMock;
+    (globalThis as unknown as { self: unknown }).self = {
+      clients: { matchAll: vi.fn().mockResolvedValue([{ postMessage }]) },
+      registration: { pushManager: { subscribe } },
+      location: { origin: "https://app.wyrdly.com" },
+    };
+
+    await sw.handleSubscriptionChange({});
+
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(postMessage).toHaveBeenCalledTimes(1);
   });
 
   it("handleInstall calls self.skipWaiting when available", async () => {

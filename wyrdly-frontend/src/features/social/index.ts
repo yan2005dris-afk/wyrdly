@@ -11,8 +11,6 @@ export { UserSearchResultCard } from "./components/UserSearchResultCard";
 export type { UserSearchResultCardProps } from "./components/UserSearchResultCard";
 export { UserSummaryCard } from "./components/UserSummaryCard";
 export type { UserSummaryCardProps } from "./components/UserSummaryCard";
-export { RelayHealthWidget } from "./components/RelayHealthWidget";
-export type { RelayHealthWidgetProps } from "./components/RelayHealthWidget";
 
 // Hooks
 export { useFeed } from "./hooks/useFeed";
