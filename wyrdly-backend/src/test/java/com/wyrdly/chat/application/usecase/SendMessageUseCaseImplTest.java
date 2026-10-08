@@ -10,10 +10,13 @@ import static org.mockito.Mockito.when;
 
 import com.wyrdly.chat.application.dto.MessageResponse;
 import com.wyrdly.chat.application.port.FollowValidationPort;
+import com.wyrdly.chat.domain.event.DirectMessageSentEvent;
 import com.wyrdly.chat.domain.exception.InvalidMessageException;
 import com.wyrdly.chat.domain.exception.UsersNotFollowingException;
 import com.wyrdly.chat.domain.model.DirectMessage;
 import com.wyrdly.chat.domain.repository.DirectMessageRepository;
+import jakarta.enterprise.event.Event;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -30,6 +33,9 @@ class SendMessageUseCaseImplTest {
     sendMessageUseCase = new SendMessageUseCaseImpl();
     sendMessageUseCase.directMessageRepository = directMessageRepository;
     sendMessageUseCase.followValidationPort = followValidationPort;
+    sendMessageUseCase.messageSentEvent = mock(Event.class);
+    when(sendMessageUseCase.messageSentEvent.fireAsync(any(DirectMessageSentEvent.class)))
+        .thenReturn(CompletableFuture.completedFuture(null));
   }
 
   @Test
@@ -49,6 +55,7 @@ class SendMessageUseCaseImplTest {
     assertNotNull(response.getSentAt());
 
     verify(directMessageRepository).save(any(DirectMessage.class));
+    verify(sendMessageUseCase.messageSentEvent).fireAsync(any(DirectMessageSentEvent.class));
   }
 
   @Test
