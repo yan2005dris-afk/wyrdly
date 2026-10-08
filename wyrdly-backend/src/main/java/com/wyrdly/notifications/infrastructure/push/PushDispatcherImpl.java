@@ -53,6 +53,8 @@ public class PushDispatcherImpl implements PushDispatcherPort {
 
   private static final Logger LOG = Logger.getLogger(PushDispatcherImpl.class.getName());
 
+  private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
+
   private final VapidKeyProvider vapidKeyProvider;
   private final PushSubscriptionRepositoryPort subscriptionRepository;
   private final PushGatewayClientPort gatewayClient;
@@ -120,16 +122,23 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   public void shutdown() {
     executor.shutdown();
     try {
-      if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+      if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
         executor.shutdownNow();
+        if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+          LOG.log(Level.WARNING, "push-dispatcher executor did not terminate");
+        }
       }
     } catch (InterruptedException e) {
       executor.shutdownNow();
       Thread.currentThread().interrupt();
+      try {
+        executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
-  @Override
   public void dispatch(PushEvent event) {
     if (event == null) {
       return;

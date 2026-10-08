@@ -24,6 +24,6 @@ vapid/
 # Local tooling artifacts (not for committing)
 .atl/
 .codegraph/
-.archify/
+.claude/
 e2e-report.*
 reports/

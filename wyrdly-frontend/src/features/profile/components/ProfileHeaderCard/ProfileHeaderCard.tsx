@@ -4,7 +4,6 @@ import {
   Link as LinkIcon,
   Calendar,
   Server,
-  Cloud,
   CheckCircle,
   MessageSquare,
   Bell,
@@ -102,10 +101,6 @@ export const ProfileHeaderCard: FC<ProfileHeaderCardProps> = ({
             className={styles.coverImage}
           />
         )}
-        <span className={styles.rustfsBadge} data-testid="cover-rustfs-badge">
-          <Cloud className="w-3 h-3 text-indigo-400" />
-          <span>Cover stored on RustFS</span>
-        </span>
       </div>
 
       <div className={styles.body}>

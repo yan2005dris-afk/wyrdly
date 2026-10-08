@@ -11,7 +11,7 @@ import { Search } from "lucide-react";
 import { userSearchApi } from "../api/userSearch";
 import type { UserSearchResponse } from "../types/userSearch";
 import { Input } from "../components/ui/Input";
-import { UserSearchResultCard } from "../features/social";
+import { UserSearchResultCard, useFollow } from "../features/social";
 
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;
@@ -134,20 +134,45 @@ export const ExplorePage: FC = () => {
     [draftQuery, urlQuery, setSearchParams],
   );
 
+  const { follow, unfollow } = useFollow();
+  const [followFeedback, setFollowFeedback] = useState<string | null>(null);
+
   const handleFollowToggle = useCallback(
-    (userId: string) => {
-      // Optimistic update via reducer — we can't easily call setResponse here
-      // since we migrated to useReducer. We dispatch a synthetic action instead.
+    async (userId: string) => {
       if (!response) return;
+      const targetUser = response.data.find((u) => u.id === userId);
+      if (!targetUser) return;
+
+      const nextIsFollowing = !targetUser.isFollowing;
       const next: UserSearchResponse = {
         ...response,
         data: response.data.map((u) =>
-          u.id === userId ? { ...u, isFollowing: !u.isFollowing } : u,
+          u.id === userId ? { ...u, isFollowing: nextIsFollowing } : u,
         ),
       };
       dispatch({ type: "fetch/success", response: next });
+
+      try {
+        if (nextIsFollowing) {
+          await follow(userId);
+          setFollowFeedback(`Siguiendo a @${targetUser.username}`);
+        } else {
+          await unfollow(userId);
+          setFollowFeedback(`Dejaste de seguir a @${targetUser.username}`);
+        }
+        setTimeout(() => setFollowFeedback(null), 3000);
+      } catch (err) {
+        const rollback: UserSearchResponse = {
+          ...response,
+          data: response.data.map((u) =>
+            u.id === userId ? { ...u, isFollowing: targetUser.isFollowing } : u,
+          ),
+        };
+        dispatch({ type: "fetch/success", response: rollback });
+        console.error("Failed to toggle follow", err);
+      }
     },
-    [response],
+    [response, follow, unfollow],
   );
 
   const trimmed = urlQuery.trim();
@@ -186,6 +211,24 @@ export const ExplorePage: FC = () => {
           data-testid="explore-search-input"
         />
       </form>
+
+      {followFeedback && (
+        <div
+          className="w-full max-w-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 rounded-lg text-sm flex items-center justify-between"
+          role="status"
+          data-testid="explore-follow-feedback-banner"
+        >
+          <span>{followFeedback}</span>
+          <button
+            type="button"
+            onClick={() => setFollowFeedback(null)}
+            className="text-emerald-600 hover:text-emerald-800 font-bold ml-2 text-base leading-none"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {showMinHint && (
         <p className="text-sm text-amber-600" data-testid="explore-min-hint">

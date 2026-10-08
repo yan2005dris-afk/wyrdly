@@ -149,6 +149,9 @@ describe("EditProfileModal Component", () => {
 
     await waitFor(() => {
       expect(uploadAvatar).toHaveBeenCalledWith(testFile);
+      expect(
+        screen.getByTestId("edit-profile-avatar-success"),
+      ).toHaveTextContent("Photo uploaded successfully!");
     });
 
     const submitBtn = screen.getByTestId("edit-profile-save");

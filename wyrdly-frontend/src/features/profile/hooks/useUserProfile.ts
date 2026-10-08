@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   usersApi,
   type UserProfileApiResponse,
@@ -9,6 +9,7 @@ import type { UserProfileSummary } from "../../../types/domain";
 interface UseUserProfileReturn {
   readonly profile: UserProfileSummary | null;
   readonly isLoading: boolean;
+  readonly isRefreshing: boolean;
   readonly error: string | null;
   readonly updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
   readonly refetch: () => void;
@@ -44,21 +45,29 @@ export function useUserProfile(
 ): UseUserProfileReturn {
   const [profile, setProfile] = useState<UserProfileSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(username));
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const hasDataRef = useRef(false);
 
   const fetchProfile = useCallback(async () => {
     if (!username) {
       setProfile(null);
       setIsLoading(false);
+      setIsRefreshing(false);
       return;
     }
 
-    setIsLoading(true);
+    if (hasDataRef.current) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
       const data = await usersApi.getProfile(username);
       setProfile(mapApiResponseToSummary(data));
+      hasDataRef.current = true;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load profile";
@@ -66,6 +75,7 @@ export function useUserProfile(
       setProfile(null);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [username]);
 
@@ -81,6 +91,7 @@ export function useUserProfile(
         const data = await usersApi.getProfile(username);
         if (!isCancelled) {
           setProfile(mapApiResponseToSummary(data));
+          hasDataRef.current = true;
           setError(null);
         }
       } catch (err) {
@@ -109,6 +120,7 @@ export function useUserProfile(
     try {
       const data = await usersApi.updateProfile(payload);
       setProfile(mapApiResponseToSummary(data));
+      hasDataRef.current = true;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to update profile";
@@ -117,5 +129,12 @@ export function useUserProfile(
     }
   }, []);
 
-  return { profile, isLoading, error, updateProfile, refetch: fetchProfile };
+  return {
+    profile,
+    isLoading,
+    isRefreshing,
+    error,
+    updateProfile,
+    refetch: fetchProfile,
+  };
 }
