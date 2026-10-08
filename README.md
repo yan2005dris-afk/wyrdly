@@ -51,12 +51,19 @@ El nombre **Wyrd** viene del inglés antiguo y significa "el tejido del destino"
 - **Almacenamiento de Objetos (RustFS):** Servidor de almacenamiento en Rust compatible con AWS S3 API para subida y entrega de avatares, fotos y videos.
 - **Frontend (React + Vite):** Interfaz desacoplada con gestión de estado, suscripción a Service Worker para notificaciones push y cliente de chat reactivo.
 
+> 📊 **Diagramas Interactivos (Archify):** Visualización interactiva del flujo distribuido del sistema con trazabilidad de eventos, temas claro/oscuro y visualización por capas:
+> - **[Arquitectura de Plataforma Wyrdly](./docs/architecture/wyrdly-platform.html)**
+> - **[Flujo de Comunicación entre Servicios](./docs/architecture/service-communication.html)**
+> - **[Build Archify (.archify)](./.archify/architecture-wyrdly-distributed-social-network-20261007-212630/wyrdly-distributed-social-network.html)**
+
 ---
 
 ## 📚 Documentación del Proyecto
 
 Toda la especificación técnica y de negocio se encuentra en el directorio [`docs/`](./docs):
 
+- **[Diagramas Interactivos de Arquitectura (Archify)](./docs/architecture/wyrdly-platform.html):** Gráficos interactivos de flujo y arquitectura con animación de trazas y visualización dinámica.
+- **[Guía de Despliegue Local](./docs/deployment/LOCAL_DEPLOYMENT.md):** Manual paso a paso para levantar el entorno distribuido local con Docker Compose o en modo desarrollo híbrido.
 - **[PRD (Product Requirements Document)](./docs/prd/PRD.md) | [PRD.docx](./docs/prd/PRD.docx):** Matriz de requerimientos, alcance y desglose de Historias de Usuario (HU01 - HU11) con criterios de aceptación Gherkin.
 - **[TRD (Technical Requirements Document)](./docs/trd/TRD.md) | [TRD.docx](./docs/trd/TRD.docx):** Decisiones de arquitectura, topología de servicios Docker y justificaciones técnicas.
 - **[Contratos de API](./docs/api-contracts/API_CONTRACT.md) | [API_CONTRACT.docx](./docs/api-contracts/API_CONTRACT.docx):** Especificación completa de endpoints REST, payloads JSON con envoltorio `data`/`meta`, frames WebSocket y eventos Web Push.
@@ -64,6 +71,23 @@ Toda la especificación técnica y de negocio se encuentra en el directorio [`do
 - **[Mockups Interactivos (HTML)](./docs/MOCKUPS/html/index.html):** Prototipos visuales de autenticación, feed, perfil, chat y notificaciones.
 - **[Runbook Operativo: Web Push (VAPID)](./docs/operations/WEB_PUSH.md):** Guía de operaciones para rotación de claves VAPID, troubleshooting 410, pruebas locales y mitigación de caídas.
 - **[Guía de Observabilidad y Métricas](./docs/observability/OBSERVABILITY.md):** Catálogo de métricas Prometheus/Micrometer y dashboards recomendados de Grafana.
+
+---
+
+## ⚡ Despliegue Local Rápido (Docker Compose)
+
+Para levantar todos los servicios en local con una sola orden:
+
+```bash
+# 1. Configurar variables de entorno y claves JWT
+cp .env.example .env
+./scripts/generate-jwt-keys.sh ./jwt
+
+# 2. Iniciar contenedores en segundo plano
+docker compose up -d --build
+```
+
+> Consulta la **[Guía de Despliegue Local](./docs/deployment/LOCAL_DEPLOYMENT.md)** para detalles completos, credenciales pre-cargadas (seed data), modo desarrollo híbrido (Quarkus Dev + Vite HMR) y resolución de problemas.
 
 ---
 
