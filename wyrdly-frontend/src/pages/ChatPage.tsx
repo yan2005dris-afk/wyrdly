@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, type FC } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  type FC,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
 import type {
@@ -6,6 +13,7 @@ import type {
   ChatMessage,
   MessageResponse,
 } from "../features/chat";
+import { useUnreadMessagesStore } from "../features/chat";
 import { useAuth } from "../features/auth";
 import { usersApi } from "../api/users";
 import {
@@ -34,17 +42,43 @@ export const ChatPage: FC = () => {
   const [messages, setMessages] = useState<readonly ChatMessage[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
+  const errorTimeoutRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (errorTimeoutRef.current !== null) {
+        window.clearTimeout(errorTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  const handleDismissError = useCallback(() => {
+    if (errorTimeoutRef.current !== null) {
+      window.clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+    }
+    setChatError(null);
+  }, []);
 
   const handleChatError = useCallback((errMsg: string) => {
     setChatError(errMsg);
+    // Every message still in flight failed, not just the last one:
+    // with a flaky connection several SENT messages can be pending.
     setMessages((prev) =>
-      prev.map((m, idx) =>
-        idx === prev.length - 1 && m.deliveryStatus === "SENT"
-          ? { ...m, deliveryStatus: "FAILED" }
+      prev.map((m) =>
+        m.deliveryStatus === "SENDING" || m.deliveryStatus === "SENT"
+          ? { ...m, deliveryStatus: "FAILED" as const }
           : m,
       ),
     );
-    setTimeout(() => setChatError(null), 5000);
+    if (errorTimeoutRef.current !== null) {
+      window.clearTimeout(errorTimeoutRef.current);
+    }
+    errorTimeoutRef.current = window.setTimeout(() => {
+      errorTimeoutRef.current = null;
+      setChatError(null);
+    }, 5000);
   }, []);
 
   const directTargetConv: ChatConversation | null = useMemo(() => {
@@ -167,6 +201,13 @@ export const ChatPage: FC = () => {
 
       setMessages((prev) => [...prev, newMsg]);
 
+      // Mirror the per-conversation badge into the global sidebar counter,
+      // except when the message arrived in the conversation being viewed.
+      const incomingConvId = `conv-${incoming.senderId}`;
+      useUnreadMessagesStore
+        .getState()
+        .registerIncoming(incomingConvId, incomingConvId === activeConvId);
+
       setConversations((prev) =>
         prev.map((c) =>
           c.participant.id === incoming.senderId
@@ -181,6 +222,11 @@ export const ChatPage: FC = () => {
     },
     [activeConvId],
   );
+
+  // Opening (or switching to) a conversation clears its sidebar badge.
+  useEffect(() => {
+    useUnreadMessagesStore.getState().markConversationRead(activeConvId);
+  }, [activeConvId]);
 
   const { sendMessage } = useChatWebSocket({
     token,
@@ -294,7 +340,7 @@ export const ChatPage: FC = () => {
             <span>{chatError}</span>
             <button
               type="button"
-              onClick={() => setChatError(null)}
+              onClick={handleDismissError}
               className="text-rose-500 hover:text-rose-700 font-bold ml-2 leading-none"
               aria-label="Cerrar"
             >
