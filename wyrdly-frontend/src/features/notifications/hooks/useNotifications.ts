@@ -161,6 +161,22 @@ export const useNotifications = (
       navigator.serviceWorker.addEventListener("message", handleSwMessage);
     }
 
+    // 3. Fallback: when the tab becomes visible again, revalidate so any
+    // push that arrived while the tab was in background (and was therefore
+    // throttled out of the BroadcastChannel / postMessage delivery path)
+    // is reconciled with the authoritative server state. This guarantees
+    // the in-app list converges even if the SW → tab bridge dropped a
+    // message.
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" &&
+          document.visibilityState === "visible") {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
     return () => {
       if (broadcastChannel) {
         broadcastChannel.close();
@@ -168,8 +184,41 @@ export const useNotifications = (
       if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
         navigator.serviceWorker.removeEventListener("message", handleSwMessage);
       }
+      if (typeof document !== "undefined") {
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
+      }
     };
   }, [enabled, queryClient, queryKey]);
+
+  // Sync the OS-level app badge (the favicon counter shown by the UA) with
+  // the authoritative unreadCount. The SW may have set a stale value when
+  // the push was first delivered; the page is the source of truth and
+  // reconciles on every state change. When the hook is disabled (e.g. on
+  // logout) the badge is cleared so it does not leak across sessions.
+  // Gated by isLoading so the initial mount (when unreadCount is 0 because
+  // data is still undefined) does not briefly clear the badge and cause a
+  // visible flicker.
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    const nav = navigator as Navigator & {
+      setAppBadge?: (count?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    if (typeof nav.setAppBadge !== "function") return;
+    if (!enabled) {
+      void nav.clearAppBadge?.().catch(() => undefined);
+      return;
+    }
+    if (isLoading) return;
+    if (unreadCount > 0) {
+      void nav.setAppBadge(unreadCount).catch(() => undefined);
+    } else {
+      void nav.clearAppBadge?.().catch(() => undefined);
+    }
+  }, [enabled, unreadCount, isLoading]);
 
   const markReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {

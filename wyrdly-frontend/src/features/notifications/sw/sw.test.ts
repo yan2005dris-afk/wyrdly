@@ -147,6 +147,97 @@ describe("service worker handlers", () => {
     ];
     expect(options.body).toBe("raw text");
   });
+
+  it("handlePush syncs the OS-level app badge with the visible notification count", async () => {
+    const sw = await loadSW();
+    const showNotification = vi.fn().mockResolvedValue(undefined);
+    const setAppBadge = vi.fn().mockResolvedValue(undefined);
+    const clearAppBadge = vi.fn().mockResolvedValue(undefined);
+    const getNotifications = vi.fn().mockResolvedValue([{}, {}]);
+    const matchAll = vi.fn().mockResolvedValue([]);
+
+    (globalThis as unknown as { registration: unknown }).registration = {
+      showNotification,
+      getNotifications,
+    };
+    (globalThis as unknown as { self: unknown }).self = {
+      ...globalThis,
+      navigator: { setAppBadge, clearAppBadge },
+      clients: { matchAll },
+    };
+
+    const event = {
+      data: {
+        json: () => ({ title: "X", body: "Y", data: { type: "POST_LIKE" } }),
+      },
+    };
+
+    await sw.handlePush(event);
+
+    expect(showNotification).toHaveBeenCalledTimes(1);
+    expect(getNotifications).toHaveBeenCalledTimes(1);
+    // 2 currently visible notifications in the registration → badge = 2.
+    expect(setAppBadge).toHaveBeenCalledWith(2);
+    expect(clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it("handlePush clears the OS-level app badge when no notifications are visible", async () => {
+    const sw = await loadSW();
+    const showNotification = vi.fn().mockResolvedValue(undefined);
+    const setAppBadge = vi.fn().mockResolvedValue(undefined);
+    const clearAppBadge = vi.fn().mockResolvedValue(undefined);
+    const getNotifications = vi.fn().mockResolvedValue([]);
+    const matchAll = vi.fn().mockResolvedValue([]);
+
+    (globalThis as unknown as { registration: unknown }).registration = {
+      showNotification,
+      getNotifications,
+    };
+    (globalThis as unknown as { self: unknown }).self = {
+      ...globalThis,
+      navigator: { setAppBadge, clearAppBadge },
+      clients: { matchAll },
+    };
+
+    const event = {
+      data: {
+        json: () => ({ title: "X", body: "Y" }),
+      },
+    };
+
+    await sw.handlePush(event);
+
+    expect(setAppBadge).not.toHaveBeenCalled();
+    expect(clearAppBadge).toHaveBeenCalledTimes(1);
+  });
+
+  it("handlePush silently skips badge updates when the UA does not expose setAppBadge", async () => {
+    const sw = await loadSW();
+    const showNotification = vi.fn().mockResolvedValue(undefined);
+    const getNotifications = vi.fn().mockResolvedValue([{}, {}, {}]);
+    const matchAll = vi.fn().mockResolvedValue([]);
+
+    (globalThis as unknown as { registration: unknown }).registration = {
+      showNotification,
+      getNotifications,
+    };
+    // No navigator.setAppBadge on this UA (Safari iOS pre-16.4, some Firefox builds).
+    (globalThis as unknown as { self: unknown }).self = {
+      ...globalThis,
+      navigator: {},
+      clients: { matchAll },
+    };
+
+    const event = {
+      data: {
+        json: () => ({ title: "X", body: "Y" }),
+      },
+    };
+
+    // Must not throw even though the badge API is missing.
+    await expect(sw.handlePush(event)).resolves.toBeUndefined();
+    expect(showNotification).toHaveBeenCalledTimes(1);
+  });
   it("broadcastPushReceived notifies BroadcastChannel and clients.matchAll", async () => {
     const sw = await loadSW();
     const postMessageClient = vi.fn();

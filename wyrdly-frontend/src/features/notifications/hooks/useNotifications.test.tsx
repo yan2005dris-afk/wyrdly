@@ -68,7 +68,13 @@ const createWrapper = () => {
 
 describe("useNotifications", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // resetAllMocks (not clearAllMocks) so that any values queued via
+    // .mockResolvedValueOnce in a previous test do not bleed into the
+    // current one. clearAllMocks only wipes call history; the
+    // once-queue survives and the next call to apiClient.get returns
+    // a stale payload (typically unreadCount=2 from the optimistic
+    // test) instead of the response this test set up.
+    vi.resetAllMocks();
   });
 
   afterEach(() => {
@@ -395,6 +401,120 @@ describe("useNotifications", () => {
       (
         globalThis as unknown as { BroadcastChannel: unknown }
       ).BroadcastChannel = origBroadcastChannel;
+    }
+  });
+
+  it("syncs the OS-level app badge with the unread count", async () => {
+    mockedGet.mockResolvedValue({ data: baseResponse });
+
+    const setAppBadge = vi.fn().mockResolvedValue(undefined);
+    const clearAppBadge = vi.fn().mockResolvedValue(undefined);
+    const origNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        ...origNavigator,
+        setAppBadge,
+        clearAppBadge,
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      const { result, unmount } = renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
+      // baseResponse has unreadCount: 1 — wait for the badge to be set
+      // with the authoritative count rather than racing the render.
+      await waitFor(() => {
+        expect(setAppBadge).toHaveBeenCalledWith(1);
+      });
+      expect(result.current.unreadCount).toBe(1);
+      expect(clearAppBadge).not.toHaveBeenCalled();
+      unmount();
+    } finally {
+      Object.defineProperty(globalThis, "navigator", {
+        value: origNavigator,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it("clears the OS-level app badge when unreadCount drops to zero", async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: { ...baseResponse, unreadCount: 0 },
+    });
+
+    const setAppBadge = vi.fn().mockResolvedValue(undefined);
+    const clearAppBadge = vi.fn().mockResolvedValue(undefined);
+    const origNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        ...origNavigator,
+        setAppBadge,
+        clearAppBadge,
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      const { result, unmount } = renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
+      // unreadCount starts at 0 (data undefined), so we cannot gate on
+      // that value alone — it would resolve before the first fetch
+      // settles. Instead, wait for the effect to run by asserting on
+      // the badge mock directly.
+      await waitFor(() => {
+        expect(clearAppBadge).toHaveBeenCalled();
+      });
+      expect(result.current.unreadCount).toBe(0);
+      expect(setAppBadge).not.toHaveBeenCalled();
+      unmount();
+    } finally {
+      Object.defineProperty(globalThis, "navigator", {
+        value: origNavigator,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it("refetches when the tab becomes visible again (catches up on backgrounded pushes)", async () => {
+    mockedGet.mockResolvedValue({ data: baseResponse });
+
+    // Force visibilityState to "visible" so the handler triggers.
+    const origDescriptor = Object.getOwnPropertyDescriptor(
+      document,
+      "visibilityState",
+    );
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+
+    try {
+      renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockedGet).toHaveBeenCalledTimes(1);
+
+      // Simulate the tab returning to foreground after being backgrounded
+      // while a push arrived. The hook must reconcile immediately.
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        await Promise.resolve();
+      });
+      expect(mockedGet).toHaveBeenCalledTimes(2);
+    } finally {
+      if (origDescriptor) {
+        Object.defineProperty(document, "visibilityState", origDescriptor);
+      }
     }
   });
 });

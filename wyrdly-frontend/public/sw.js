@@ -119,6 +119,33 @@ async function handlePush(event) {
     data: payload.data || {},
   };
   await self.registration.showNotification(title, options);
+
+  // Update the OS-level app badge. This path does NOT depend on the tab
+  // being controlled, focused, or even alive: setAppBadge is a UA-level
+  // surface, so it works even when clients.matchAll() returns [] because
+  // the SW was just woken up from a stopped state and the controller
+  // relationship is being re-established. The page-side hook will
+  // reconcile the badge with the authoritative unreadCount once the tab
+  // becomes active again.
+  if (
+    self.registration &&
+    typeof self.registration.getNotifications === "function" &&
+    self.navigator &&
+    typeof self.navigator.setAppBadge === "function"
+  ) {
+    try {
+      const visible = await self.registration.getNotifications();
+      const unread = visible.length;
+      if (unread > 0) {
+        await self.navigator.setAppBadge(unread);
+      } else if (typeof self.navigator.clearAppBadge === "function") {
+        await self.navigator.clearAppBadge();
+      }
+    } catch (_err) {
+      /* setAppBadge unsupported on this UA */
+    }
+  }
+
   await broadcastPushReceived(payload);
 }
 
