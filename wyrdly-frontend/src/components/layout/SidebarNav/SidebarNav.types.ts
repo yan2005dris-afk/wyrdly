@@ -1,12 +1,7 @@
 import type { ReactNode } from "react";
 
 export type NavItemId =
-  | "feed"
-  | "explore"
-  | "messages"
-  | "profile"
-  | "notifications"
-  | "alerts";
+  "feed" | "explore" | "messages" | "profile" | "notifications" | "alerts";
 
 export interface NavItemConfig {
   readonly id: NavItemId;

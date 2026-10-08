@@ -24,7 +24,9 @@ describe("SidebarNav Component", () => {
     );
 
     expect(screen.getByTestId("nav-badge-messages")).toHaveTextContent("4");
-    expect(screen.getByTestId("nav-badge-notifications")).toHaveTextContent("9+");
+    expect(screen.getByTestId("nav-badge-notifications")).toHaveTextContent(
+      "9+",
+    );
   });
 
   it("renders New Post button and fires callback on click", () => {
