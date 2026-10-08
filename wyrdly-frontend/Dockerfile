@@ -16,6 +16,10 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ARG VITE_BACKEND_URL="http://localhost:8080"
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+ARG VITE_WS_URL="ws://localhost:8080"
+ENV VITE_WS_URL=$VITE_WS_URL
 RUN pnpm run build
 
 # Stage 2: Serve with Unprivileged Nginx Alpine (Rootless)
