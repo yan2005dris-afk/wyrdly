@@ -131,10 +131,20 @@ export const MainLayout: FC<MainLayoutProps> = ({
   }, [markAllReadApi]);
 
   const handleNotificationClick = useCallback(
-    (id: string) => {
+    (id: string, notification?: SocialNotification) => {
       void markReadApi(id);
+
+      const target = notification ?? notifications.find((n) => n.id === id);
+      if (target?.type === "CHAT_MESSAGE" && target.actor) {
+        setIsNotificationsOpen(false);
+        const params = new URLSearchParams({
+          userId: target.actor.id,
+          username: target.actor.username,
+        });
+        navigate(`/chat?${params.toString()}`);
+      }
     },
-    [markReadApi],
+    [markReadApi, notifications, navigate],
   );
 
   return (
