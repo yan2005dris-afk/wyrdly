@@ -51,9 +51,7 @@ public class GetNotificationsForUserUseCaseImpl implements GetNotificationsForUs
     List<Notification> notifications =
         notificationRepository.findByRecipient(userId, safePage, safeSize);
     long unreadCount = notificationRepository.countUnread(userId);
-    long total =
-        notifications.size()
-            + (long) safePage * safeSize; // best-effort; replace with count query if needed
+    long total = notificationRepository.countTotal(userId);
 
     Set<String> actorIds = new HashSet<>();
     for (Notification n : notifications) {
