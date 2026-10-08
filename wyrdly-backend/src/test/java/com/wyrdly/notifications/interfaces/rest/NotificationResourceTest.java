@@ -83,6 +83,29 @@ class NotificationResourceTest {
   }
 
   @Test
+  void subscribeAcceptsBrowserPayloadWithExpirationTime() {
+    String userId = "usr_abc";
+    when(subscribeUseCase.subscribe(eq(userId), any(SubscribeRequestDto.class)))
+        .thenReturn(SubscribeResponseDto.subscribed());
+
+    given()
+        .auth()
+        .oauth2(jwtFor(userId))
+        .contentType(ContentType.JSON)
+        .body(
+            "{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/abc\","
+                + "\"expirationTime\":null,"
+                + "\"keys\":{\"p256dh\":\"mocked-p256dh-for-test\",\"auth\":\"mocked-auth-for-test\"}}")
+        .when()
+        .post("/api/notifications/subscribe")
+        .then()
+        .statusCode(200)
+        .body("status", equalTo("SUBSCRIBED"));
+
+    verify(subscribeUseCase, times(1)).subscribe(eq(userId), any(SubscribeRequestDto.class));
+  }
+
+  @Test
   void subscribeRejectsMissingEndpoint() {
     given()
         .auth()
