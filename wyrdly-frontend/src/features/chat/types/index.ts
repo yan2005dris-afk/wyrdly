@@ -4,7 +4,8 @@ import type {
   UserProfileSummary,
 } from "../../../types/domain";
 
-export type DeliveryStatus = "SENDING" | "SENT" | "DELIVERED" | "READ";
+export type DeliveryStatus =
+  "SENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED";
 
 export interface ChatMessage {
   readonly id: string;

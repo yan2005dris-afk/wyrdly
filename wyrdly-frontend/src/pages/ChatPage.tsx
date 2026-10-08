@@ -33,6 +33,19 @@ export const ChatPage: FC = () => {
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<readonly ChatMessage[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  const handleChatError = useCallback((errMsg: string) => {
+    setChatError(errMsg);
+    setMessages((prev) =>
+      prev.map((m, idx) =>
+        idx === prev.length - 1 && m.deliveryStatus === "SENT"
+          ? { ...m, deliveryStatus: "FAILED" }
+          : m,
+      ),
+    );
+    setTimeout(() => setChatError(null), 5000);
+  }, []);
 
   const directTargetConv: ChatConversation | null = useMemo(() => {
     if (!queryUserId) return null;
@@ -172,6 +185,7 @@ export const ChatPage: FC = () => {
   const { sendMessage } = useChatWebSocket({
     token,
     onMessageReceived: handleIncomingMessage,
+    onError: handleChatError,
   });
 
   // Fetch real chat history if recipient exists (sorted chronologically)
@@ -270,7 +284,24 @@ export const ChatPage: FC = () => {
         />
       </div>
 
-      <div className="lg:col-span-7 h-full overflow-hidden">
+      <div className="lg:col-span-7 h-full overflow-hidden flex flex-col">
+        {chatError && (
+          <div
+            className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-2.5 rounded-lg text-sm mb-3 flex items-center justify-between shrink-0"
+            role="alert"
+            data-testid="chat-error-banner"
+          >
+            <span>{chatError}</span>
+            <button
+              type="button"
+              onClick={() => setChatError(null)}
+              className="text-rose-500 hover:text-rose-700 font-bold ml-2 leading-none"
+              aria-label="Cerrar"
+            >
+              ×
+            </button>
+          </div>
+        )}
         {activeConversation ? (
           <ChatWindow
             conversation={activeConversation}
