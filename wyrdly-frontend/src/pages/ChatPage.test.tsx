@@ -4,6 +4,7 @@ import {
   fireEvent,
   waitFor,
   act,
+  within,
 } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
@@ -354,6 +355,13 @@ describe("ChatPage Component", () => {
     });
 
     expect(useUnreadMessagesStore.getState().totalUnread).toBe(1);
+    const messagesThread = screen.getByTestId("chat-messages-thread");
+    expect(
+      within(messagesThread).queryByText("Hey from background"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("unread-badge-conv-user-jonas"),
+    ).toHaveTextContent("1");
 
     act(() => {
       hookOptions.onMessageReceived?.({
@@ -366,6 +374,59 @@ describe("ChatPage Component", () => {
     });
 
     expect(useUnreadMessagesStore.getState().totalUnread).toBe(1);
+    expect(
+      within(messagesThread).getByText("Hey from active chat"),
+    ).toBeInTheDocument();
+    useUnreadMessagesStore.getState().resetAll();
+  });
+
+  it("does not leak messages from background conversations into active chat window", async () => {
+    vi.spyOn(usersApi, "getUserFollowing").mockResolvedValue(MOCK_FOLLOWING);
+    vi.spyOn(chatApi, "getChatHistory").mockResolvedValue({
+      data: [],
+      page: 1,
+      pageSize: 50,
+      total: 0,
+    });
+    vi.spyOn(chatApi, "getUserStatus").mockResolvedValue({
+      userId: "user-alice",
+      isOnline: true,
+    });
+
+    renderChatPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-messages-empty")).toBeInTheDocument();
+    });
+    await act(async () => {});
+
+    // Active conversation is Alice. Receive message from Jonas.
+    const calls = vi.mocked(useChatWebSocket).mock.calls;
+    const hookOptions = calls[calls.length - 1][0];
+
+    act(() => {
+      hookOptions.onMessageReceived?.({
+        id: "m-leak-test",
+        senderId: "user-jonas",
+        recipientId: "user-current",
+        content: "Confidential message for someone else",
+        sentAt: "2026-10-08T15:00:00Z",
+      });
+    });
+
+    // Message must NOT appear in the active chat thread
+    const thread = screen.getByTestId("chat-messages-thread");
+    expect(
+      within(thread).queryByText("Confidential message for someone else"),
+    ).not.toBeInTheDocument();
+    // Empty state should still be present in active conversation
+    expect(screen.getByTestId("chat-messages-empty")).toBeInTheDocument();
+
+    // Jonas' conversation preview and unread count in background should be updated
+    expect(
+      screen.getByTestId("unread-badge-conv-user-jonas"),
+    ).toHaveTextContent("1");
+
     useUnreadMessagesStore.getState().resetAll();
   });
 
