@@ -13,6 +13,7 @@ import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.net.URI;
@@ -22,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -104,6 +106,19 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     this.skippedCounter =
         meterRegistry.counter("wyrdly.push.dispatch", "result", "skipped_no_subscription");
     this.failedCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "failed");
+  }
+
+  @PreDestroy
+  public void shutdown() {
+    executor.shutdown();
+    try {
+      if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+        executor.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      executor.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
   }
 
   public void dispatch(PushEvent event) {

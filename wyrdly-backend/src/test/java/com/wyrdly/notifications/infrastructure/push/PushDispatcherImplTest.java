@@ -185,6 +185,21 @@ class PushDispatcherImplTest {
         authz.contains(",k="), "Authorization must include the public key ',k=' got: " + authz);
   }
 
+  @Test
+  void shutsDownExecutorWithoutError() {
+    PushDispatcherImpl custom =
+        new PushDispatcherImpl(
+            vapidKeyProvider,
+            subscriptionRepository,
+            gatewayClient,
+            new com.fasterxml.jackson.databind.ObjectMapper(),
+            meterRegistry,
+            "mailto:ops@wyrdly.com",
+            1,
+            10);
+    custom.shutdown();
+  }
+
   // ---- helpers ------------------------------------------------------------
 
   private static PushEvent newEvent(String userId) {
