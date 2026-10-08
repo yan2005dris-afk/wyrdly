@@ -199,14 +199,20 @@ export const ChatPage: FC = () => {
         isEncrypted: true,
       };
 
-      setMessages((prev) => [...prev, newMsg]);
+      const incomingConvId = `conv-${incoming.senderId}`;
+      const isForActiveConversation =
+        incoming.senderId === activeConversation?.participant?.id ||
+        incomingConvId === activeConvId;
+
+      if (isForActiveConversation) {
+        setMessages((prev) => [...prev, newMsg]);
+      }
 
       // Mirror the per-conversation badge into the global sidebar counter,
       // except when the message arrived in the conversation being viewed.
-      const incomingConvId = `conv-${incoming.senderId}`;
       useUnreadMessagesStore
         .getState()
-        .registerIncoming(incomingConvId, incomingConvId === activeConvId);
+        .registerIncoming(incomingConvId, isForActiveConversation);
 
       setConversations((prev) =>
         prev.map((c) =>
@@ -214,13 +220,13 @@ export const ChatPage: FC = () => {
             ? {
                 ...c,
                 lastMessage: newMsg,
-                unreadCount: c.id === activeConvId ? 0 : c.unreadCount + 1,
+                unreadCount: isForActiveConversation ? 0 : c.unreadCount + 1,
               }
             : c,
         ),
       );
     },
-    [activeConvId],
+    [activeConvId, activeConversation?.participant?.id],
   );
 
   // Opening (or switching to) a conversation clears its sidebar badge.
