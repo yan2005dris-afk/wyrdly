@@ -99,28 +99,8 @@ jobs:
   integration-test:
     name: Integration Tests (Failsafe)
     runs-on: ubuntu-latest
-    services:
-      neo4j:
-        image: neo4j:5.26-community
-        env:
-          NEO4J_AUTH: neo4j/placeholder_password
-          NEO4J_PLUGINS: '["apoc"]'
-          NEO4J_dbms_security_procedures_unrestricted: apoc.*
-        ports:
-          - 7474:7474
-          - 7687:7687
-        options: >-
-          --health-cmd "cypher-shell -u neo4j -p placeholder_password 'RETURN 1'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    # The packaged app booted by @QuarkusIntegrationTest suites reads these
-    # (defaults expect password 'password'); without them it cannot
-    # authenticate against the service above and the suites fail at boot.
-    env:
-      NEO4J_URI: bolt://localhost:7687
-      NEO4J_USERNAME: neo4j
-      NEO4J_PASSWORD: placeholder_password
+    # No Neo4j service: the ITs start their own container through Testcontainers
+    # (the runner's Docker), migrated with the production migrations.
     defaults:
       run:
         working-directory: wyrdly-backend
@@ -133,9 +113,9 @@ jobs:
           cache: 'maven'
       - name: Generate JWT Keys
         run: bash ../scripts/generate-jwt-keys.sh src/main/resources/jwt
-      # skipITs defaults to true in pom.xml; the *IT suites (Testcontainers)
-      # only run with this flag. The neo4j service above is a fallback —
-      # Testcontainers provisions its own container per suite.
+      # -DskipITs=false makes the *IT suites (Testcontainers) run explicitly;
+      # they share one migrated Neo4j container, also injected into the
+      # packaged app booted by @QuarkusIntegrationTest via Neo4jTestResource.
       - run: ./mvnw verify -DskipUnitTests -DskipITs=false
 
   build:

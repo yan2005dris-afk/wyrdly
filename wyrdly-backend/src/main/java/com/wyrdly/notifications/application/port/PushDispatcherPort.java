@@ -1,6 +1,8 @@
 package com.wyrdly.notifications.application.port;
 
 import com.wyrdly.notifications.domain.model.PushEvent;
+import com.wyrdly.notifications.domain.model.PushSubscription;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Output port for dispatching a Web Push notification. Domain events in other modules observe
@@ -19,4 +21,15 @@ public interface PushDispatcherPort {
    * caller, so listeners do not need to wrap this in a try/catch.
    */
   void dispatch(PushEvent event);
+
+  /**
+   * Same as {@link #dispatch(PushEvent)} but with the recipient's subscription already resolved,
+   * skipping the per-recipient lookup. Intended for fan-outs where the audience query returns the
+   * subscriptions in bulk.
+   *
+   * <p>The returned future always completes normally once the push has been handled (delivered,
+   * cleaned up, failed or rejected because the dispatcher is saturated), so callers can use it for
+   * back-pressure without handling errors.
+   */
+  CompletableFuture<Void> dispatchTo(PushSubscription subscription, PushEvent event);
 }

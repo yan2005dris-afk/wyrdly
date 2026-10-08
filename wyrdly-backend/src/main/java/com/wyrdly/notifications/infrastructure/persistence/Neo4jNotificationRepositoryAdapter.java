@@ -18,7 +18,7 @@ import org.neo4j.driver.Values;
  *
  * <p>Notifications are persisted as {@code :Notificacion} nodes. Lookups filter by {@code
  * recipientUserId} and order by {@code createdAt DESC} using the composite index added by migration
- * {@code V005__add_notification_indexes.cypher}.
+ * {@code V101__add_notification_indexes.cypher}.
  *
  * <p>All read workloads are managed via {@code session.executeRead} and write workloads via {@code
  * session.executeWrite} to guarantee proper transaction unit boundaries and automatic retry for

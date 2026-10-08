@@ -1,5 +1,5 @@
 // ==============================================================================
-// V005__add_notification_indexes.cypher
+// V101__add_notification_indexes.cypher
 // Índices para el feed in-app de Notificaciones
 // ==============================================================================
 
@@ -11,6 +11,7 @@ FOR (n:Notificacion) REQUIRE n.id IS UNIQUE;
 CREATE INDEX notification_recipient_created_at_index IF NOT EXISTS
 FOR (n:Notificacion) ON (n.recipientUserId, n.createdAt);
 
-// 3. Índice parcial para contar no-leídas rápido
+// 3. Índice compuesto para contar no-leídas rápido
+// (Neo4j no soporta índices parciales con WHERE)
 CREATE INDEX notification_unread_index IF NOT EXISTS
-FOR (n:Notificacion) ON (n.recipientUserId) WHERE n.isRead = false;
+FOR (n:Notificacion) ON (n.recipientUserId, n.isRead);

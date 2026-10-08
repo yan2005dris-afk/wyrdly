@@ -26,9 +26,9 @@ public class UnfollowUserUseCaseImpl implements UnfollowUserUseCase {
   @Override
   public FollowActionResponse unfollow(String userId, String targetUserId) {
     repository.validateUserExists(targetUserId);
-    repository.unfollowUser(userId, targetUserId);
+    boolean removed = repository.unfollowUser(userId, targetUserId);
 
-    if (followEvent != null) {
+    if (removed && followEvent != null) {
       followEvent.fire(new UserFollowRelationshipChangedEvent(userId, targetUserId, false));
     }
 

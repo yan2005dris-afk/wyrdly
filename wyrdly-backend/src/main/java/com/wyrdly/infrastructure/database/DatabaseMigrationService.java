@@ -21,6 +21,14 @@ public class DatabaseMigrationService {
   @ConfigProperty(name = "wyrdly.database.migration.enabled", defaultValue = "true")
   boolean migrationEnabled;
 
+  /**
+   * How the schema migrations are discovered and run. Public so integration tests migrate their
+   * databases exactly like production does.
+   */
+  public static MigrationsConfig migrationsConfig() {
+    return MigrationsConfig.builder().withLocationsToScan("classpath:neo4j/migrations").build();
+  }
+
   void onStart(@Observes StartupEvent ev) {
     // Si estamos en perfil test y no se especificó explicitamente, omitir para permitir mocks /
     // unit tests aislados
@@ -36,17 +44,14 @@ public class DatabaseMigrationService {
 
     LOG.info("DatabaseMigrationService: Applying Neo4j schema migrations...");
     try {
-      MigrationsConfig config =
-          MigrationsConfig.builder().withLocationsToScan("classpath:neo4j/migrations").build();
-
-      Migrations migrations = new Migrations(config, driver);
+      Migrations migrations = new Migrations(migrationsConfig(), driver);
       migrations.apply();
       LOG.info("DatabaseMigrationService: Neo4j migrations applied successfully!");
-    } catch (Exception e) {
-      LOG.warn(
-          "DatabaseMigrationService: Could not connect to Neo4j to apply migrations ("
-              + e.getMessage()
-              + "). Ensure Neo4j is running.");
+    } catch (RuntimeException e) {
+      // Fail fast: serving traffic on a partially migrated schema hides the problem behind a
+      // healthy container. Aborting startup makes the deploy fail where it can be seen.
+      LOG.error("DatabaseMigrationService: Neo4j migrations failed, aborting startup", e);
+      throw e;
     }
   }
 }

@@ -5,55 +5,27 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wyrdly.chat.domain.model.DirectMessage;
+import com.wyrdly.testsupport.Neo4jTestContainer;
 import java.util.List;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.GraphDatabase;
-import org.neo4j.driver.Session;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.neo4j.Neo4jContainer;
 
-@Testcontainers
 class Neo4jDirectMessageRepositoryAdapterIT {
 
-  @Container
-  static final Neo4jContainer NEO4J_CONTAINER =
-      new Neo4jContainer("neo4j:5.26-community").withoutAuthentication();
-
-  static Driver driver;
+  static final Driver driver = Neo4jTestContainer.driver();
   Neo4jDirectMessageRepositoryAdapter repository;
-
-  @BeforeAll
-  static void setUpDriver() {
-    driver = GraphDatabase.driver(NEO4J_CONTAINER.getBoltUrl(), AuthTokens.none());
-  }
-
-  @AfterAll
-  static void tearDownDriver() {
-    if (driver != null) {
-      driver.close();
-    }
-  }
 
   @BeforeEach
   void setUp() {
     repository = new Neo4jDirectMessageRepositoryAdapter(driver);
-    try (Session session = driver.session()) {
-      session.run("MATCH (n) DETACH DELETE n");
-    }
+    Neo4jTestContainer.deleteAllData();
   }
 
   @AfterEach
   void cleanUp() {
-    try (Session session = driver.session()) {
-      session.run("MATCH (n) DETACH DELETE n");
-    }
+    Neo4jTestContainer.deleteAllData();
   }
 
   @Test
