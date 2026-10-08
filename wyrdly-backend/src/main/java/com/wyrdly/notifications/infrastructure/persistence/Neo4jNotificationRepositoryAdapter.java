@@ -18,7 +18,7 @@ import org.neo4j.driver.Values;
  *
  * <p>Notifications are persisted as {@code :Notificacion} nodes. Lookups filter by {@code
  * recipientUserId} and order by {@code createdAt DESC} using the composite index added by migration
- * {@code V005__add_notification_indexes.cypher}.
+ * {@code V101__add_notification_indexes.cypher}.
  */
 @ApplicationScoped
 @Unremovable
