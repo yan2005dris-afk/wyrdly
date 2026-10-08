@@ -10,7 +10,7 @@ import com.wyrdly.user.domain.repository.UserProfileRepository;
 import com.wyrdly.user.domain.repository.UserProfileRepository.FollowerSummary;
 import com.wyrdly.user.infrastructure.qualifier.ResilientNeo4j;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.ObservesAsync;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -68,7 +68,7 @@ public class ChatMessagePushEventListener {
    * is online, then otherwise enriches the event with the sender's name, persists the notification,
    * and dispatches the push.
    */
-  public void on(@Observes DirectMessageSentEvent event) {
+  public void on(@ObservesAsync DirectMessageSentEvent event) {
     Objects.requireNonNull(event, "event must not be null");
 
     if (event.senderId() != null && event.senderId().equals(event.recipientId())) {

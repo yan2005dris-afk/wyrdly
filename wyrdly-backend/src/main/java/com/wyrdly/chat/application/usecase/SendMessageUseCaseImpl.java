@@ -6,6 +6,7 @@ import com.wyrdly.chat.domain.event.DirectMessageSentEvent;
 import com.wyrdly.chat.domain.exception.UsersNotFollowingException;
 import com.wyrdly.chat.domain.model.DirectMessage;
 import com.wyrdly.chat.domain.repository.DirectMessageRepository;
+import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
@@ -31,13 +32,20 @@ public class SendMessageUseCaseImpl implements SendMessageUseCase {
 
     directMessageRepository.save(message);
 
-    messageSentEvent.fire(
-        new DirectMessageSentEvent(
-            message.getId(),
-            message.getSenderId(),
-            message.getRecipientId(),
-            message.getContent(),
-            message.getSentAt()));
+    messageSentEvent
+        .fireAsync(
+            new DirectMessageSentEvent(
+                message.getId(),
+                message.getSenderId(),
+                message.getRecipientId(),
+                message.getContent(),
+                message.getSentAt()))
+        .exceptionally(
+            ex -> {
+              Log.warnf(
+                  ex, "DirectMessageSentEvent observer failed: messageId=%s", message.getId());
+              return null;
+            });
 
     return new MessageResponse(
         message.getId(),

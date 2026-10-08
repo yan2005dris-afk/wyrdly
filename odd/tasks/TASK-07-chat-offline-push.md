@@ -63,33 +63,34 @@ public record DirectMessageSentEvent(
   ```java
   directMessageRepository.save(message);
 
-  messageSentEvent.fire(
-      new DirectMessageSentEvent(
-          message.getId(),
-          message.getSenderId(),
-          message.getRecipientId(),
-          message.getContent(),
-          message.getSentAt()));
+  messageSentEvent
+      .fireAsync(
+          new DirectMessageSentEvent(
+              message.getId(),
+              message.getSenderId(),
+              message.getRecipientId(),
+              message.getContent(),
+              message.getSentAt()))
+      .exceptionally(
+          ex -> {
+            Log.warnf(ex, "DirectMessageSentEvent observer failed: messageId=%s", message.getId());
+            return null;
+          });
   ```
 
 ---
 
-### 2.3. Exponer Sesiones en: `ChatSessionRegistry`
+### 2.3. Registro de Sesiones: `ChatSessionRegistry`
 **Ruta:** `wyrdly-backend/src/main/java/com/wyrdly/chat/infrastructure/websocket/ChatSessionRegistry.java`
 
-- Consulta de sesiones activas:
-  ```java
-  public Set<String> getActiveSessionUserIds() {
-    return Collections.unmodifiableSet(userSessions.keySet());
-  }
-  ```
+- Mantiene mapeo concurrente de sesiones activas (`isUserOnline`, `register`, `unregister`, `broadcast`).
 
 ---
 
-### 2.4. Listener en Notificaciones: `ChatMessagePushEventListener`
+### 2.4. Listener Asíncrono en Notificaciones: `ChatMessagePushEventListener`
 **Ruta:** `wyrdly-backend/src/main/java/com/wyrdly/notifications/application/listener/ChatMessagePushEventListener.java`
 
-- Desacoplado: escucha `DirectMessageSentEvent`.
+- Desacoplado: observa `@ObservesAsync DirectMessageSentEvent`.
 - Ignora auto-mensajes (`senderId.equals(recipientId)`).
 - Verifica estado online con `sessionRegistry.isUserOnline(...)` (con tolerancia a fallos/fallback offline).
 - Persiste notificación in-app en `NotificationRepository` (para centro de notificaciones) con resiliencia `try/catch`.
@@ -110,9 +111,9 @@ public record DirectMessageSentEvent(
    - `persistsNotificationBeforeDispatchingPush()`
    - `continuesDispatchingPushWhenNotificationSaveThrows()`
 2. **`SendMessageUseCaseImplTest`** (`wyrdly-backend/src/test/java/com/wyrdly/chat/application/usecase/SendMessageUseCaseImplTest.java`):
-   - Verifica disparo del evento `DirectMessageSentEvent`.
+   - Verifica disparo asíncrono del evento `DirectMessageSentEvent`.
 3. **`ChatSessionRegistryTest`** (`wyrdly-backend/src/test/java/com/wyrdly/chat/infrastructure/websocket/ChatSessionRegistryTest.java`):
-   - Verifica `getActiveSessionUserIds()`, inmutabilidad del set retornado, registro/desregistro y broadcast.
+   - Verifica registro/desregistro, tracking de usuario online y broadcast.
 
 ---
 

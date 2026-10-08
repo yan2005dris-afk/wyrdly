@@ -16,6 +16,7 @@ import com.wyrdly.chat.domain.exception.UsersNotFollowingException;
 import com.wyrdly.chat.domain.model.DirectMessage;
 import com.wyrdly.chat.domain.repository.DirectMessageRepository;
 import jakarta.enterprise.event.Event;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,6 +34,8 @@ class SendMessageUseCaseImplTest {
     sendMessageUseCase.directMessageRepository = directMessageRepository;
     sendMessageUseCase.followValidationPort = followValidationPort;
     sendMessageUseCase.messageSentEvent = mock(Event.class);
+    when(sendMessageUseCase.messageSentEvent.fireAsync(any(DirectMessageSentEvent.class)))
+        .thenReturn(CompletableFuture.completedFuture(null));
   }
 
   @Test
@@ -52,7 +55,7 @@ class SendMessageUseCaseImplTest {
     assertNotNull(response.getSentAt());
 
     verify(directMessageRepository).save(any(DirectMessage.class));
-    verify(sendMessageUseCase.messageSentEvent).fire(any(DirectMessageSentEvent.class));
+    verify(sendMessageUseCase.messageSentEvent).fireAsync(any(DirectMessageSentEvent.class));
   }
 
   @Test
