@@ -22,11 +22,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +38,7 @@ class PushDispatcherImplTest {
   @Inject PushDispatcherImpl dispatcher;
   @Inject VapidKeyProvider vapidKeyProvider;
   @Inject MeterRegistry meterRegistry;
+  @Inject org.eclipse.microprofile.context.ManagedExecutor managedExecutor;
 
   @BeforeEach
   void resetThreadLocal() {
@@ -297,11 +296,10 @@ class PushDispatcherImplTest {
             gatewayClient,
             new com.fasterxml.jackson.databind.ObjectMapper(),
             meterRegistry,
+            managedExecutor,
             "mailto:ops@wyrdly.com",
             1,
             10,
-            8, // poolSize
-            5000, // queueCapacity
             10, // global rate limit = 10
             0); // recipient rate limit disabled
 
@@ -327,29 +325,38 @@ class PushDispatcherImplTest {
   }
 
   @Test
-  void shutsDownExecutorWithoutError() throws Exception {
-    PushDispatcherImpl custom =
+  void handlesTaskRejectionGracefullyWhenQueueIsFull() throws Exception {
+    org.eclipse.microprofile.context.ManagedExecutor rejectingExecutor =
+        org.mockito.Mockito.mock(org.eclipse.microprofile.context.ManagedExecutor.class);
+    org.mockito.Mockito.doThrow(new java.util.concurrent.RejectedExecutionException("Queue full"))
+        .when(rejectingExecutor)
+        .execute(any(Runnable.class));
+    org.mockito.Mockito.doThrow(new java.util.concurrent.RejectedExecutionException("Queue full"))
+        .when(rejectingExecutor)
+        .submit(any(Runnable.class));
+
+    PushDispatcherImpl rejectingDispatcher =
         new PushDispatcherImpl(
             vapidKeyProvider,
             subscriptionRepository,
             gatewayClient,
             new com.fasterxml.jackson.databind.ObjectMapper(),
             meterRegistry,
+            rejectingExecutor,
             "mailto:ops@wyrdly.com",
             1,
             10,
-            8, // poolSize (production default)
-            5000, // queueCapacity (production default)
-            1000, // globalRatePerSecond (production default)
-            1000); // recipientRateIntervalMs (production default)
-    custom.shutdown();
-    Field f = PushDispatcherImpl.class.getDeclaredField("executor");
-    f.setAccessible(true);
-    ExecutorService ex = (ExecutorService) f.get(custom);
-    assertTrue(ex.isShutdown());
-    assertTrue(ex.isTerminated());
-    assertDoesNotThrow(custom::shutdown);
-    assertTrue(ex.isShutdown());
+            1000,
+            1000);
+
+    double before = counterValue("result", "rejected");
+    assertDoesNotThrow(() -> rejectingDispatcher.dispatch(newEvent("usr_rejected")));
+    assertEquals(before + 1, counterValue("result", "rejected"), 0.0);
+  }
+
+  @Test
+  void shutsDownGracefullyWithoutError() {
+    assertDoesNotThrow(dispatcher::shutdown);
   }
 
   // ---- helpers ------------------------------------------------------------

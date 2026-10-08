@@ -41,15 +41,11 @@ class PushDispatcherImplSaturationTest {
   @Test
   void dropsPushesAndCountsRejectedWhenQueueIsFull() throws Exception {
     PushSubscriptionRepositoryPort repository = mock(PushSubscriptionRepositoryPort.class);
-    CountDownLatch firstTaskRunning = new CountDownLatch(1);
-    // The lookup runs on the dispatcher pool: blocking it keeps the single worker busy.
-    when(repository.findByUserId(anyString()))
-        .thenAnswer(
-            inv -> {
-              firstTaskRunning.countDown();
-              release.await(5, TimeUnit.SECONDS);
-              return null;
-            });
+    org.eclipse.microprofile.context.ManagedExecutor rejectingExecutor =
+        mock(org.eclipse.microprofile.context.ManagedExecutor.class);
+    org.mockito.Mockito.doThrow(new java.util.concurrent.RejectedExecutionException("saturated"))
+        .when(rejectingExecutor)
+        .execute(org.mockito.ArgumentMatchers.any(Runnable.class));
 
     SimpleMeterRegistry registry = new SimpleMeterRegistry();
     dispatcher =
@@ -59,18 +55,13 @@ class PushDispatcherImplSaturationTest {
             mock(PushGatewayClientPort.class),
             new ObjectMapper(),
             registry,
+            rejectingExecutor,
             "mailto:test@wyrdly.com",
             0,
             1,
-            1, // poolSize
-            1, // queueCapacity
             0, // global rate limit disabled
             0); // recipient rate limit disabled
     dispatcher.registerMetrics();
-
-    dispatcher.dispatch(event("usr_running"));
-    assertTrue(firstTaskRunning.await(5, TimeUnit.SECONDS));
-    dispatcher.dispatch(event("usr_queued"));
 
     CompletableFuture<Void> dropped =
         dispatcher.dispatchTo(

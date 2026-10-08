@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.wyrdly.notifications.application.port.NotificationBroadcasterPort;
 import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.domain.repository.NotificationRepository;
 import com.wyrdly.user.domain.event.UserFollowRelationshipChangedEvent;
@@ -25,6 +26,7 @@ class UserFollowNotificationEventListenerTest {
   private PushDispatcherPort dispatcher;
   private NotificationRepository notificationRepository;
   private UserProfileRepository userProfileRepository;
+  private NotificationBroadcasterPort broadcaster;
   private UserFollowNotificationEventListener listener;
 
   @BeforeEach
@@ -32,9 +34,10 @@ class UserFollowNotificationEventListenerTest {
     dispatcher = mock(PushDispatcherPort.class);
     notificationRepository = mock(NotificationRepository.class);
     userProfileRepository = mock(UserProfileRepository.class);
+    broadcaster = mock(NotificationBroadcasterPort.class);
     listener =
         new UserFollowNotificationEventListener(
-            dispatcher, notificationRepository, userProfileRepository);
+            dispatcher, notificationRepository, userProfileRepository, broadcaster);
     when(userProfileRepository.findProfileSummariesByIds(anySet())).thenReturn(Map.of());
   }
 
@@ -66,6 +69,16 @@ class UserFollowNotificationEventListenerTest {
                 push -> {
                   assertEquals("Yandris Tech comenzó a seguirte en Wyrdly", push.body());
                   assertEquals(targetUserId, push.recipientUserId());
+                  return true;
+                }));
+    verify(broadcaster)
+        .broadcast(
+            org.mockito.ArgumentMatchers.eq(targetUserId),
+            argThat(
+                dto -> {
+                  assertEquals("GRAPH_FOLLOW", dto.type());
+                  assertEquals("Yandris Tech comenzó a seguirte en Wyrdly", dto.body());
+                  assertEquals("Yandris Tech", dto.actor().fullName());
                   return true;
                 }));
   }
