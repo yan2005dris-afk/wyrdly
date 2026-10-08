@@ -94,6 +94,15 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, []);
 
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...updates };
+      localStorage.setItem("wyrdly_user", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const contextValue = useMemo<AuthContextType>(
     () => ({
       user,
@@ -103,8 +112,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       login,
       register,
       logout,
+      updateUser,
     }),
-    [user, token, isLoading, login, register, logout],
+    [user, token, isLoading, login, register, logout, updateUser],
   );
 
   return (

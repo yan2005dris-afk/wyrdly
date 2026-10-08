@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usersApi } from "../../../api/users";
 import type { ProfileUserSummary } from "../../../types/suggestions";
 
 interface UseProfileUsersReturn {
   readonly users: readonly ProfileUserSummary[];
   readonly isLoading: boolean;
+  readonly isRefreshing: boolean;
   readonly error: string | null;
   readonly refetch: () => void;
 }
@@ -30,7 +31,9 @@ export function useProfileUsers(
 ): UseProfileUsersReturn {
   const [users, setUsers] = useState<readonly ProfileUserSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(username));
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const hasDataRef = useRef(false);
 
   const fetcher =
     direction === "followers"
@@ -41,15 +44,21 @@ export function useProfileUsers(
     if (!username) {
       setUsers([]);
       setIsLoading(false);
+      setIsRefreshing(false);
       return;
     }
 
-    setIsLoading(true);
+    if (hasDataRef.current) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
       const data = await fetcher(username, params);
       setUsers(data);
+      hasDataRef.current = true;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : `Failed to load ${direction}`;
@@ -57,6 +66,7 @@ export function useProfileUsers(
       setUsers([]);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [username, direction, fetcher, params]);
 
@@ -72,6 +82,7 @@ export function useProfileUsers(
         const data = await fetcher(username, params);
         if (!isCancelled) {
           setUsers(data);
+          hasDataRef.current = true;
           setError(null);
         }
       } catch (err) {
@@ -95,5 +106,5 @@ export function useProfileUsers(
     };
   }, [username, direction, fetcher, params]);
 
-  return { users, isLoading, error, refetch: fetchUsers };
+  return { users, isLoading, isRefreshing, error, refetch: fetchUsers };
 }

@@ -68,6 +68,33 @@ class UserResourceTest {
   }
 
   @Test
+  void getProfile_Returns200_WhenLookupByUserId() {
+    UserProfileResponse response =
+        new UserProfileResponse(
+            "usr_123",
+            "juanperez",
+            "Juan Perez",
+            "Bio",
+            "https://avatar.url",
+            42,
+            10,
+            5,
+            false,
+            Instant.parse("2026-09-24T18:30:00Z"));
+
+    when(getUserProfileUseCase.getProfile(eq("usr_123"), isNull())).thenReturn(response);
+
+    given()
+        .when()
+        .get("/api/users/usr_123")
+        .then()
+        .statusCode(200)
+        .body("id", equalTo("usr_123"))
+        .body("username", equalTo("juanperez"))
+        .body("followersCount", equalTo(42));
+  }
+
+  @Test
   void getProfile_Returns404_WhenUserDoesNotExist() {
     when(getUserProfileUseCase.getProfile(eq("ghost"), isNull()))
         .thenThrow(new UserProfileNotFoundException("El usuario 'ghost' no existe."));
