@@ -23,15 +23,12 @@ import com.wyrdly.notifications.domain.model.PushMessage;
 import com.wyrdly.notifications.domain.model.PushSubscription;
 import com.wyrdly.notifications.domain.model.PushTarget;
 import com.wyrdly.notifications.domain.repository.NotificationRepository;
-import com.wyrdly.user.domain.repository.UserProfileRepository;
-import com.wyrdly.user.domain.repository.UserProfileRepository.FollowerSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,7 +73,8 @@ class NotifyFollowersUseCaseImplTest {
         maxRecipients);
   }
 
-  private static List<PushTarget> targets(int fromInclusive, int toExclusive, boolean withSubscription) {
+  private static List<PushTarget> targets(
+      int fromInclusive, int toExclusive, boolean withSubscription) {
     return IntStream.range(fromInclusive, toExclusive)
         .mapToObj(
             i ->
@@ -110,8 +108,10 @@ class NotifyFollowersUseCaseImplTest {
     // usr_000 and usr_001 are subscribed, usr_002 is not
     List<PushTarget> batch =
         List.of(
-            new PushTarget("usr_000", new PushSubscription("https://push.example/0", "p256", "auth")),
-            new PushTarget("usr_001", new PushSubscription("https://push.example/1", "p256", "auth")),
+            new PushTarget(
+                "usr_000", new PushSubscription("https://push.example/0", "p256", "auth")),
+            new PushTarget(
+                "usr_001", new PushSubscription("https://push.example/1", "p256", "auth")),
             new PushTarget("usr_002", null));
     when(audience.findAllFollowers(AUTHOR, "", 200)).thenReturn(batch);
 
@@ -215,4 +215,3 @@ class NotifyFollowersUseCaseImplTest {
     }
   }
 }
-

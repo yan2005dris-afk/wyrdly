@@ -26,14 +26,16 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * Batched fan-out of post publication notifications to all followers of an author.
  *
  * <p>For every follower:
+ *
  * <ul>
- *   <li>Persists an in-app {@link Notification} in Neo4j.</li>
- *   <li>Broadcasts the real-time event via {@link NotificationBroadcasterPort} (SSE).</li>
- *   <li>If the follower has an active Web Push subscription, dispatches background push via {@link PushDispatcherPort}.</li>
+ *   <li>Persists an in-app {@link Notification} in Neo4j.
+ *   <li>Broadcasts the real-time event via {@link NotificationBroadcasterPort} (SSE).
+ *   <li>If the follower has an active Web Push subscription, dispatches background push via {@link
+ *       PushDispatcherPort}.
  * </ul>
  *
- * <p>The audience is read in keyset batches of {@code wyrdly.push.fanout.batch-size}.
- * {@code wyrdly.push.fanout.max-recipients} caps the audience of a single message.
+ * <p>The audience is read in keyset batches of {@code wyrdly.push.fanout.batch-size}. {@code
+ * wyrdly.push.fanout.max-recipients} caps the audience of a single message.
  */
 @ApplicationScoped
 public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
@@ -125,11 +127,13 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
         try {
           broadcaster.broadcast(followerId, ssePayload);
         } catch (RuntimeException sseError) {
-          Log.debugf(sseError, "Failed to broadcast new-post notification to SSE for %s", followerId);
+          Log.debugf(
+              sseError, "Failed to broadcast new-post notification to SSE for %s", followerId);
         }
 
         if (target.subscription() != null) {
-          pushFutures.add(dispatcher.dispatchTo(target.subscription(), message.toEvent(followerId)));
+          pushFutures.add(
+              dispatcher.dispatchTo(target.subscription(), message.toEvent(followerId)));
         }
       }
 
@@ -179,4 +183,3 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
     return "ntf_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
   }
 }
-

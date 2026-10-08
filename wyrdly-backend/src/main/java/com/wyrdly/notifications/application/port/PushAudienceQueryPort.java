@@ -4,8 +4,8 @@ import com.wyrdly.notifications.domain.model.PushTarget;
 import java.util.List;
 
 /**
- * Output port that resolves the audience of an author's post fan-out:
- * all followers, attaching their active Web Push subscription if present.
+ * Output port that resolves the audience of an author's post fan-out: all followers, attaching
+ * their active Web Push subscription if present.
  */
 public interface PushAudienceQueryPort {
 
@@ -20,4 +20,3 @@ public interface PushAudienceQueryPort {
    */
   List<PushTarget> findAllFollowers(String authorId, String afterUserId, int limit);
 }
-
