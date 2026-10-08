@@ -19,4 +19,9 @@ public interface PushSubscriptionRepositoryPort {
 
   /** Clears any stored subscription. Safe to call when none is present. */
   void deleteByUserId(String userId);
+
+  /** Returns the total count of active push subscriptions in the system. */
+  default long countActive() {
+    return 0L;
+  }
 }

@@ -110,6 +110,28 @@ class Neo4jUserProfileRepositoryAdapterIT {
   }
 
   @Test
+  void findProfileByUsername_ResolvesByCanonicalId_WhenGivenUserId() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+
+    Optional<UserProfile> profile = adapter.findProfileByUsername("usr_alice", null);
+
+    assertTrue(profile.isPresent());
+    assertEquals("usr_alice", profile.get().id());
+    assertEquals("alice", profile.get().username());
+  }
+
+  @Test
+  void findProfileByUsername_PrefersIdMatch_WhenUsernameCollidesWithAnotherUsersId() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+    seedUser("usr_squatter", "usr_alice", "Squatter", "", "");
+
+    Optional<UserProfile> profile = adapter.findProfileByUsername("usr_alice", null);
+
+    assertTrue(profile.isPresent());
+    assertEquals("usr_alice", profile.get().id());
+  }
+
+  @Test
   void updateProfile_UpdatesOnlyProvidedFields_AndPreservesTheRest() {
     seedUser("usr_alice", "alice", "Alice Original", "Bio original", "http://old-avatar");
     seedUser("usr_bob", "bob", "Bob", "", "");

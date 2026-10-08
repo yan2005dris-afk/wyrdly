@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./MainLayout";
 import { AuthProvider } from "../../../context/AuthContext";
 
@@ -20,7 +20,7 @@ describe("MainLayout Component", () => {
   it("renders navbar, persistent sidebar, and child outlet route content", () => {
     render(
       <AuthProvider>
-        <BrowserRouter>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route element={<MainLayout />}>
               <Route
@@ -29,7 +29,7 @@ describe("MainLayout Component", () => {
               />
             </Route>
           </Routes>
-        </BrowserRouter>
+        </MemoryRouter>
       </AuthProvider>,
     );
 
@@ -46,7 +46,7 @@ describe("MainLayout Component", () => {
   it("navigates to explore with query on navbar search submission", () => {
     render(
       <AuthProvider>
-        <BrowserRouter>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<div>Home</div>} />
@@ -58,7 +58,7 @@ describe("MainLayout Component", () => {
               />
             </Route>
           </Routes>
-        </BrowserRouter>
+        </MemoryRouter>
       </AuthProvider>,
     );
 
@@ -67,5 +67,35 @@ describe("MainLayout Component", () => {
     fireEvent.submit(searchInput.closest("form")!);
 
     expect(screen.getByTestId("explore-destination")).toBeInTheDocument();
+  });
+
+  it("renders messages badge conditionally based on unreadMessagesCount", () => {
+    const { rerender } = render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/"]}>
+          <Routes>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<div>Home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    expect(screen.queryByTestId("nav-badge-messages")).not.toBeInTheDocument();
+
+    rerender(
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/"]}>
+          <Routes>
+            <Route element={<MainLayout unreadMessagesCount={5} />}>
+              <Route path="/" element={<div>Home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    expect(screen.getByTestId("nav-badge-messages")).toHaveTextContent("5");
   });
 });

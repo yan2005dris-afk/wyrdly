@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, MemoryRouter, Routes, Route } from "react-router-dom";
 import { ProfilePage } from "./ProfilePage";
 import { AuthProvider } from "../context/AuthContext";
 import { usersApi } from "../api/users";
@@ -71,7 +71,7 @@ describe("ProfilePage Component", () => {
     vi.mocked(usersApi.getUserFollowing).mockResolvedValue([]);
   });
 
-  it("renders profile header, RustFS cover notice and post grid items", async () => {
+  it("renders profile header and post grid items without debug badges", async () => {
     renderProfilePage();
 
     await waitFor(() => {
@@ -79,7 +79,9 @@ describe("ProfilePage Component", () => {
       expect(
         screen.getAllByText("Maya Krishnan").length,
       ).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText("Cover stored on RustFS")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("cover-rustfs-badge"),
+      ).not.toBeInTheDocument();
       expect(screen.getByTestId("profile-posts-grid")).toBeInTheDocument();
       expect(
         screen.getByText("Night deploys hit different..."),
@@ -153,5 +155,27 @@ describe("ProfilePage Component", () => {
       ).toBeInTheDocument();
     });
     expect(screen.getAllByTestId("user-list-row-skeleton")).toHaveLength(4);
+  });
+
+  it("fetches and renders profile when navigated with canonical user id", async () => {
+    vi.mocked(usersApi.getProfile).mockResolvedValue({
+      ...mockProfile,
+      id: "usr_maya_id",
+    });
+    vi.mocked(usersApi.getUserPosts).mockResolvedValue([samplePost]);
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/profile/usr_maya_id"]}>
+          <Routes>
+            <Route path="/profile/:username" element={<ProfilePage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(usersApi.getProfile).toHaveBeenCalledWith("usr_maya_id");
+    });
   });
 });

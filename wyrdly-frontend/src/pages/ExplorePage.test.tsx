@@ -17,6 +17,13 @@ vi.mock("../api/userSearch", () => ({
   },
 }));
 
+vi.mock("../api/users", () => ({
+  usersApi: {
+    follow: vi.fn().mockResolvedValue(undefined),
+    unfollow: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 const mockSearchUsers = vi.mocked(userSearchApi.searchUsers);
 
 const renderWithRoute = (initialUrl: string) =>
@@ -187,9 +194,14 @@ describe("ExplorePage", () => {
       fireEvent.click(screen.getByTestId("user-search-follow-btn-usr_alice"));
     });
 
-    expect(
-      screen.getByTestId("user-search-follow-btn-usr_alice"),
-    ).toHaveTextContent("Following");
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("user-search-follow-btn-usr_alice"),
+      ).toHaveTextContent("Following");
+      expect(
+        screen.getByTestId("explore-follow-feedback-banner"),
+      ).toHaveTextContent("Siguiendo a @alice");
+    });
   });
 
   it("debounces API calls when only the draft changes", async () => {
