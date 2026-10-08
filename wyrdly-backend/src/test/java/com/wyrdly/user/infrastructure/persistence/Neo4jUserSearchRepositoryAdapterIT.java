@@ -108,6 +108,7 @@ class Neo4jUserSearchRepositoryAdapterIT {
 
   @Test
   void findByText_returnsIsFollowingTrue_whenViewerFollowsUser() {
+    seedUser("usr_viewer", "viewer", "Viewer", null);
     seedUser("usr_alice", "alice", "Alice Chen", null);
     seedUser("usr_bob", "bob", "Bob Stone", null);
     createFollow("usr_viewer", "usr_bob");
@@ -208,7 +209,8 @@ class Neo4jUserSearchRepositoryAdapterIT {
 
     int total = adapter.countByText("ali", "usr_viewer");
 
-    assertEquals(3, total);
+    // "ali" matches alice and alicia; "alfredo"/"Alfredo" contains no "ali".
+    assertEquals(2, total);
   }
 
   @Test

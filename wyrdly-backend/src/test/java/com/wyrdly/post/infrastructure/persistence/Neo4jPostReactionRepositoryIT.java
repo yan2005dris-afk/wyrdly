@@ -130,7 +130,12 @@ class Neo4jPostReactionRepositoryIT {
     adapter.react("usr_bob", "pst_1", ReactionType.LOVE);
     adapter.react("usr_carol", "pst_1", ReactionType.CELEBRATE);
 
-    assertEquals(1L, adapter.react("usr_alice", "pst_1", ReactionType.LIKE).totalReactions());
+    // Re-reacting with the same type toggles the reaction off (REMOVED),
+    // so only bob's and carol's remain.
+    ReactionResult result = adapter.react("usr_alice", "pst_1", ReactionType.LIKE);
+
+    assertEquals(ReactionStatus.REMOVED, result.status());
+    assertEquals(2L, result.totalReactions());
   }
 
   @Test
