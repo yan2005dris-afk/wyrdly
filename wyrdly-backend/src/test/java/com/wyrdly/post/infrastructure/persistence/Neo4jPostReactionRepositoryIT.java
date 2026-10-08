@@ -10,24 +10,17 @@ import com.wyrdly.post.domain.exception.PostNotFoundException;
 import com.wyrdly.post.domain.model.ReactionResult;
 import com.wyrdly.post.domain.model.ReactionStatus;
 import com.wyrdly.post.domain.model.ReactionType;
+import com.wyrdly.testsupport.Neo4jTestContainer;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Session;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.neo4j.Neo4jContainer;
 
 /**
  * Integration tests for the HU09 reaction toggle Cypher query. Runs against a Testcontainers Neo4j
@@ -37,36 +30,19 @@ import org.testcontainers.neo4j.Neo4jContainer;
  * <p>Skipped at compile-time when Docker is unavailable: the {@code skipITs} profile is on by
  * default. Run with {@code -DskipITs=false -Dtest='*IT'} when Docker is present.
  */
-@Testcontainers
 class Neo4jPostReactionRepositoryIT {
 
-  @Container
-  static final Neo4jContainer NEO4J_CONTAINER =
-      new Neo4jContainer("neo4j:5.26-community").withoutAuthentication();
-
-  static Driver driver;
+  static final Driver driver = Neo4jTestContainer.driver();
   Neo4jPostRepositoryAdapter adapter;
-
-  @BeforeAll
-  static void setUpDriver() {
-    driver = GraphDatabase.driver(NEO4J_CONTAINER.getBoltUrl(), AuthTokens.none());
-  }
-
-  @AfterAll
-  static void tearDownDriver() {
-    driver.close();
-  }
 
   @BeforeEach
   void setUp() {
     adapter = new Neo4jPostRepositoryAdapter(driver);
   }
 
-  @AfterEach
+  @BeforeEach
   void cleanDatabase() {
-    try (Session session = driver.session()) {
-      session.run("MATCH (n) DETACH DELETE n");
-    }
+    Neo4jTestContainer.deleteAllData();
   }
 
   @Test
@@ -128,9 +104,15 @@ class Neo4jPostReactionRepositoryIT {
 
     adapter.react("usr_alice", "pst_1", ReactionType.LIKE);
     adapter.react("usr_bob", "pst_1", ReactionType.LOVE);
-    adapter.react("usr_carol", "pst_1", ReactionType.CELEBRATE);
+    ReactionResult third = adapter.react("usr_carol", "pst_1", ReactionType.CELEBRATE);
 
-    assertEquals(1L, adapter.react("usr_alice", "pst_1", ReactionType.LIKE).totalReactions());
+    assertEquals(3L, third.totalReactions());
+
+    // Repeating the same reaction toggles it off: only alice's reaction leaves the count.
+    ReactionResult toggled = adapter.react("usr_alice", "pst_1", ReactionType.LIKE);
+
+    assertEquals(ReactionStatus.REMOVED, toggled.status());
+    assertEquals(2L, toggled.totalReactions());
   }
 
   @Test

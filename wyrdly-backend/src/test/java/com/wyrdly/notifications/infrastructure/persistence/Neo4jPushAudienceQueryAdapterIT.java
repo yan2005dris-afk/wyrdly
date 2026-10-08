@@ -4,52 +4,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wyrdly.notifications.domain.model.PushTarget;
+import com.wyrdly.testsupport.Neo4jTestContainer;
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Session;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.neo4j.Neo4jContainer;
 
 /**
  * Integration test for {@link Neo4jPushAudienceQueryAdapter} against a real Neo4j instance spun up
  * by Testcontainers. Covers audience filtering (only subscribed followers, never the author nor
  * non-followers) and keyset pagination without gaps or duplicates.
  */
-@Testcontainers
 class Neo4jPushAudienceQueryAdapterIT {
 
-  @Container
-  static final Neo4jContainer NEO4J_CONTAINER =
-      new Neo4jContainer("neo4j:5.26-community").withoutAuthentication();
-
-  static Driver driver;
+  static final Driver driver = Neo4jTestContainer.driver();
   Neo4jPushAudienceQueryAdapter adapter;
-
-  @BeforeAll
-  static void setUpDriver() {
-    driver = GraphDatabase.driver(NEO4J_CONTAINER.getBoltUrl(), AuthTokens.none());
-  }
-
-  @AfterAll
-  static void tearDownDriver() {
-    if (driver != null) {
-      driver.close();
-    }
-  }
 
   @BeforeEach
   void setUp() {
     adapter = new Neo4jPushAudienceQueryAdapter(driver);
+    Neo4jTestContainer.deleteAllData();
     try (Session session = driver.session()) {
-      session.run("MATCH (n) DETACH DELETE n");
       session.run(
           "CREATE (:Usuario {id: 'author', pushEndpoint: 'https://push/a', "
               + "pushP256dh: 'k', pushAuth: 'a'})");
