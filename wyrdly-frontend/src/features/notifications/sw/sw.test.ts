@@ -238,6 +238,294 @@ describe("service worker handlers", () => {
     await expect(sw.handlePush(event)).resolves.toBeUndefined();
     expect(showNotification).toHaveBeenCalledTimes(1);
   });
+
+  it("handlePush fetches the authoritative feed and broadcasts notifications-refreshed", async () => {
+    const sw = await loadSW();
+    const showNotification = vi.fn().mockResolvedValue(undefined);
+    const setAppBadge = vi.fn().mockResolvedValue(undefined);
+    const getNotifications = vi.fn().mockResolvedValue([]);
+    const matchAll = vi.fn().mockResolvedValue([]);
+    const channelPostMessage = vi.fn();
+
+    const fakeFeed = {
+      notifications: [
+        {
+          id: "ntf_real",
+          type: "POST_LIKE",
+          title: "Real",
+          body: "real",
+          deepLink: "/posts/pst_1",
+          isRead: false,
+          createdAt: "2026-01-15T12:00:00Z",
+          actor: { id: "usr_x", username: "x", fullName: "X" },
+        },
+      ],
+      unreadCount: 1,
+      page: 0,
+      pageSize: 20,
+      totalElements: 1,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(fakeFeed),
+    });
+
+    (globalThis as unknown as { registration: unknown }).registration = {
+      showNotification,
+      getNotifications,
+    };
+    (globalThis as unknown as { fetch: unknown }).fetch = fetchMock;
+    (globalThis as unknown as { self: unknown }).self = {
+      registration: { showNotification, getNotifications },
+      navigator: { setAppBadge },
+      clients: { matchAll },
+    };
+
+    // Fake IndexedDB holding a JWT so the SW can read it.
+    const store = new Map<string, string>([["jwt", "test-token-abc"]]);
+    const storesByDb = new Map<string, Map<string, Map<string, string>>>();
+    storesByDb.set("wyrdly-auth", new Map([["auth", store]]));
+    const makeTx = (storeRef: Map<string, string>) => ({
+      objectStore: () => ({
+        get: (key: string) => {
+          const r = {
+            result: storeRef.get(key),
+            onsuccess: null as ((e: unknown) => void) | null,
+            onerror: null,
+          };
+          queueMicrotask(() => {
+            if (r.onsuccess) r.onsuccess({ target: r });
+          });
+          return r;
+        },
+        put: (v: string, k: string) => storeRef.set(k, v),
+        delete: (k: string) => storeRef.delete(k),
+      }),
+      oncomplete: null as ((e: unknown) => void) | null,
+      onerror: null,
+      onabort: null,
+    });
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      writable: true,
+      value: {
+        open: vi.fn(() => {
+          const req = {
+            result: {
+              stores: storesByDb.get("wyrdly-auth")!,
+              transaction: () => makeTx(store),
+              close: () => {},
+            },
+            onupgradeneeded: null,
+            onsuccess: null as ((e: unknown) => void) | null,
+            onerror: null,
+            onblocked: null,
+          };
+          queueMicrotask(() => {
+            if (req.onsuccess) req.onsuccess({ target: req });
+          });
+          return req;
+        }),
+      },
+    });
+
+    try {
+      // Replace the BroadcastChannel for this test so we can spy on the
+      // refreshed broadcast without leaking listeners across tests.
+      const origBroadcastChannel = globalThis.BroadcastChannel;
+      class MockBroadcastChannel {
+        readonly name: string;
+        constructor(name: string) {
+          this.name = name;
+        }
+        postMessage = channelPostMessage;
+        close = vi.fn();
+      }
+      (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+        MockBroadcastChannel;
+
+      try {
+        const event = {
+          data: {
+            json: () => ({ title: "Push", body: "body" }),
+          },
+        };
+        await sw.handlePush(event);
+
+        // The SW fetched the feed with the JWT in the Authorization header.
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const [url, init] = fetchMock.mock.calls[0] as [
+          string,
+          Record<string, unknown>,
+        ];
+        expect(url).toBe("/api/notifications?page=0&pageSize=20");
+        const headers = init.headers as Record<string, string>;
+        expect(headers.Authorization).toBe("Bearer test-token-abc");
+
+        // The real feed was broadcast over the shared BroadcastChannel.
+        expect(channelPostMessage).toHaveBeenCalledWith({
+          type: "wyrdly:notifications-refreshed",
+          payload: fakeFeed,
+        });
+
+        // The badge was synced with the authoritative unreadCount, not
+        // the notification count in the registration (which is 0 here).
+        expect(setAppBadge).toHaveBeenCalledWith(1);
+      } finally {
+        (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+          origBroadcastChannel;
+      }
+    } finally {
+      try {
+        delete (globalThis as { indexedDB?: unknown }).indexedDB;
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+
+  it("handleRefreshRequest replies only to the requesting client with the fresh feed", async () => {
+    const sw = await loadSW();
+    const setAppBadge = vi.fn().mockResolvedValue(undefined);
+    const fakeFeed = { notifications: [], unreadCount: 0, page: 0, pageSize: 20, totalElements: 0 };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(fakeFeed),
+    });
+    const targetClient = { postMessage: vi.fn() };
+
+    (globalThis as unknown as { fetch: unknown }).fetch = fetchMock;
+    (globalThis as unknown as { self: unknown }).self = {
+      navigator: { setAppBadge },
+      clients: { matchAll: vi.fn().mockResolvedValue([]) },
+    };
+
+    const store = new Map<string, string>([["jwt", "tok"]]);
+    const makeTx = (storeRef: Map<string, string>) => ({
+      objectStore: () => ({
+        get: (key: string) => {
+          const r = {
+            result: storeRef.get(key),
+            onsuccess: null as ((e: unknown) => void) | null,
+            onerror: null,
+          };
+          queueMicrotask(() => {
+            if (r.onsuccess) r.onsuccess({ target: r });
+          });
+          return r;
+        },
+        put: (v: string, k: string) => storeRef.set(k, v),
+        delete: (k: string) => storeRef.delete(k),
+      }),
+      oncomplete: null as ((e: unknown) => void) | null,
+      onerror: null,
+      onabort: null,
+    });
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      writable: true,
+      value: {
+        open: vi.fn(() => {
+          const req = {
+            result: {
+              stores: new Map([["auth", store]]),
+              transaction: () => makeTx(store),
+              close: () => {},
+            },
+            onupgradeneeded: null,
+            onsuccess: null as ((e: unknown) => void) | null,
+            onerror: null,
+            onblocked: null,
+          };
+          queueMicrotask(() => {
+            if (req.onsuccess) req.onsuccess({ target: req });
+          });
+          return req;
+        }),
+      },
+    });
+
+    try {
+      await sw.handleRefreshRequest({ source: targetClient });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      // Direct reply: only the requesting client gets the message, no
+      // fan-out to the BroadcastChannel or to every window client.
+      expect(targetClient.postMessage).toHaveBeenCalledWith({
+        type: "wyrdly:notifications-refreshed",
+        payload: fakeFeed,
+      });
+    } finally {
+      try {
+        delete (globalThis as { indexedDB?: unknown }).indexedDB;
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+
+  it("refreshNotifications returns null when no JWT is stored in IndexedDB", async () => {
+    const sw = await loadSW();
+    const fetchMock = vi.fn();
+
+    const emptyStore = new Map<string, string>();
+    const makeTx = (storeRef: Map<string, string>) => ({
+      objectStore: () => ({
+        get: (key: string) => {
+          const r = {
+            result: storeRef.get(key),
+            onsuccess: null as ((e: unknown) => void) | null,
+            onerror: null,
+          };
+          queueMicrotask(() => {
+            if (r.onsuccess) r.onsuccess({ target: r });
+          });
+          return r;
+        },
+        put: (v: string, k: string) => storeRef.set(k, v),
+        delete: (k: string) => storeRef.delete(k),
+      }),
+      oncomplete: null as ((e: unknown) => void) | null,
+      onerror: null,
+      onabort: null,
+    });
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      writable: true,
+      value: {
+        open: vi.fn(() => {
+          const req = {
+            result: {
+              stores: new Map([["auth", emptyStore]]),
+              transaction: () => makeTx(emptyStore),
+              close: () => {},
+            },
+            onupgradeneeded: null,
+            onsuccess: null as ((e: unknown) => void) | null,
+            onerror: null,
+            onblocked: null,
+          };
+          queueMicrotask(() => {
+            if (req.onsuccess) req.onsuccess({ target: req });
+          });
+          return req;
+        }),
+      },
+    });
+
+    try {
+      (globalThis as unknown as { fetch: unknown }).fetch = fetchMock;
+      const result = await sw.refreshNotifications();
+      expect(result).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      try {
+        delete (globalThis as { indexedDB?: unknown }).indexedDB;
+      } catch {
+        /* ignore */
+      }
+    }
+  });
   it("broadcastPushReceived notifies BroadcastChannel and clients.matchAll", async () => {
     const sw = await loadSW();
     const postMessageClient = vi.fn();

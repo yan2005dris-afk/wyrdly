@@ -136,6 +136,16 @@ export const useNotifications = (
       }, 600);
     };
 
+    // The SW posts the authoritative notifications feed (fetched with the
+    // JWT it read from IndexedDB) under this message type. When it lands we
+    // replace the entire cache in one shot — no optimistic merge, no
+    // re-render storm — because the SW is the one that did the network IO
+    // and we trust its payload as ground truth.
+    const onNotificationsRefreshed = (feed: NotificationListResponseDto) => {
+      if (!feed) return;
+      queryClient.setQueryData<NotificationListResponseDto>(queryKey, feed);
+    };
+
     // 1. Observer: Listen to BroadcastChannel from Service Worker
     let broadcastChannel: BroadcastChannel | null = null;
     if (typeof BroadcastChannel !== "undefined") {
@@ -144,6 +154,8 @@ export const useNotifications = (
         broadcastChannel.onmessage = (event: MessageEvent) => {
           if (event.data?.type === "wyrdly:push-received") {
             onPushReceived(event.data.payload);
+          } else if (event.data?.type === "wyrdly:notifications-refreshed") {
+            onNotificationsRefreshed(event.data.payload);
           }
         };
       } catch {
@@ -155,23 +167,34 @@ export const useNotifications = (
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === "wyrdly:push-received") {
         onPushReceived(event.data.payload);
+      } else if (event.data?.type === "wyrdly:notifications-refreshed") {
+        onNotificationsRefreshed(event.data.payload);
       }
     };
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.addEventListener("message", handleSwMessage);
     }
 
-    // 3. Fallback: when the tab becomes visible again, revalidate so any
-    // push that arrived while the tab was in background (and was therefore
-    // throttled out of the BroadcastChannel / postMessage delivery path)
-    // is reconciled with the authoritative server state. This guarantees
-    // the in-app list converges even if the SW → tab bridge dropped a
-    // message.
+    // 3. Fallback: when the tab becomes visible again, ask the SW to fetch
+    // the authoritative feed rather than doing the XHR from the page
+    // itself. The page's event loop is throttled in background; the SW's
+    // is not, so the SW is the right place to make the request. The SW
+    // then posts the data back via `wyrdly:notifications-refreshed`,
+    // which lands on the same listener above. As an extra safety net we
+    // also invalidate the query so a missing SW reply still triggers a
+    // page-side refetch.
     const handleVisibilityChange = () => {
-      if (typeof document !== "undefined" &&
-          document.visibilityState === "visible") {
-        void queryClient.invalidateQueries({ queryKey });
+      if (
+        typeof document === "undefined" ||
+        document.visibilityState !== "visible"
+      ) {
+        return;
       }
+      const sw = navigator.serviceWorker;
+      if (sw && sw.controller && typeof sw.controller.postMessage === "function") {
+        sw.controller.postMessage({ type: "refresh-now" });
+      }
+      void queryClient.invalidateQueries({ queryKey });
     };
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", handleVisibilityChange);

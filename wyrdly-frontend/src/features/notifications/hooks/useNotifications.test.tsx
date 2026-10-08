@@ -517,4 +517,136 @@ describe("useNotifications", () => {
       }
     }
   });
+
+  it("asks the SW to refresh when the tab becomes visible (page-side postMessage to controller)", async () => {
+    mockedGet.mockResolvedValue({ data: baseResponse });
+
+    const controllerPostMessage = vi.fn();
+    const origNavigator = globalThis.navigator;
+    const origDescriptor = Object.getOwnPropertyDescriptor(
+      document,
+      "visibilityState",
+    );
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        ...origNavigator,
+        serviceWorker: {
+          controller: { postMessage: controllerPostMessage },
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockedGet).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        await Promise.resolve();
+      });
+      // The hook now asks the SW first (the SW is not throttled), and
+      // also invalidates the query as a defensive fallback. Verify both:
+      expect(controllerPostMessage).toHaveBeenCalledWith({ type: "refresh-now" });
+    } finally {
+      Object.defineProperty(globalThis, "navigator", {
+        value: origNavigator,
+        configurable: true,
+        writable: true,
+      });
+      if (origDescriptor) {
+        Object.defineProperty(document, "visibilityState", origDescriptor);
+      }
+    }
+  });
+
+  it("replaces the cache with the authoritative feed when SW posts notifications-refreshed", async () => {
+    mockedGet.mockResolvedValueOnce({ data: baseResponse });
+
+    let channelListener: ((event: MessageEvent) => void) | null = null;
+    class MockBroadcastChannel {
+      readonly name: string;
+      constructor(name: string) {
+        this.name = name;
+      }
+      set onmessage(fn: (event: MessageEvent) => void) {
+        channelListener = fn;
+      }
+      close = vi.fn();
+    }
+    const origBroadcastChannel = globalThis.BroadcastChannel;
+    (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+      MockBroadcastChannel;
+
+    try {
+      const { result } = renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => {
+        expect(result.current.notifications).toHaveLength(2);
+      });
+      expect(result.current.unreadCount).toBe(1);
+
+      // Simulate the SW having fetched the authoritative feed and posting
+      // it back. The page should swap the cache in a single setQueryData
+      // call — no merge, no 600ms refetch, no flicker.
+      const authoritativeFeed = {
+        notifications: [
+          {
+            id: "ntf_real_1",
+            type: "POST_LOVE",
+            title: "Server-authoritative title",
+            body: "Server-authoritative body",
+            deepLink: "/posts/pst_real",
+            targetResourceId: "pst_real",
+            isRead: false,
+            createdAt: "2026-01-15T13:00:00Z",
+            actor: {
+              id: "usr_server",
+              username: "server",
+              fullName: "Server User",
+            },
+          },
+        ],
+        unreadCount: 5,
+        page: 0,
+        pageSize: 20,
+        totalElements: 1,
+      };
+
+      await act(async () => {
+        channelListener?.({
+          data: {
+            type: "wyrdly:notifications-refreshed",
+            payload: authoritativeFeed,
+          },
+        } as MessageEvent);
+      });
+
+      await waitFor(() => {
+        expect(result.current.unreadCount).toBe(5);
+        expect(result.current.notifications).toHaveLength(1);
+        expect(result.current.notifications[0]?.id).toBe("ntf_real_1");
+        expect(result.current.notifications[0]?.title).toBe(
+          "Server-authoritative title",
+        );
+      });
+    } finally {
+      (
+        globalThis as unknown as { BroadcastChannel: unknown }
+      ).BroadcastChannel = origBroadcastChannel;
+    }
+  });
 });
