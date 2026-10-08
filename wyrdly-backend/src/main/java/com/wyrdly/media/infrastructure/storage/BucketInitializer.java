@@ -42,6 +42,11 @@ public class BucketInitializer {
       } else {
         Log.warnf(e, "Failed to check bucket status: %s", bucketName);
       }
+    } catch (Exception e) {
+      Log.warnf(
+          e,
+          "Could not connect to S3/storage to check bucket '%s'. Ensure storage service is running.",
+          bucketName);
     }
   }
 
@@ -53,6 +58,11 @@ public class BucketInitializer {
       Log.infof("Bucket '%s' created successfully", bucketName);
     } catch (S3Exception e) {
       Log.warnf(e, "Failed to create bucket: %s", bucketName);
+    } catch (Exception e) {
+      Log.warnf(
+          e,
+          "Could not connect to S3/storage to create bucket '%s'. Ensure storage service is running.",
+          bucketName);
     }
   }
 }
