@@ -54,7 +54,9 @@ export const ProfilePage: FC = () => {
   } = useProfileUsers(profileUsername, "following");
   const { suggestions: apiSuggestions } = useGraphSuggestions();
 
-  const isCurrentUser = !!authUser && profile?.username === authUser.username;
+  const isCurrentUser =
+    !!authUser &&
+    (profile?.username === authUser.username || profile?.id === authUser.id);
   const { follow, unfollow } = useFollow();
   const [followMessage, setFollowMessage] = useState<string | null>(null);
 

@@ -75,6 +75,21 @@ class AuthResourceTest {
   }
 
   @Test
+  void register_Returns400WhenUsernameUsesReservedIdPrefix() {
+    RegisterRequest request =
+        new RegisterRequest(
+            "usr_squatter", "squatter@wyrdly.social", "Password123!", "Squatter", null, null);
+
+    given()
+        .contentType(ContentType.JSON)
+        .body(request)
+        .when()
+        .post("/api/auth/register")
+        .then()
+        .statusCode(400);
+  }
+
+  @Test
   void login_Returns200OnSuccess() {
     LoginRequest request = new LoginRequest("testuser", "Password123!");
     UserDto userDto = new UserDto("usr_123", "testuser", "test@wyrdly.social", "Test User", "", "");

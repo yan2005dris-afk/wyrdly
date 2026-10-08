@@ -231,18 +231,29 @@ describe("ChatPage Component", () => {
       pageSize: 50,
       total: 0,
     });
+    vi.spyOn(chatApi, "getUserStatus").mockResolvedValue({
+      userId: "user-alice",
+      isOnline: true,
+    });
 
     renderChatPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("chat-messages-empty")).toBeInTheDocument();
     });
+    // Flush in-flight fetch continuations: the empty state also renders on
+    // first paint, before the initial history fetch settles and rewrites it.
+    await act(async () => {});
 
     const input = screen.getByPlaceholderText("Message Alice...");
     fireEvent.change(input, { target: { value: "First" } });
     fireEvent.click(screen.getByTestId("chat-send-btn"));
     fireEvent.change(input, { target: { value: "Second" } });
     fireEvent.click(screen.getByTestId("chat-send-btn"));
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("status-sent")).toHaveLength(2);
+    });
 
     const calls = vi.mocked(useChatWebSocket).mock.calls;
     const hookOptions = calls[calls.length - 1][0];
@@ -270,6 +281,10 @@ describe("ChatPage Component", () => {
       page: 1,
       pageSize: 50,
       total: 0,
+    });
+    vi.spyOn(chatApi, "getUserStatus").mockResolvedValue({
+      userId: "user-alice",
+      isOnline: true,
     });
 
     renderChatPage();
@@ -312,12 +327,17 @@ describe("ChatPage Component", () => {
       pageSize: 50,
       total: 0,
     });
+    vi.spyOn(chatApi, "getUserStatus").mockResolvedValue({
+      userId: "user-alice",
+      isOnline: true,
+    });
 
     renderChatPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("chat-messages-empty")).toBeInTheDocument();
     });
+    await act(async () => {});
 
     // Alice's conversation is active, Jonas' runs in the background.
     const calls = vi.mocked(useChatWebSocket).mock.calls;
