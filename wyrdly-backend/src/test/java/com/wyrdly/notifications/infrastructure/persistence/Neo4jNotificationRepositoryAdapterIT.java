@@ -208,6 +208,37 @@ class Neo4jNotificationRepositoryAdapterIT {
   }
 
   @Test
+  void countsTotalNotifications() {
+    repository.save(
+        new Notification(
+            "ntf_a",
+            "usr_recipient",
+            "GRAPH_FOLLOW",
+            "usr_actor",
+            "t",
+            "b",
+            "/feed",
+            null,
+            false,
+            Instant.parse("2026-01-15T10:00:00Z")));
+    repository.save(
+        new Notification(
+            "ntf_b",
+            "usr_recipient",
+            "GRAPH_FOLLOW",
+            "usr_actor",
+            "t",
+            "b",
+            "/feed",
+            null,
+            true,
+            Instant.parse("2026-01-15T10:00:01Z")));
+
+    assertEquals(2L, repository.countTotal("usr_recipient"));
+    assertEquals(0L, repository.countTotal("usr_other"));
+  }
+
+  @Test
   void marksReadForOwner() {
     repository.save(
         new Notification(

@@ -113,7 +113,10 @@ jobs:
           cache: 'maven'
       - name: Generate JWT Keys
         run: bash ../scripts/generate-jwt-keys.sh src/main/resources/jwt
-      - run: ./mvnw verify -DskipUnitTests
+      # -DskipITs=false makes the *IT suites (Testcontainers) run explicitly;
+      # they share one migrated Neo4j container, also injected into the
+      # packaged app booted by @QuarkusIntegrationTest via Neo4jTestResource.
+      - run: ./mvnw verify -DskipUnitTests -DskipITs=false
 
   build:
     name: Package Build (Quarkus)

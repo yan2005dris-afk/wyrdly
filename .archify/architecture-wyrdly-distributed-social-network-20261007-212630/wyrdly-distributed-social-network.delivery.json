@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "e1ce9373-056d-4e05-8bd2-fbec6df7a1fe",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/andy/Escritorio/PROYECTOS/YAGA/yaga-social/.archify/architecture-wyrdly-distributed-social-network-20261007-212630/candidate.json",
+  "output": "/home/andy/Escritorio/PROYECTOS/YAGA/yaga-social/.archify/architecture-wyrdly-distributed-social-network-20261007-212630/wyrdly-distributed-social-network.html",
+  "specification": {
+    "sha256": "1befaba0a0c609271784a585e79fc4e9307e0794ba599f83d1015d050beb2fd0",
+    "bytes": 7524
+  },
+  "artifact": {
+    "sha256": "78b211d892a304a642f812ece7f8d91a422df7e04ea3091779bbc0b35bf35d15",
+    "bytes": 773425
+  }
+}

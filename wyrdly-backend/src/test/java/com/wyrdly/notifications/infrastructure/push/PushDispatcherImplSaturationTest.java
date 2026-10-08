@@ -12,6 +12,7 @@ import com.wyrdly.notifications.application.port.PushSubscriptionRepositoryPort;
 import com.wyrdly.notifications.domain.model.PushEvent;
 import com.wyrdly.notifications.domain.model.PushSubscription;
 import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -61,8 +62,10 @@ class PushDispatcherImplSaturationTest {
             "mailto:test@wyrdly.com",
             0,
             1,
-            1,
-            1);
+            1, // poolSize
+            1, // queueCapacity
+            0, // global rate limit disabled
+            0); // recipient rate limit disabled
     dispatcher.registerMetrics();
 
     dispatcher.dispatch(event("usr_running"));
@@ -74,7 +77,11 @@ class PushDispatcherImplSaturationTest {
             new PushSubscription("https://push.example/x", "p256dh", "auth"), event("usr_dropped"));
 
     assertTrue(dropped.isDone(), "a rejected push must complete immediately");
-    assertEquals(1.0, registry.counter("wyrdly.push.dispatch", "result", "rejected").count());
+    assertEquals(
+        1.0,
+        registry.find("wyrdly.push.dispatch").tag("result", "rejected").counters().stream()
+            .mapToDouble(Counter::count)
+            .sum());
   }
 
   private static PushEvent event(String userId) {

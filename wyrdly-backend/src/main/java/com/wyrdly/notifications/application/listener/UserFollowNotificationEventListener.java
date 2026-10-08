@@ -1,7 +1,8 @@
-package com.wyrdly.user.application.listener;
+package com.wyrdly.notifications.application.listener;
 
 import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.domain.model.Notification;
+import com.wyrdly.notifications.domain.model.PushEvent;
 import com.wyrdly.notifications.domain.repository.NotificationRepository;
 import com.wyrdly.user.domain.event.UserFollowRelationshipChangedEvent;
 import com.wyrdly.user.domain.repository.UserProfileRepository;
@@ -19,25 +20,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * CDI observer that turns a domain follow event into two side effects:
- *
- * <ol>
- *   <li>Persists an in-app {@link Notification} so the recipient sees it in the bell-shaped popover
- *       when they are online.
- *   <li>Dispatches the corresponding {@code PushEvent} to the Web Push pipeline so they also get an
- *       OS-level notification if they have an active browser subscription.
- * </ol>
- *
- * <p>Both side effects are best-effort: errors in persistence do not block dispatch and vice versa,
- * so a failure in one transport does not silently lose the other. The actor's display name is
- * resolved once and reused in both the persisted notification body and the push payload so the user
- * always sees who acted (e.g. "Yandris Tech comenzó a seguirte" instead of "Alguien…"). If the
- * profile lookup fails or the actor no longer exists, the body falls back to "Alguien".
+ * Notifications bounded context listener that observes {@link UserFollowRelationshipChangedEvent}
+ * emitted by the user module. Decouples follow domain operations from notification persistence and
+ * push dispatch.
  */
 @ApplicationScoped
-public class UserFollowPushEventListener {
+public class UserFollowNotificationEventListener {
 
-  private static final Logger LOG = Logger.getLogger(UserFollowPushEventListener.class.getName());
+  private static final Logger LOG =
+      Logger.getLogger(UserFollowNotificationEventListener.class.getName());
 
   static final String NOTIFICATION_TYPE = "GRAPH_FOLLOW";
   static final String TITLE = "Nuevo seguidor";
@@ -49,7 +40,7 @@ public class UserFollowPushEventListener {
   private final UserProfileRepository userProfileRepository;
 
   @Inject
-  public UserFollowPushEventListener(
+  public UserFollowNotificationEventListener(
       PushDispatcherPort dispatcher,
       NotificationRepository notificationRepository,
       @ResilientNeo4j UserProfileRepository userProfileRepository) {
@@ -60,7 +51,7 @@ public class UserFollowPushEventListener {
         Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
   }
 
-  void on(@Observes UserFollowRelationshipChangedEvent event) {
+  public void on(@Observes UserFollowRelationshipChangedEvent event) {
     Objects.requireNonNull(event, "event must not be null");
     if (!event.followed()) {
       return;
@@ -87,15 +78,14 @@ public class UserFollowPushEventListener {
     try {
       notificationRepository.save(notification);
     } catch (RuntimeException persistError) {
-      // Persistence failure should not block the push dispatch.
       LOG.log(
           Level.WARNING,
           "Failed to persist follow notification for " + event.targetUserId(),
           persistError);
     }
 
-    com.wyrdly.notifications.domain.model.PushEvent push =
-        new com.wyrdly.notifications.domain.model.PushEvent(
+    PushEvent push =
+        new PushEvent(
             event.targetUserId(),
             NOTIFICATION_TYPE,
             TITLE,

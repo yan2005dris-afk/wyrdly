@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Wyrdly — Arquitectura Distribuida (TRD)",
+    "subtitle": "Microservicios Reactivos (Quarkus), Grafo Neo4j, MinIO/RustFS (S3), WebSocket y Web Push",
+    "output": ".archify/architecture-wyrdly-distributed-social-network-20261007-212630/wyrdly-distributed-social-network.html",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "repository": {
+      "url": "https://github.com/yan2005dris-afk/wyrdly.git",
+      "revision": "a5d22c1b3df3195da1bcbd50d8f81643628fcff6",
+      "provider": "github",
+      "link_mode": "web"
+    }
+  },
+  "components": [
+    {
+      "id": "client_user",
+      "type": "external",
+      "label": "Usuario (Cliente / OS)",
+      "sublabel": "Navegador Web / Pestaña Activa",
+      "icon": "person",
+      "pos": [40, 190],
+      "size": [160, 64]
+    },
+    {
+      "id": "service_worker",
+      "type": "frontend",
+      "label": "ServiceWorker (Cliente)",
+      "sublabel": "Push Event Listener • RFC 8291",
+      "icon": "frontend",
+      "tag": "Segundo Plano",
+      "pos": [40, 340],
+      "size": [160, 64]
+    },
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "Frontend React (SPA)",
+      "sublabel": "Vite + React 18 + Web Workers",
+      "brand": "react",
+      "tag": "UI, Feed & Chat",
+      "pos": [310, 190],
+      "size": [170, 68],
+      "sources": [
+        { "path": "wyrdly-frontend/src/App.tsx", "line": 1, "label": "SPA Entrypoint" }
+      ]
+    },
+    {
+      "id": "backend",
+      "type": "backend",
+      "label": "Backend Quarkus",
+      "sublabel": "Java 21 • Mutiny • RESTEasy",
+      "icon": "backend",
+      "tag": "API REST :8080",
+      "pos": [590, 140],
+      "size": [190, 70],
+      "sources": [
+        { "path": "wyrdly-backend/src/main/java/com/wyrdly/auth/interfaces/rest/AuthResource.java", "line": 1, "label": "REST Resource" },
+        { "path": "docs/trd/TRD.md", "line": 20, "label": "TRD Backend Quarkus" },
+        { "path": "compose.yaml", "line": 62, "label": "Backend Container" }
+      ]
+    },
+    {
+      "id": "ws_endpoint",
+      "type": "messagebus",
+      "label": "WebSocket Server",
+      "sublabel": "@ServerEndpoint • RFC 6455",
+      "icon": "messagebus",
+      "tag": "Chat Bidireccional",
+      "pos": [590, 290],
+      "size": [190, 70],
+      "sources": [
+        { "path": "wyrdly-backend/src/main/java/com/wyrdly/StartWebSocket.java", "line": 1, "label": "WebSocket Server" },
+        { "path": "docs/trd/TRD.md", "line": 70, "label": "TRD WebSocket RFC 6455" }
+      ]
+    },
+    {
+      "id": "minio_s3",
+      "type": "cloud",
+      "label": "Object Storage (S3)",
+      "sublabel": "MinIO / RustFS • Port :9000",
+      "icon": "cloud",
+      "tag": "Archivos Binarios",
+      "pos": [890, 140],
+      "size": [180, 70],
+      "sources": [
+        { "path": "wyrdly-backend/src/main/java/com/wyrdly/media/infrastructure/storage/S3StorageService.java", "line": 1, "label": "S3 Service Adapter" },
+        { "path": "docs/trd/TRD.md", "line": 100, "label": "TRD Object Storage MinIO" },
+        { "path": "compose.yaml", "line": 27, "label": "RustFS S3 Container" }
+      ]
+    },
+    {
+      "id": "neo4j",
+      "type": "database",
+      "label": "Base de Datos Neo4j",
+      "sublabel": "Grafo Social • Bolt :7687",
+      "icon": "database",
+      "tag": "Protocolo Bolt (Cypher)",
+      "pos": [890, 290],
+      "size": [180, 70],
+      "sources": [
+        { "path": "wyrdly-backend/src/main/java/com/wyrdly/post/infrastructure/persistence/Neo4jPostRepositoryAdapter.java", "line": 1, "label": "Neo4j Adapter" },
+        { "path": "docs/trd/TRD.md", "line": 93, "label": "TRD Neo4j Service" },
+        { "path": "compose.yaml", "line": 2, "label": "Neo4j Container" }
+      ]
+    },
+    {
+      "id": "push_server",
+      "type": "external",
+      "label": "Servidor Push Navegador",
+      "sublabel": "FCM / Mozilla • RFC 8030",
+      "icon": "security",
+      "tag": "Broker Externo",
+      "pos": [1180, 215],
+      "size": [180, 70]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Cliente (Navegador & OS - TRD §1)",
+      "wraps": ["client_user", "service_worker", "frontend"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Docker Compose: wyrdly-network (TRD §4)",
+      "wraps": ["backend", "ws_endpoint", "minio_s3", "neo4j"],
+      "pad": 20
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-user-frontend",
+      "from": "client_user",
+      "to": "frontend",
+      "label": "Interactúa UI"
+    },
+    {
+      "id": "conn-user-sw",
+      "from": "client_user",
+      "to": "service_worker",
+      "label": "Registra SW",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "conn-frontend-backend",
+      "from": "frontend",
+      "to": "backend",
+      "label": "HTTP/REST (JWT)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conn-frontend-ws",
+      "from": "frontend",
+      "to": "ws_endpoint",
+      "label": "WebSocket RFC 6455",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conn-backend-s3",
+      "from": "backend",
+      "to": "minio_s3",
+      "label": "API S3 (AWS SDK v2)",
+      "variant": "dashed"
+    },
+    {
+      "id": "conn-backend-neo4j",
+      "from": "backend",
+      "to": "neo4j",
+      "label": "Protocolo Bolt",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conn-ws-neo4j",
+      "from": "ws_endpoint",
+      "to": "neo4j",
+      "label": "Persiste (:Mensaje)"
+    },
+    {
+      "id": "conn-backend-pushserver",
+      "from": "backend",
+      "to": "push_server",
+      "label": "Web Push (VAPID RFC 8292)",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [[685, 70], [1270, 70]]
+    },
+    {
+      "id": "conn-pushserver-sw",
+      "from": "push_server",
+      "to": "service_worker",
+      "label": "Entrega Notificación (RFC 8030)",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [[1270, 450], [120, 450]]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Capa de Negocio y Transporte (TRD §3)",
+      "items": [
+        "HTTP/REST: Cargas útiles JSON autenticadas mediante cabecera Authorization: Bearer <JWT>.",
+        "WebSocket (RFC 6455): Canal TCP persistente full-duplex con @ServerEndpoint y validación token @OnOpen.",
+        "Web Push (RFC 8030/8291/8292): Notificaciones asíncronas firmadas con claves VAPID fuera del ciclo de vida de la pestaña."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Capa de Persistencia Segregada (TRD §2)",
+      "items": [
+        "Neo4j 5.x: Recorridos relacionales profundos (amigos de amigos, feed) sin costo computacional de múltiples JOINs.",
+        "Object Storage (MinIO/RustFS): Desacopla archivos binarios pesados (imágenes/videos) para no saturar la base de datos de grafos.",
+        "Protocolo Bolt: Comunicación binaria de alto rendimiento Quarkus-Neo4j por puerto :7687."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Entorno y Despliegue Distribuido (TRD §4)",
+      "items": [
+        "Docker Compose: Orquestación reproducible en red virtual aislada wyrdly-network.",
+        "Healthchecks: Verificación estricta de disponibilidad en Neo4j (cypher-shell) y S3 (HTTP) antes de iniciar Quarkus.",
+        "Frontend desacoplado: Servido en puerto 3000 con consumo de API y registro de Service Worker."
+      ]
+    }
+  ]
+}

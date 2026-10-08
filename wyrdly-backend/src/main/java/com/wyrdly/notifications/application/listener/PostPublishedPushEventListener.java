@@ -1,4 +1,4 @@
-package com.wyrdly.post.application.listener;
+package com.wyrdly.notifications.application.listener;
 
 import com.wyrdly.notifications.application.usecase.NotifyFollowersUseCase;
 import com.wyrdly.notifications.domain.model.PushMessage;

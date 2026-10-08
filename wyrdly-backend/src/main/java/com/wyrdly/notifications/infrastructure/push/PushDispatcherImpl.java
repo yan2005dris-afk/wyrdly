@@ -10,8 +10,9 @@ import com.wyrdly.notifications.domain.model.PushSubscription;
 import com.wyrdly.notifications.infrastructure.crypto.MessageEncryptor;
 import com.wyrdly.notifications.infrastructure.crypto.VapidJwtSigner;
 import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
-import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -33,6 +34,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -46,14 +48,17 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  *   <li>404 / 410 → subscription cleaned up (counter: {@code result=gone}).
  *   <li>4xx → counter {@code result=http_4xx} (likely a payload / header bug).
  *   <li>5xx → counter {@code result=http_5xx} after retries with exponential backoff.
+ *   <li>Network error → counter {@code result=network_error}.
  *   <li>No subscription stored → counter {@code result=skipped_no_subscription}.
+ *   <li>Rate limited → counter {@code result=rate_limited}.
  *   <li>Dispatcher saturated (queue full) → push dropped, counter {@code result=rejected}.
  * </ul>
  *
  * <p>All HTTP I/O runs on a dedicated, bounded {@link ThreadPoolExecutor} so {@link #dispatch}
  * returns to the caller immediately. The queue is bounded ({@code
  * wyrdly.push.dispatch.queue-capacity}) so a large fan-out cannot exhaust the heap: Web Push is
- * best-effort, so dropping a push under saturation is preferred over an OOM.
+ * best-effort, so dropping a push under saturation is preferred over an OOM. Rate limiting (global
+ * and per recipient) applies to both {@link #dispatch} and {@link #dispatchTo}.
  *
  * <p>The parsed VAPID signing key and the VAPID JWT per Push Service origin are cached: a fan-out
  * to thousands of recipients signs a handful of JWTs instead of one per push.
@@ -62,6 +67,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 public class PushDispatcherImpl implements PushDispatcherPort {
 
   private static final Logger LOG = Logger.getLogger(PushDispatcherImpl.class.getName());
+
+  private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
 
   /** Lifetime of a signed VAPID JWT (RFC 8292 caps it at 24h). */
   static final Duration JWT_TTL = Duration.ofMinutes(10);
@@ -82,13 +89,10 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   private final ConcurrentMap<String, CachedJwt> jwtCache = new ConcurrentHashMap<>();
   private volatile CachedSigningKey signingKeyCache;
 
-  private Counter okCounter;
-  private Counter goneCounter;
-  private Counter clientErrorCounter;
-  private Counter serverErrorCounter;
-  private Counter skippedCounter;
-  private Counter failedCounter;
-  private Counter rejectedCounter;
+  private final long recipientRateIntervalMs;
+  private final TokenBucket globalTokenBucket;
+  private final ConcurrentHashMap<String, AtomicLong> lastPushTimeByRecipient =
+      new ConcurrentHashMap<>();
 
   @Inject
   public PushDispatcherImpl(
@@ -104,7 +108,13 @@ public class PushDispatcherImpl implements PushDispatcherPort {
           long initialBackoffMs,
       @ConfigProperty(name = "wyrdly.push.dispatch.pool-size", defaultValue = "8") int poolSize,
       @ConfigProperty(name = "wyrdly.push.dispatch.queue-capacity", defaultValue = "5000")
-          int queueCapacity) {
+          int queueCapacity,
+      @ConfigProperty(name = "wyrdly.push.dispatch.global-rate-per-second", defaultValue = "1000")
+          long globalRatePerSecond,
+      @ConfigProperty(
+              name = "wyrdly.push.dispatch.recipient-rate-interval-ms",
+              defaultValue = "1000")
+          long recipientRateIntervalMs) {
     this.vapidKeyProvider = vapidKeyProvider;
     this.subscriptionRepository = subscriptionRepository;
     this.gatewayClient = gatewayClient;
@@ -113,6 +123,9 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     this.subject = subject;
     this.maxRetries = maxRetries;
     this.initialBackoff = Duration.ofMillis(initialBackoffMs);
+    this.recipientRateIntervalMs = recipientRateIntervalMs;
+    this.globalTokenBucket =
+        globalRatePerSecond > 0 ? new TokenBucket(globalRatePerSecond, globalRatePerSecond) : null;
     AtomicInteger threadIndex = new AtomicInteger();
     this.executor =
         new ThreadPoolExecutor(
@@ -131,37 +144,45 @@ public class PushDispatcherImpl implements PushDispatcherPort {
 
   @PostConstruct
   void registerMetrics() {
-    this.okCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "ok");
-    this.goneCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "gone");
-    this.clientErrorCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "http_4xx");
-    this.serverErrorCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "http_5xx");
-    this.skippedCounter =
-        meterRegistry.counter("wyrdly.push.dispatch", "result", "skipped_no_subscription");
-    this.failedCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "failed");
-    this.rejectedCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "rejected");
+    meterRegistry.gauge(
+        "wyrdly.push.subscriptions",
+        subscriptionRepository,
+        PushSubscriptionRepositoryPort::countActive);
   }
 
   @PreDestroy
-  void shutdown() {
+  public void shutdown() {
     executor.shutdown();
     try {
-      if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+      if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
         executor.shutdownNow();
+        if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+          LOG.log(Level.WARNING, "push-dispatcher executor did not terminate");
+        }
       }
-    } catch (InterruptedException ex) {
+    } catch (InterruptedException e) {
       executor.shutdownNow();
       Thread.currentThread().interrupt();
+      try {
+        executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
   @Override
   public void dispatch(PushEvent event) {
+    if (event == null || isRateLimited(event)) {
+      return;
+    }
     submit(
+        typeOf(event),
         () -> {
           PushSubscription subscription =
               subscriptionRepository.findByUserId(event.recipientUserId());
           if (subscription == null) {
-            skippedCounter.increment();
+            recordDispatch(typeOf(event), "skipped_no_subscription");
             LOG.log(Level.FINE, "no subscription for user {0}", event.recipientUserId());
             return;
           }
@@ -171,11 +192,56 @@ public class PushDispatcherImpl implements PushDispatcherPort {
 
   @Override
   public CompletableFuture<Void> dispatchTo(PushSubscription subscription, PushEvent event) {
-    return submit(() -> send(subscription, event));
+    if (event == null || isRateLimited(event)) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return submit(typeOf(event), () -> send(subscription, event));
+  }
+
+  /** Records and logs a rate-limited push; {@code true} means the push must be dropped. */
+  private boolean isRateLimited(PushEvent event) {
+    if (isGlobalRateLimited()) {
+      recordDispatch(typeOf(event), "rate_limited");
+      LOG.log(Level.WARNING, "Global push dispatch rate limit exceeded");
+      return true;
+    }
+    if (isRecipientRateLimited(event.recipientUserId())) {
+      recordDispatch(typeOf(event), "rate_limited");
+      LOG.log(Level.FINE, "Push rate limit exceeded for recipient {0}", event.recipientUserId());
+      return true;
+    }
+    return false;
+  }
+
+  private boolean isGlobalRateLimited() {
+    return globalTokenBucket != null && !globalTokenBucket.tryConsume();
+  }
+
+  private boolean isRecipientRateLimited(String recipientUserId) {
+    if (recipientRateIntervalMs <= 0 || recipientUserId == null) {
+      return false;
+    }
+    long now = System.nanoTime();
+    long intervalNanos = TimeUnit.MILLISECONDS.toNanos(recipientRateIntervalMs);
+    AtomicLong lastAllowedTime =
+        lastPushTimeByRecipient.computeIfAbsent(recipientUserId, k -> new AtomicLong(0));
+    while (true) {
+      long last = lastAllowedTime.get();
+      if (last > 0 && (now - last) < intervalNanos) {
+        return true;
+      }
+      if (lastAllowedTime.compareAndSet(last, now)) {
+        if (lastPushTimeByRecipient.size() > 10_000) {
+          long cutoff = now - TimeUnit.MINUTES.toNanos(1);
+          lastPushTimeByRecipient.entrySet().removeIf(e -> e.getValue().get() < cutoff);
+        }
+        return false;
+      }
+    }
   }
 
   /** Runs {@code task} on the dispatcher pool; the returned future always completes normally. */
-  private CompletableFuture<Void> submit(Runnable task) {
+  private CompletableFuture<Void> submit(String eventType, Runnable task) {
     CompletableFuture<Void> done = new CompletableFuture<>();
     try {
       executor.execute(
@@ -183,14 +249,14 @@ public class PushDispatcherImpl implements PushDispatcherPort {
             try {
               task.run();
             } catch (RuntimeException ex) {
-              failedCounter.increment();
+              recordDispatch(eventType, "failed");
               LOG.log(Level.WARNING, "push dispatch task failed", ex);
             } finally {
               done.complete(null);
             }
           });
     } catch (RejectedExecutionException ex) {
-      rejectedCounter.increment();
+      recordDispatch(eventType, "rejected");
       LOG.log(Level.WARNING, "push dispatcher saturated; push dropped");
       done.complete(null);
     }
@@ -198,10 +264,12 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   }
 
   private void send(PushSubscription subscription, PushEvent event) {
+    String eventType = typeOf(event);
     try {
       byte[] plaintext = encodePayload(event);
       byte[] ciphertext =
           MessageEncryptor.encrypt(plaintext, subscription.p256dh(), subscription.auth());
+      recordBytes(eventType, ciphertext.length);
 
       String jwt = jwtFor(extractOrigin(subscription.endpoint()));
 
@@ -212,22 +280,37 @@ public class PushDispatcherImpl implements PushDispatcherPort {
       headers.put("Content-Type", "application/octet-stream");
       headers.put("Authorization", "vapid t=" + jwt + ",k=" + vapidKeyProvider.getPublicKey());
 
-      int status = dispatchWithRetries(subscription.endpoint(), ciphertext, headers);
+      long startNanos = System.nanoTime();
+      int status;
+      try {
+        status = dispatchWithRetries(subscription.endpoint(), ciphertext, headers);
+      } catch (Exception ex) {
+        long durationNanos = System.nanoTime() - startNanos;
+        recordDuration(eventType, "network_error", durationNanos);
+        recordDispatch(eventType, "network_error");
+        LOG.log(
+            Level.WARNING, "push gateway network error for user " + event.recipientUserId(), ex);
+        return;
+      }
+      long durationNanos = System.nanoTime() - startNanos;
 
       switch (status / 100) {
         case 2:
-          okCounter.increment();
+          recordDuration(eventType, "ok", durationNanos);
+          recordDispatch(eventType, "ok");
           return;
         case 4:
           if (status == 404 || status == 410) {
-            goneCounter.increment();
+            recordDuration(eventType, "gone", durationNanos);
+            recordDispatch(eventType, "gone");
             subscriptionRepository.deleteByUserId(event.recipientUserId());
             LOG.log(
                 Level.INFO,
                 "subscription gone for user {0} (HTTP {1}); cleaned up",
                 new Object[] {event.recipientUserId(), status});
           } else {
-            clientErrorCounter.increment();
+            recordDuration(eventType, "http_4xx", durationNanos);
+            recordDispatch(eventType, "http_4xx");
             LOG.log(
                 Level.WARNING,
                 "push gateway rejected payload for user {0} (HTTP {1})",
@@ -235,15 +318,41 @@ public class PushDispatcherImpl implements PushDispatcherPort {
           }
           return;
         case 5:
-          serverErrorCounter.increment();
+          recordDuration(eventType, "http_5xx", durationNanos);
+          recordDispatch(eventType, "http_5xx");
           return;
         default:
-          failedCounter.increment();
+          recordDuration(eventType, "failed", durationNanos);
+          recordDispatch(eventType, "failed");
       }
     } catch (Exception ex) {
-      failedCounter.increment();
+      recordDispatch(eventType, "failed");
       LOG.log(Level.WARNING, "push dispatch failed for user " + event.recipientUserId(), ex);
     }
+  }
+
+  private static String typeOf(PushEvent event) {
+    return event.type() != null ? event.type() : "unknown";
+  }
+
+  private void recordDispatch(String type, String result) {
+    meterRegistry.counter("wyrdly.push.dispatch", "type", type, "result", result).increment();
+  }
+
+  private void recordDuration(String type, String result, long durationNanos) {
+    Timer.builder("wyrdly.push.dispatch.duration")
+        .tag("type", type)
+        .tag("result", result)
+        .register(meterRegistry)
+        .record(Duration.ofNanos(durationNanos));
+  }
+
+  private void recordBytes(String type, int byteCount) {
+    DistributionSummary.builder("wyrdly.push.dispatch.bytes")
+        .tag("type", type)
+        .baseUnit("bytes")
+        .register(meterRegistry)
+        .record(byteCount);
   }
 
   /** Returns the highest HTTP status seen (last attempt if all 5xx, else first 4xx). */
@@ -327,5 +436,31 @@ public class PushDispatcherImpl implements PushDispatcherPort {
       origin += ":" + uri.getPort();
     }
     return origin;
+  }
+
+  static class TokenBucket {
+    private final long capacity;
+    private final double tokensPerNano;
+    private double availableTokens;
+    private long lastRefillNanos;
+
+    TokenBucket(long capacity, long ratePerSecond) {
+      this.capacity = capacity;
+      this.tokensPerNano = (double) ratePerSecond / 1_000_000_000.0;
+      this.availableTokens = capacity;
+      this.lastRefillNanos = System.nanoTime();
+    }
+
+    synchronized boolean tryConsume() {
+      long now = System.nanoTime();
+      long elapsed = Math.max(0, now - lastRefillNanos);
+      lastRefillNanos = now;
+      availableTokens = Math.min(capacity, availableTokens + elapsed * tokensPerNano);
+      if (availableTokens >= 1.0) {
+        availableTokens -= 1.0;
+        return true;
+      }
+      return false;
+    }
   }
 }

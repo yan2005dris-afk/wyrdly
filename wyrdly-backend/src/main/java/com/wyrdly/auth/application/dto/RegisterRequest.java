@@ -9,8 +9,9 @@ public record RegisterRequest(
     @NotBlank(message = "Username is required")
         @Size(min = 3, max = 30, message = "Username must be between 3 and 30 characters")
         @Pattern(
-            regexp = "^[a-zA-Z0-9_]+$",
-            message = "Username can only contain alphanumeric characters and underscores")
+            regexp = "^(?!(?i)usr_)[a-zA-Z0-9_]+$",
+            message =
+                "Username can only contain alphanumeric characters and underscores and cannot start with 'usr_' (reserved for canonical user ids)")
         String username,
     @NotBlank(message = "Email is required") @Email(message = "Email must be a valid email address")
         String email,

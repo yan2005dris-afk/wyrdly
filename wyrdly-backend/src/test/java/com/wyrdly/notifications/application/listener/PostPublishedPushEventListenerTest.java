@@ -1,4 +1,4 @@
-package com.wyrdly.post.application.listener;
+package com.wyrdly.notifications.application.listener;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
