@@ -21,6 +21,7 @@ import {
   UserListRow,
   UserListRowSkeleton,
   useGraphSuggestions,
+  useFollow,
 } from "../features/social";
 import { Button } from "../components/ui/Button";
 
@@ -51,6 +52,8 @@ export const ProfilePage: FC = () => {
   const { suggestions: apiSuggestions } = useGraphSuggestions();
 
   const isCurrentUser = !!authUser && profile?.username === authUser.username;
+  const { follow, unfollow } = useFollow();
+  const [followMessage, setFollowMessage] = useState<string | null>(null);
 
   const handleAfterToggle = useCallback(() => {
     // Re-fetch the profile header (followers / following / postsCount)
@@ -60,6 +63,33 @@ export const ProfilePage: FC = () => {
     refetchFollowers();
     refetchFollowing();
   }, [refetch, refetchFollowers, refetchFollowing]);
+
+  const handleFollowToggle = useCallback(async () => {
+    if (!profile?.id) return;
+    const isCurrentlyFollowing = profile.isFollowing ?? false;
+    try {
+      if (isCurrentlyFollowing) {
+        await unfollow(profile.id);
+        setFollowMessage(`Dejaste de seguir a @${profile.username}`);
+      } else {
+        await follow(profile.id);
+        setFollowMessage(`Siguiendo a @${profile.username}`);
+      }
+      refetch();
+      refetchFollowers();
+      refetchFollowing();
+      setTimeout(() => setFollowMessage(null), 3000);
+    } catch (err) {
+      console.error("Failed to toggle follow", err);
+    }
+  }, [
+    profile,
+    follow,
+    unfollow,
+    refetch,
+    refetchFollowers,
+    refetchFollowing,
+  ]);
 
   const handleSaveProfile = async (payload: UpdateProfilePayload) => {
     setIsSaving(true);
@@ -148,6 +178,24 @@ export const ProfilePage: FC = () => {
             </div>
           </div>
 
+          {followMessage && (
+            <div
+              className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg text-sm flex items-center justify-between"
+              role="status"
+              data-testid="profile-follow-feedback-banner"
+            >
+              <span>{followMessage}</span>
+              <button
+                type="button"
+                onClick={() => setFollowMessage(null)}
+                className="text-emerald-600 hover:text-emerald-800 font-bold ml-2 text-base leading-none"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           <ProfileHeaderCard
             user={profile}
             coverUrl="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1000&auto=format&fit=crop&q=80"
@@ -156,10 +204,7 @@ export const ProfilePage: FC = () => {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onMessageClick={handleMessageClick}
-            onSubscribeToggle={() => {
-              /* delegated to a future follow-action button; the
-                 ProfileHeaderCard receives isSubscribed for display only */
-            }}
+            onSubscribeToggle={handleFollowToggle}
             onEditProfileClick={() => setIsEditOpen(true)}
           />
 
