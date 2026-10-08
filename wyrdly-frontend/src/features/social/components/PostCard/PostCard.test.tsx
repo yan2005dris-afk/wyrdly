@@ -63,17 +63,37 @@ describe("PostCard Component", () => {
     expect(screen.queryByTestId("rustfs-badge")).not.toBeInTheDocument();
   });
 
-  it("triggers onReaction when like or boost is clicked", () => {
+  it("triggers onReaction when like is clicked", () => {
     const handleReaction = vi.fn();
     renderCard({ onReaction: handleReaction });
 
-    const likeBtn = screen.getByTestId("like-btn");
-    fireEvent.click(likeBtn);
+    fireEvent.click(screen.getByTestId("like-btn"));
     expect(handleReaction).toHaveBeenCalledWith("post-1", "LIKE");
+  });
+
+  it("triggers onBoost (and not onReaction) when boost is clicked", () => {
+    const handleReaction = vi.fn();
+    const handleBoost = vi.fn();
+    renderCard({ onReaction: handleReaction, onBoost: handleBoost });
 
     const boostBtn = screen.getByTestId("boost-btn");
+    expect(boostBtn).not.toBeDisabled();
     fireEvent.click(boostBtn);
-    expect(handleReaction).toHaveBeenCalledWith("post-1", "RETWEET");
+
+    expect(handleBoost).toHaveBeenCalledWith("post-1");
+    expect(handleReaction).not.toHaveBeenCalled();
+  });
+
+  it("disables the boost button when no onBoost handler is provided", () => {
+    const handleReaction = vi.fn();
+    renderCard({ onReaction: handleReaction });
+
+    const boostBtn = screen.getByTestId("boost-btn");
+    expect(boostBtn).toBeDisabled();
+    expect(boostBtn).toHaveAttribute("title", "Boost coming soon");
+
+    fireEvent.click(boostBtn);
+    expect(handleReaction).not.toHaveBeenCalled();
   });
 
   it("renders three reaction buttons (LIKE, LOVE, CELEBRATE)", () => {
