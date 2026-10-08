@@ -127,10 +127,10 @@ class VapidJwtSignerTest {
         VapidJwtSigner.sign("https://example.com", "mailto:ops@example.com", pair.getPrivate());
     String[] parts = jwt.split("\\.");
     byte[] signature = Base64.getUrlDecoder().decode(parts[2]);
-    Signature verifier = Signature.getInstance("SHA256withECDSA");
+    Signature verifier = Signature.getInstance("SHA256withECDSAinP1363Format");
     verifier.initVerify(rebuilt);
     verifier.update((parts[0] + "." + parts[1]).getBytes(StandardCharsets.UTF_8));
-    assertTrue(verifier.verify(p1363ToDer(signature)));
+    assertTrue(verifier.verify(signature));
   }
 
   // ---- helpers -----------------------------------------------------------
@@ -156,8 +156,8 @@ class VapidJwtSignerTest {
 
   /** P1363 → ASN.1 DER for Java's {@code SHA256withECDSA}. */
   private static byte[] p1363ToDer(byte[] p1363) {
-    byte[] r = stripLeadingZero(toFixed32Neg(java.util.Arrays.copyOfRange(p1363, 0, 32)));
-    byte[] s = stripLeadingZero(toFixed32Neg(java.util.Arrays.copyOfRange(p1363, 32, 64)));
+    byte[] r = java.util.Arrays.copyOfRange(p1363, 0, 32);
+    byte[] s = java.util.Arrays.copyOfRange(p1363, 32, 64);
     byte[] rEnc = encodeAsn1Integer(r);
     byte[] sEnc = encodeAsn1Integer(s);
     byte[] body = new byte[rEnc.length + sEnc.length];
@@ -166,24 +166,10 @@ class VapidJwtSignerTest {
     return wrapInSequence(body);
   }
 
-  private static byte[] toFixed32Neg(byte[] src) {
-    if (src.length == 32) return src;
-    byte[] dst = new byte[32];
-    if (src.length > 32) System.arraycopy(src, src.length - 32, dst, 0, 32);
-    else System.arraycopy(src, 0, dst, 32 - src.length, src.length);
-    return dst;
-  }
-
-  private static byte[] stripLeadingZero(byte[] src) {
-    if (src.length > 1 && src[0] == 0 && (src[1] & 0x80) != 0) {
-      return java.util.Arrays.copyOfRange(src, 1, src.length);
-    }
-    return src;
-  }
-
   private static byte[] encodeAsn1Integer(byte[] value) {
+    byte[] derInt = new java.math.BigInteger(1, value).toByteArray();
     byte[] tag = new byte[] {0x02};
-    return concat(tag, encodeLength(value.length), value);
+    return concat(tag, encodeLength(derInt.length), derInt);
   }
 
   private static byte[] encodeLength(int length) {
