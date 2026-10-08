@@ -57,12 +57,10 @@ describe("PostCard Component", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders RustFS S3 Bucket media badge", () => {
+  it("does not render debug RustFS badge in production post view", () => {
     renderCard();
 
-    expect(screen.getByTestId("rustfs-badge")).toHaveTextContent(
-      "RustFS S3 Bucket",
-    );
+    expect(screen.queryByTestId("rustfs-badge")).not.toBeInTheDocument();
   });
 
   it("triggers onReaction when like or boost is clicked", () => {

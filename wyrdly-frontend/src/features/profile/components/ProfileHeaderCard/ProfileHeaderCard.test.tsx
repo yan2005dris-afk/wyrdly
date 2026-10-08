@@ -23,7 +23,7 @@ const MOCK_USER: UserProfileSummary = {
 };
 
 describe("ProfileHeaderCard Component", () => {
-  it("renders user profile info, bio, metadata and RustFS cover badge", () => {
+  it("renders user profile info, bio, and metadata without debug badges", () => {
     render(
       <ProfileHeaderCard
         user={MOCK_USER}
@@ -39,7 +39,7 @@ describe("ProfileHeaderCard Component", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Bengaluru, IN")).toBeInTheDocument();
     expect(screen.getByText("maya.build")).toBeInTheDocument();
-    expect(screen.getByText("Cover stored on RustFS")).toBeInTheDocument();
+    expect(screen.queryByTestId("rustfs-badge")).not.toBeInTheDocument();
     expect(screen.getByTestId("profile-verified-badge")).toBeInTheDocument();
   });
 
