@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { authApi } from "../api/authApi";
 import { setAccessToken } from "../../../api/tokenStore";
-import { persistAuthToken, clearAuthToken } from "../../../api/swAuthToken";
 import type { User, LoginCredentials, RegisterCredentials } from "../types";
 
 export interface AuthState {
@@ -20,7 +19,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   isAuthenticated: false,
   isLoading: false,
-
   initAuth: async () => {
     const savedUser = localStorage.getItem("wyrdly_user");
     if (!savedUser) {
@@ -31,9 +29,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res = await authApi.refresh();
       setAccessToken(res.token);
-      // Mirror the JWT into IndexedDB so the SW can authenticate its own
-      // /api/notifications fetch after a push lands.
-      await persistAuthToken(res.token);
       localStorage.setItem("wyrdly_user", JSON.stringify(res.user));
       set({
         user: res.user,
@@ -43,7 +38,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
     } catch {
       setAccessToken(null);
-      await clearAuthToken();
       localStorage.removeItem("wyrdly_user");
       set({
         user: null,
@@ -59,7 +53,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await authApi.login(credentials);
       setAccessToken(response.token);
-      await persistAuthToken(response.token);
       localStorage.setItem("wyrdly_user", JSON.stringify(response.user));
       set({
         user: response.user,
@@ -78,7 +71,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await authApi.register(credentials);
       setAccessToken(response.token);
-      await persistAuthToken(response.token);
       localStorage.setItem("wyrdly_user", JSON.stringify(response.user));
       set({
         user: response.user,
@@ -95,7 +87,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     authApi.logout().catch(() => {});
     setAccessToken(null);
-    void clearAuthToken();
     localStorage.removeItem("wyrdly_user");
     set({
       user: null,

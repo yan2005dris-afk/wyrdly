@@ -221,32 +221,20 @@ describe("useNotifications", () => {
       renderHook(() => useNotifications(), {
         wrapper: createWrapper(),
       });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(mockedGet).toHaveBeenCalledTimes(1);
-
-      // Simulate incoming push event broadcast. The hook defers the refetch
-      // by 600ms to avoid racing the optimistic update with the backend's
-      // INSERT, so we exercise that timer.
-      vi.useFakeTimers();
-      try {
-        await act(async () => {
-          channelListener?.({
-            data: { type: "wyrdly:push-received" },
-          } as MessageEvent);
-          await Promise.resolve();
-        });
-        // Before the timer fires the refetch must not have been triggered.
+      await waitFor(() => {
         expect(mockedGet).toHaveBeenCalledTimes(1);
-        await act(async () => {
-          vi.advanceTimersByTime(700);
-          await Promise.resolve();
-        });
+      });
+
+      // Simulate incoming push event broadcast.
+      await act(async () => {
+        channelListener?.({
+          data: { type: "wyrdly:push-received" },
+        } as MessageEvent);
+      });
+
+      await waitFor(() => {
         expect(mockedGet).toHaveBeenCalledTimes(2);
-      } finally {
-        vi.useRealTimers();
-      }
+      });
     } finally {
       (
         globalThis as unknown as { BroadcastChannel: unknown }
@@ -282,31 +270,20 @@ describe("useNotifications", () => {
       renderHook(() => useNotifications(), {
         wrapper: createWrapper(),
       });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(mockedGet).toHaveBeenCalledTimes(1);
-
-      // Simulate incoming serviceWorker postMessage. The refetch is deferred
-      // 600ms so the optimistic update is not overwritten by a racing GET,
-      // so we drive the timer explicitly here.
-      vi.useFakeTimers();
-      try {
-        await act(async () => {
-          swMessageListener?.({
-            data: { type: "wyrdly:push-received" },
-          } as MessageEvent);
-          await Promise.resolve();
-        });
+      await waitFor(() => {
         expect(mockedGet).toHaveBeenCalledTimes(1);
-        await act(async () => {
-          vi.advanceTimersByTime(700);
-          await Promise.resolve();
-        });
+      });
+
+      // Simulate incoming serviceWorker postMessage.
+      await act(async () => {
+        swMessageListener?.({
+          data: { type: "wyrdly:push-received" },
+        } as MessageEvent);
+      });
+
+      await waitFor(() => {
         expect(mockedGet).toHaveBeenCalledTimes(2);
-      } finally {
-        vi.useRealTimers();
-      }
+      });
     } finally {
       Object.defineProperty(globalThis, "navigator", {
         value: origNavigator,
@@ -316,7 +293,7 @@ describe("useNotifications", () => {
     }
   });
 
-  it("optimistically injects the notification into the list immediately upon push payload", async () => {
+  it("refetches and updates notifications list when push payload is received", async () => {
     mockedGet
       .mockResolvedValueOnce({ data: baseResponse })
       .mockResolvedValueOnce({
@@ -518,281 +495,4 @@ describe("useNotifications", () => {
     }
   });
 
-  it("asks the SW to refresh when the tab becomes visible (page-side postMessage to controller)", async () => {
-    mockedGet.mockResolvedValue({ data: baseResponse });
-
-    const controllerPostMessage = vi.fn();
-    const origNavigator = globalThis.navigator;
-    const origDescriptor = Object.getOwnPropertyDescriptor(
-      document,
-      "visibilityState",
-    );
-    Object.defineProperty(document, "visibilityState", {
-      configurable: true,
-      get: () => "visible",
-    });
-    Object.defineProperty(globalThis, "navigator", {
-      value: {
-        ...origNavigator,
-        serviceWorker: {
-          controller: { postMessage: controllerPostMessage },
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-        },
-      },
-      configurable: true,
-      writable: true,
-    });
-
-    try {
-      renderHook(() => useNotifications(), {
-        wrapper: createWrapper(),
-      });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(mockedGet).toHaveBeenCalledTimes(1);
-
-      await act(async () => {
-        document.dispatchEvent(new Event("visibilitychange"));
-        await Promise.resolve();
-      });
-      // The hook now asks the SW first (the SW is not throttled), and
-      // also invalidates the query as a defensive fallback. Verify both:
-      expect(controllerPostMessage).toHaveBeenCalledWith({ type: "refresh-now" });
-    } finally {
-      Object.defineProperty(globalThis, "navigator", {
-        value: origNavigator,
-        configurable: true,
-        writable: true,
-      });
-      if (origDescriptor) {
-        Object.defineProperty(document, "visibilityState", origDescriptor);
-      }
-    }
-  });
-
-  it("replaces the cache with the authoritative feed when SW posts notifications-refreshed", async () => {
-    mockedGet.mockResolvedValueOnce({ data: baseResponse });
-
-    let channelListener: ((event: MessageEvent) => void) | null = null;
-    class MockBroadcastChannel {
-      readonly name: string;
-      constructor(name: string) {
-        this.name = name;
-      }
-      set onmessage(fn: (event: MessageEvent) => void) {
-        channelListener = fn;
-      }
-      close = vi.fn();
-    }
-    const origBroadcastChannel = globalThis.BroadcastChannel;
-    (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
-      MockBroadcastChannel;
-
-    try {
-      const { result } = renderHook(() => useNotifications(), {
-        wrapper: createWrapper(),
-      });
-      await waitFor(() => {
-        expect(result.current.notifications).toHaveLength(2);
-      });
-      expect(result.current.unreadCount).toBe(1);
-
-      // Simulate the SW having fetched the authoritative feed and posting
-      // it back. The page should swap the cache in a single setQueryData
-      // call — no merge, no 600ms refetch, no flicker.
-      const authoritativeFeed = {
-        notifications: [
-          {
-            id: "ntf_real_1",
-            type: "POST_LOVE",
-            title: "Server-authoritative title",
-            body: "Server-authoritative body",
-            deepLink: "/posts/pst_real",
-            targetResourceId: "pst_real",
-            isRead: false,
-            createdAt: "2026-01-15T13:00:00Z",
-            actor: {
-              id: "usr_server",
-              username: "server",
-              fullName: "Server User",
-            },
-          },
-        ],
-        unreadCount: 5,
-        page: 0,
-        pageSize: 20,
-        totalElements: 1,
-      };
-
-      await act(async () => {
-        channelListener?.({
-          data: {
-            type: "wyrdly:notifications-refreshed",
-            payload: authoritativeFeed,
-          },
-        } as MessageEvent);
-      });
-
-      await waitFor(() => {
-        expect(result.current.unreadCount).toBe(5);
-        expect(result.current.notifications).toHaveLength(1);
-        expect(result.current.notifications[0]?.id).toBe("ntf_real_1");
-        expect(result.current.notifications[0]?.title).toBe(
-          "Server-authoritative title",
-        );
-      });
-    } finally {
-      (
-        globalThis as unknown as { BroadcastChannel: unknown }
-      ).BroadcastChannel = origBroadcastChannel;
-    }
-  });
-
-  it("deduplicates push events delivered across both BroadcastChannel and serviceWorker message", async () => {
-    mockedGet.mockResolvedValue({ data: baseResponse });
-
-    let channelListener: ((event: MessageEvent) => void) | null = null;
-    class MockBroadcastChannel {
-      readonly name: string;
-      constructor(name: string) {
-        this.name = name;
-      }
-      set onmessage(fn: (event: MessageEvent) => void) {
-        channelListener = fn;
-      }
-      close = vi.fn();
-    }
-    const origBroadcastChannel = globalThis.BroadcastChannel;
-    (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
-      MockBroadcastChannel;
-
-    let swMessageListener: ((event: MessageEvent) => void) | null = null;
-    const origNavigator = globalThis.navigator;
-    Object.defineProperty(globalThis, "navigator", {
-      value: {
-        ...origNavigator,
-        serviceWorker: {
-          addEventListener: vi.fn((type: string, fn: (event: MessageEvent) => void) => {
-            if (type === "message") swMessageListener = fn;
-          }),
-          removeEventListener: vi.fn(),
-        },
-      },
-      configurable: true,
-      writable: true,
-    });
-
-    try {
-      const { result } = renderHook(() => useNotifications(), {
-        wrapper: createWrapper(),
-      });
-      await waitFor(() => {
-        expect(result.current.notifications).toHaveLength(2);
-      });
-
-      const pushMessage = {
-        data: {
-          type: "wyrdly:push-received",
-          eventId: "push_evt_42",
-          payload: {
-            title: "Nuevo seguidor",
-            body: "Alice comenzó a seguirte",
-            data: {
-              type: "GRAPH_FOLLOW",
-              followerId: "usr_alice",
-            },
-          },
-        },
-      } as MessageEvent;
-
-      // Both channels deliver the same push event in rapid succession
-      await act(async () => {
-        channelListener?.(pushMessage);
-        swMessageListener?.(pushMessage);
-      });
-
-      await waitFor(() => {
-        // Must only increment once (1 -> 2, not 3)
-        expect(result.current.unreadCount).toBe(2);
-        // Must only prepend once (2 -> 3, not 4)
-        expect(result.current.notifications).toHaveLength(3);
-        expect(result.current.notifications[0]?.actor.id).toBe("usr_alice");
-        expect(result.current.notifications[0]?.actor.fullName).toBe("Someone");
-      });
-    } finally {
-      (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
-        origBroadcastChannel;
-      Object.defineProperty(globalThis, "navigator", {
-        value: origNavigator,
-        configurable: true,
-        writable: true,
-      });
-    }
-  });
-
-  it("marks synthetic push notification as read without dispatching HTTP call to backend", async () => {
-    mockedGet.mockResolvedValue({ data: baseResponse });
-
-    let channelListener: ((event: MessageEvent) => void) | null = null;
-    class MockBroadcastChannel {
-      readonly name: string;
-      constructor(name: string) {
-        this.name = name;
-      }
-      set onmessage(fn: (event: MessageEvent) => void) {
-        channelListener = fn;
-      }
-      close = vi.fn();
-    }
-    const origBroadcastChannel = globalThis.BroadcastChannel;
-    (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
-      MockBroadcastChannel;
-
-    try {
-      const { result } = renderHook(() => useNotifications(), {
-        wrapper: createWrapper(),
-      });
-      await waitFor(() => {
-        expect(result.current.notifications).toHaveLength(2);
-      });
-
-      await act(async () => {
-        channelListener?.({
-          data: {
-            type: "wyrdly:push-received",
-            payload: {
-              title: "Alerta rápida",
-              body: "Texto",
-            },
-          },
-        } as MessageEvent);
-      });
-
-      await waitFor(() => {
-        expect(result.current.notifications).toHaveLength(3);
-      });
-
-      const syntheticId = result.current.notifications[0]!.id;
-      expect(syntheticId.startsWith("push_")).toBe(true);
-
-      mockedPost.mockClear();
-
-      // Mark the synthetic notification as read
-      await act(async () => {
-        await result.current.markRead(syntheticId);
-      });
-
-      // Optimistic cache updated to read
-      await waitFor(() => {
-        expect(result.current.notifications[0]?.isRead).toBe(true);
-      });
-      // Backend call was bypassed because synthetic ID is not authoritative
-      expect(mockedPost).not.toHaveBeenCalled();
-    } finally {
-      (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
-        origBroadcastChannel;
-    }
-  });
 });

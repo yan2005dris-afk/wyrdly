@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../../api/axios";
-import type { NotificationDto, NotificationListResponseDto } from "../types";
+import type { NotificationListResponseDto } from "../types";
 
 export interface UseNotificationsOptions {
   /** When false the hook is dormant and returns an empty state. */
@@ -27,20 +27,15 @@ export const notificationsQueryKey = (pageSize: number) => [
 
 /**
  * Manages the in-app notification feed using TanStack Query:
- * fetches the user's notifications on mount, observes incoming Web Push
- * events via BroadcastChannel/ServiceWorker with cache invalidation, and provides
- * optimistic mark-read mutations.
+ * fetches the user's notifications on mount, invalidates the query on incoming
+ * Web Push events or tab refocus, and provides optimistic mark-read mutations.
  */
 export const useNotifications = (
   options: UseNotificationsOptions = {},
 ): UseNotificationsResult => {
   const { enabled = true, pageSize = 20 } = options;
   const queryClient = useQueryClient();
-  const recentPushEventsRef = useRef<Map<string, number>>(new Map());
-  // Stabilise the queryKey reference: notificationsQueryKey returns a fresh
-  // array on every call, which would otherwise retrigger the push-listener
-  // useEffect on every render and cause the BroadcastChannel to be torn down
-  // and recreated — losing any incoming push that lands in that window.
+  // Stabilise queryKey so push-listener useEffect doesn't tear down on every render
   const queryKey = useMemo(
     () => notificationsQueryKey(pageSize),
     [pageSize],
@@ -69,127 +64,9 @@ export const useNotifications = (
   useEffect(() => {
     if (!enabled) return;
 
-    interface PushReceivedEventData {
-      title?: string;
-      body?: string;
-      icon?: string;
-      data?: {
-        url?: string;
-        type?: string;
-        postId?: string;
-        actorId?: string;
-        reactorId?: string;
-        actorUsername?: string;
-        actorFullName?: string;
-        actorAvatarUrl?: string;
-        [key: string]: unknown;
-      };
-    }
-
-    const onPushReceived = (
-      payload?: PushReceivedEventData,
-      eventId?: string,
-    ) => {
-      // Event deduplication: if both BroadcastChannel and serviceWorker.onmessage
-      // fire for the same push event, ignore the duplicate delivery.
-      const now = Date.now();
-      for (const [key, ts] of recentPushEventsRef.current.entries()) {
-        if (now - ts > 5000) {
-          recentPushEventsRef.current.delete(key);
-        }
-      }
-
-      const dedupeKey =
-        eventId ||
-        [
-          payload?.title,
-          payload?.body,
-          payload?.data?.postId,
-          payload?.data?.reactorId,
-          payload?.data?.followerId,
-          payload?.data?.type,
-        ]
-          .filter(Boolean)
-          .join("|") ||
-        `empty_${Math.floor(now / 1000)}`;
-
-      if (recentPushEventsRef.current.has(dedupeKey)) {
-        return;
-      }
-      recentPushEventsRef.current.set(dedupeKey, now);
-
-      const syntheticId =
-        eventId ||
-        (payload?.data?.postId
-          ? `push_post_${payload.data.postId}`
-          : `push_${now}`);
-
-      // 1. Optimistic feedback: update cached unread count and prepend notification if payload is present
-      queryClient.setQueryData<NotificationListResponseDto>(queryKey, (old) => {
-        if (!old) return old;
-        const newUnreadCount = old.unreadCount + 1;
-        if (!payload || !payload.title) {
-          return {
-            ...old,
-            unreadCount: newUnreadCount,
-          };
-        }
-
-        const actorFullName =
-          (payload.data?.actorFullName as string) ||
-          (payload.data?.actorUsername as string) ||
-          "Someone";
-
-        const actorId =
-          (payload.data?.actorId as string) ||
-          (payload.data?.reactorId as string) ||
-          (payload.data?.followerId as string) ||
-          "usr_push";
-
-        const syntheticNotif: NotificationDto = {
-          id: syntheticId,
-          type: (payload.data?.type as NotificationDto["type"]) || "POST_LIKE",
-          title: payload.title,
-          body: payload.body || "",
-          deepLink: payload.data?.url || "/",
-          targetResourceId: (payload.data?.postId as string) || undefined,
-          isRead: false,
-          createdAt: new Date().toISOString(),
-          actor: {
-            id: actorId,
-            username: (payload.data?.actorUsername as string) || "user",
-            fullName: actorFullName,
-            avatarUrl: (payload.data?.actorAvatarUrl as string) || payload.icon,
-          },
-        };
-
-        return {
-          ...old,
-          notifications: [
-            syntheticNotif,
-            ...old.notifications.filter((n) => n.id !== syntheticNotif.id),
-          ],
-          unreadCount: newUnreadCount,
-          totalElements: old.totalElements + 1,
-        };
-      });
-      // 2. Refetch in background to sync authoritative state from server.
-      // Defer so the optimistic update is not overwritten by a refetch that
-      // may race the backend's INSERT for the very notification we just
-      // received over push.
-      setTimeout(() => {
-        void queryClient.invalidateQueries({ queryKey });
-      }, 600);
-    };
-
-    // The SW posts the authoritative notifications feed (fetched with the
-    // JWT it read from IndexedDB) under this message type. When it lands we
-    // replace the entire cache in one shot — no optimistic merge, no
-    // re-render storm — because the SW is the one that did the network IO
-    // and we trust its payload as ground truth.
-    const onNotificationsRefreshed = (feed: NotificationListResponseDto) => {
-      if (!feed) return;
-      queryClient.setQueryData<NotificationListResponseDto>(queryKey, feed);
+    const onPushReceived = () => {
+      // Invalidate queries so TanStack Query fetches authoritative state from backend
+      void queryClient.invalidateQueries({ queryKey });
     };
 
     // 1. Observer: Listen to BroadcastChannel from Service Worker
@@ -199,9 +76,7 @@ export const useNotifications = (
         broadcastChannel = new BroadcastChannel("wyrdly-notifications");
         broadcastChannel.onmessage = (event: MessageEvent) => {
           if (event.data?.type === "wyrdly:push-received") {
-            onPushReceived(event.data.payload, event.data.eventId);
-          } else if (event.data?.type === "wyrdly:notifications-refreshed") {
-            onNotificationsRefreshed(event.data.payload);
+            onPushReceived();
           }
         };
       } catch {
@@ -212,35 +87,21 @@ export const useNotifications = (
     // 2. Observer: Listen to navigator.serviceWorker message events
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === "wyrdly:push-received") {
-        onPushReceived(event.data.payload, event.data.eventId);
-      } else if (event.data?.type === "wyrdly:notifications-refreshed") {
-        onNotificationsRefreshed(event.data.payload);
+        onPushReceived();
       }
     };
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.addEventListener("message", handleSwMessage);
     }
 
-    // 3. Fallback: when the tab becomes visible again, ask the SW to fetch
-    // the authoritative feed rather than doing the XHR from the page
-    // itself. The page's event loop is throttled in background; the SW's
-    // is not, so the SW is the right place to make the request. The SW
-    // then posts the data back via `wyrdly:notifications-refreshed`,
-    // which lands on the same listener above. As an extra safety net we
-    // also invalidate the query so a missing SW reply still triggers a
-    // page-side refetch.
+    // 3. Reconcile on tab visibility change
     const handleVisibilityChange = () => {
       if (
-        typeof document === "undefined" ||
-        document.visibilityState !== "visible"
+        typeof document !== "undefined" &&
+        document.visibilityState === "visible"
       ) {
-        return;
+        void queryClient.invalidateQueries({ queryKey });
       }
-      const sw = navigator.serviceWorker;
-      if (sw && sw.controller && typeof sw.controller.postMessage === "function") {
-        sw.controller.postMessage({ type: "refresh-now" });
-      }
-      void queryClient.invalidateQueries({ queryKey });
     };
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -262,14 +123,7 @@ export const useNotifications = (
     };
   }, [enabled, queryClient, queryKey]);
 
-  // Sync the OS-level app badge (the favicon counter shown by the UA) with
-  // the authoritative unreadCount. The SW may have set a stale value when
-  // the push was first delivered; the page is the source of truth and
-  // reconciles on every state change. When the hook is disabled (e.g. on
-  // logout) the badge is cleared so it does not leak across sessions.
-  // Gated by isLoading so the initial mount (when unreadCount is 0 because
-  // data is still undefined) does not briefly clear the badge and cause a
-  // visible flicker.
+  // Sync the OS-level app badge with unreadCount
   useEffect(() => {
     if (typeof navigator === "undefined") return;
     const nav = navigator as Navigator & {
@@ -291,10 +145,6 @@ export const useNotifications = (
 
   const markReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      if (notificationId.startsWith("push_")) {
-        // Optimistic-only item not yet saved on backend; skip network call.
-        return;
-      }
       await apiClient.post(`/api/notifications/${notificationId}/read`);
     },
     onMutate: async (notificationId: string) => {
