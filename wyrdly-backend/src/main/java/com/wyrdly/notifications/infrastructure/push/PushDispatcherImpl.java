@@ -13,6 +13,7 @@ import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.net.URI;
@@ -22,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -46,6 +48,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 public class PushDispatcherImpl implements PushDispatcherPort {
 
   private static final Logger LOG = Logger.getLogger(PushDispatcherImpl.class.getName());
+
+  private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
 
   private final VapidKeyProvider vapidKeyProvider;
   private final PushSubscriptionRepositoryPort subscriptionRepository;
@@ -104,6 +108,27 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     this.skippedCounter =
         meterRegistry.counter("wyrdly.push.dispatch", "result", "skipped_no_subscription");
     this.failedCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "failed");
+  }
+
+  @PreDestroy
+  public void shutdown() {
+    executor.shutdown();
+    try {
+      if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        executor.shutdownNow();
+        if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+          LOG.log(Level.WARNING, "push-dispatcher executor did not terminate");
+        }
+      }
+    } catch (InterruptedException e) {
+      executor.shutdownNow();
+      Thread.currentThread().interrupt();
+      try {
+        executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 
   public void dispatch(PushEvent event) {

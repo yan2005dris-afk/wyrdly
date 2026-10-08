@@ -1,6 +1,7 @@
 package com.wyrdly.notifications.infrastructure.push;
 
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,9 +22,11 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -183,6 +186,28 @@ class PushDispatcherImplTest {
         authz.startsWith("vapid t="), "Authorization must start with 'vapid t=', got " + authz);
     assertTrue(
         authz.contains(",k="), "Authorization must include the public key ',k=' got: " + authz);
+  }
+
+  @Test
+  void shutsDownExecutorWithoutError() throws Exception {
+    PushDispatcherImpl custom =
+        new PushDispatcherImpl(
+            vapidKeyProvider,
+            subscriptionRepository,
+            gatewayClient,
+            new com.fasterxml.jackson.databind.ObjectMapper(),
+            meterRegistry,
+            "mailto:ops@wyrdly.com",
+            1,
+            10);
+    custom.shutdown();
+    Field f = PushDispatcherImpl.class.getDeclaredField("executor");
+    f.setAccessible(true);
+    ExecutorService ex = (ExecutorService) f.get(custom);
+    assertTrue(ex.isShutdown());
+    assertTrue(ex.isTerminated());
+    assertDoesNotThrow(custom::shutdown);
+    assertTrue(ex.isShutdown());
   }
 
   // ---- helpers ------------------------------------------------------------
