@@ -521,6 +521,131 @@ describe("FeedPage Component", () => {
     expect(screen.getAllByTestId("user-list-row-skeleton")).toHaveLength(3);
   });
 
+  describe("reactions (#123)", () => {
+    const mockedReact = vi.mocked(postsApi.react);
+
+    async function renderWithOnePost() {
+      mockedGetFeed.mockResolvedValue({
+        data: [buildCreatePostResponse({ id: "post-1" })],
+        meta: {
+          page: 1,
+          pageSize: 20,
+          totalElements: 1,
+          totalPages: 1,
+          hasNext: false,
+        },
+      });
+      renderFeedPage();
+      await screen.findByTestId("post-card-post-1");
+    }
+
+    async function click(testId: string) {
+      await act(async () => {
+        fireEvent.click(screen.getByTestId(testId));
+      });
+    }
+
+    function expectReaction(testId: string, count: string, active: boolean) {
+      const btn = screen.getByTestId(testId);
+      expect(btn).toHaveTextContent(count);
+      expect(btn).toHaveAttribute("aria-pressed", String(active));
+    }
+
+    beforeEach(() => {
+      mockedReact.mockReset();
+    });
+
+    it("LIKE → LIKE removes the reaction and decrements without reloading", async () => {
+      mockedReact
+        .mockResolvedValueOnce({
+          status: "ADDED",
+          reactionType: "LIKE",
+          totalReactions: 1,
+        })
+        .mockResolvedValueOnce({
+          status: "REMOVED",
+          reactionType: null,
+          totalReactions: 0,
+        });
+      await renderWithOnePost();
+
+      await click("like-btn");
+      expectReaction("like-btn", "1", true);
+
+      await click("like-btn");
+      expectReaction("like-btn", "0", false);
+      expect(mockedGetFeed).toHaveBeenCalledTimes(1);
+    });
+
+    it("LIKE → CELEBRATE → LIKE leaves LIKE active with consistent counters", async () => {
+      mockedReact
+        .mockResolvedValueOnce({
+          status: "ADDED",
+          reactionType: "LIKE",
+          totalReactions: 1,
+        })
+        .mockResolvedValueOnce({
+          status: "UPDATED",
+          reactionType: "CELEBRATE",
+          totalReactions: 1,
+        })
+        .mockResolvedValueOnce({
+          status: "UPDATED",
+          reactionType: "LIKE",
+          totalReactions: 1,
+        });
+      await renderWithOnePost();
+
+      await click("like-btn");
+      await click("celebrate-btn");
+      expectReaction("like-btn", "0", false);
+      expectReaction("celebrate-btn", "1", true);
+
+      await click("like-btn");
+      expectReaction("like-btn", "1", true);
+      expectReaction("celebrate-btn", "0", false);
+    });
+
+    it("LOVE → CELEBRATE → LOVE does not inflate the previous counter", async () => {
+      mockedReact
+        .mockResolvedValueOnce({
+          status: "ADDED",
+          reactionType: "LOVE",
+          totalReactions: 1,
+        })
+        .mockResolvedValueOnce({
+          status: "UPDATED",
+          reactionType: "CELEBRATE",
+          totalReactions: 1,
+        })
+        .mockResolvedValueOnce({
+          status: "UPDATED",
+          reactionType: "LOVE",
+          totalReactions: 1,
+        });
+      await renderWithOnePost();
+
+      await click("love-btn");
+      await click("celebrate-btn");
+      await click("love-btn");
+
+      expectReaction("love-btn", "1", true);
+      expectReaction("celebrate-btn", "0", false);
+      expectReaction("like-btn", "0", false);
+    });
+
+    it("keeps boost disabled and never sends it as a reaction", async () => {
+      await renderWithOnePost();
+
+      const boostBtn = screen.getByTestId("boost-btn");
+      expect(boostBtn).toBeDisabled();
+
+      await click("boost-btn");
+      expect(mockedReact).not.toHaveBeenCalled();
+      expect(boostBtn).toHaveTextContent("0");
+    });
+  });
+
   it("does not render mock relay health widget or telemetry", async () => {
     renderFeedPage();
 

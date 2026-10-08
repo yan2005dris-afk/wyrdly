@@ -172,6 +172,39 @@ describe("useReaction", () => {
     );
   });
 
+  it("does NOT invoke onServerResult for a stale response superseded by a newer request", async () => {
+    let resolveFirst!: (value: ReactPostResponse) => void;
+    const firstPromise = new Promise<ReactPostResponse>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockedReact.mockReturnValueOnce(firstPromise);
+    mockedReact.mockResolvedValueOnce(loveUpdatedResponse);
+
+    const firstOnServerResult = vi.fn();
+    const secondOnServerResult = vi.fn();
+    const { result } = renderHook(() => useReaction());
+
+    act(() => {
+      void result.current.react("pst_1", "LIKE", {
+        onServerResult: firstOnServerResult,
+      });
+    });
+    await act(async () => {
+      await result.current.react("pst_1", "LOVE", {
+        onServerResult: secondOnServerResult,
+      });
+    });
+
+    // The first request resolves late (the transport ignored the abort).
+    resolveFirst(likeAddedResponse);
+    await act(async () => {
+      await firstPromise;
+    });
+
+    expect(secondOnServerResult).toHaveBeenCalledWith(loveUpdatedResponse);
+    expect(firstOnServerResult).not.toHaveBeenCalled();
+  });
+
   it("tracks isPending per postId independently", async () => {
     let resolveP1!: (value: ReactPostResponse) => void;
     const p1Promise = new Promise<ReactPostResponse>((resolve) => {

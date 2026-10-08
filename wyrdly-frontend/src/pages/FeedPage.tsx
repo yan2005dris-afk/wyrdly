@@ -1,5 +1,5 @@
 import { useCallback, type FC } from "react";
-import type { CreatePostPayload, ReactionType } from "../types/feed";
+import type { CreatePostPayload } from "../types/feed";
 import { mapPostApiResponseToPost } from "../types/feed";
 import type { UserProfileSummary } from "../types/domain";
 import { useAuth } from "../features/auth";
@@ -11,7 +11,7 @@ import {
   useGraphSuggestions,
   useCreatePost,
   useFeed,
-  useReaction,
+  useOptimisticReaction,
 } from "../features/social";
 import { useMediaUpload } from "../hooks/useMediaUpload";
 
@@ -23,11 +23,19 @@ export const FeedPage: FC = () => {
     isLoading: isSuggestionsLoading,
     refetch: refetchSuggestions,
   } = useGraphSuggestions();
-  const { posts, isLoading: isFeedLoading, addPost, replacePost } = useFeed();
+  const { posts, isLoading: isFeedLoading, addPost, updatePost } = useFeed();
   const { createPost } = useCreatePost();
   const { upload: uploadMediaFile, isUploading: isUploadingMedia } =
     useMediaUpload();
-  const { react: reactToPost, isPending: isReactionPending } = useReaction();
+
+  // HU09: optimistic reaction toggle reconciled with the backend response
+  // (see useOptimisticReaction).
+  const findPost = useCallback(
+    (postId: string) => posts.find((p) => p.id === postId),
+    [posts],
+  );
+  const { toggle: handleReaction, isPending: isReactionPending } =
+    useOptimisticReaction({ findPost, updatePost });
 
   const suggestions = apiSuggestions;
 
@@ -66,32 +74,6 @@ export const FeedPage: FC = () => {
     if (!response) return; // error surfaced via useCreatePost state
     const newPost = mapPostApiResponseToPost(response, payload.visibility);
     addPost(newPost);
-  };
-
-  // HU09: wire the real reactions API. Optimistic update on click, rollback
-  // on failure, server-truth refetch on success.
-  const handleReaction = (postId: string, reaction: ReactionType) => {
-    const target = posts.find((p) => p.id === postId);
-    if (!target) return;
-
-    const currentActive = target.userReaction === reaction;
-    const diff = currentActive ? -1 : 1;
-    const optimistic = {
-      ...target,
-      userReaction: currentActive ? undefined : reaction,
-      reactions: {
-        ...target.reactions,
-        [reaction]: Math.max(0, target.reactions[reaction] + diff),
-      },
-    };
-    replacePost(optimistic);
-
-    void reactToPost(postId, reaction, {
-      onRollback: () => {
-        // Restore the snapshot captured at click time.
-        replacePost(target);
-      },
-    });
   };
 
   // Follow/unfollow is now owned by the UserListRow component used by
@@ -139,6 +121,9 @@ export const FeedPage: FC = () => {
                 key={post.id}
                 post={post}
                 onReaction={handleReaction}
+                // onBoost intentionally omitted: the backend does not support
+                // boosts yet (RETWEET is rejected by /react), so PostCard
+                // renders the button disabled until the repost API exists.
                 isReactionPending={isReactionPending(post.id)}
               />
             ))

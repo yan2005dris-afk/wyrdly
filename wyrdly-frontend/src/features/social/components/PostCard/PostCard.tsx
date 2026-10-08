@@ -103,6 +103,7 @@ const REACTION_BUTTONS: readonly ReactionMeta[] = [
 export const PostCard: FC<PostCardProps> = ({
   post,
   onReaction,
+  onBoost,
   onCommentClick,
   onShareClick,
   className = "",
@@ -206,8 +207,9 @@ export const PostCard: FC<PostCardProps> = ({
 
         <button
           type="button"
-          onClick={() => onReaction?.(post.id, "RETWEET")}
-          disabled={isReactionPending}
+          onClick={() => onBoost?.(post.id)}
+          disabled={!onBoost || isReactionPending}
+          title={onBoost ? undefined : "Boost coming soon"}
           className={`${styles.actionButton} ${isBoosted ? styles.actionButtonBoosted : ""}`}
           data-testid="boost-btn"
           aria-label="Boost"

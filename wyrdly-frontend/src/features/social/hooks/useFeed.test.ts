@@ -246,6 +246,69 @@ describe("useFeed", () => {
     expect(result.current.posts[1].id).toBe("post-2");
   });
 
+  it("updatePost applies the updater to the latest version of the target post only", async () => {
+    mockedPostsApi.getFeed.mockResolvedValueOnce({
+      data: [
+        buildPostApiResponse("post-1", "first"),
+        buildPostApiResponse("post-2", "second"),
+      ],
+      meta: {
+        page: 1,
+        pageSize: 20,
+        totalElements: 2,
+        totalPages: 1,
+        hasNext: false,
+      },
+    });
+
+    const { result } = renderHook(() => useFeed());
+
+    await waitFor(() => {
+      expect(result.current.posts).toHaveLength(2);
+    });
+
+    const untouched = result.current.posts[1];
+    const bumpLike = (post: Post): Post => ({
+      ...post,
+      reactions: { ...post.reactions, LIKE: post.reactions.LIKE + 1 },
+    });
+
+    // Two consecutive updaters must compose on the latest state.
+    act(() => {
+      result.current.updatePost("post-1", bumpLike);
+      result.current.updatePost("post-1", bumpLike);
+    });
+
+    expect(result.current.posts[0].reactions.LIKE).toBe(7);
+    expect(result.current.posts[1]).toBe(untouched);
+  });
+
+  it("updatePost keeps the same posts array when the updater is a no-op", async () => {
+    mockedPostsApi.getFeed.mockResolvedValueOnce({
+      data: [buildPostApiResponse("post-1", "first")],
+      meta: {
+        page: 1,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+        hasNext: false,
+      },
+    });
+
+    const { result } = renderHook(() => useFeed());
+
+    await waitFor(() => {
+      expect(result.current.posts).toHaveLength(1);
+    });
+
+    const before = result.current.posts;
+    act(() => {
+      result.current.updatePost("post-1", (post) => post);
+    });
+
+    expect(result.current.posts).toBe(before);
+  });
+
   it("loadMore appends posts without duplicating existing posts using nextCursor", async () => {
     mockedPostsApi.getFeed.mockResolvedValueOnce({
       data: [buildPostApiResponse("post-1", "first")],
