@@ -5,23 +5,22 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.wyrdly.testsupport.Neo4jTestContainer;
 import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
 import com.wyrdly.user.domain.model.UserProfile;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Session;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.neo4j.Neo4jContainer;
 
 /**
  * Real integration test against an ephemeral Neo4j 5.26 container (same image the project uses in
@@ -29,37 +28,20 @@ import org.testcontainers.neo4j.Neo4jContainer;
  * (COUNT{}/EXISTS{}/coalesce subqueries) end-to-end — this is deliberately NOT mocked, since the
  * mocked unit/component tests never verify that the Cypher itself is correct.
  */
-@Testcontainers
 class Neo4jUserProfileRepositoryAdapterIT {
 
-  @Container
-  static final Neo4jContainer NEO4J_CONTAINER =
-      new Neo4jContainer("neo4j:5.26-community").withoutAuthentication();
-
-  static Driver driver;
+  static final Driver driver = Neo4jTestContainer.driver();
 
   Neo4jUserProfileRepositoryAdapter adapter;
-
-  @BeforeAll
-  static void setUpDriver() {
-    driver = GraphDatabase.driver(NEO4J_CONTAINER.getBoltUrl(), AuthTokens.none());
-  }
-
-  @AfterAll
-  static void tearDownDriver() {
-    driver.close();
-  }
 
   @BeforeEach
   void setUp() {
     adapter = new Neo4jUserProfileRepositoryAdapter(driver);
   }
 
-  @AfterEach
+  @BeforeEach
   void cleanDatabase() {
-    try (Session session = driver.session()) {
-      session.run("MATCH (n) DETACH DELETE n");
-    }
+    Neo4jTestContainer.deleteAllData();
   }
 
   @Test
@@ -150,10 +132,54 @@ class Neo4jUserProfileRepositoryAdapterIT {
     seedUser("usr_alice", "alice", "Alice", "", "");
     seedUser("usr_bob", "bob", "Bob", "", "");
 
-    adapter.followUser("usr_bob", "usr_alice");
-    adapter.followUser("usr_bob", "usr_alice");
+    assertTrue(adapter.followUser("usr_bob", "usr_alice"));
+    assertFalse(adapter.followUser("usr_bob", "usr_alice"));
 
     assertTrue(adapter.isFollowing("usr_bob", "usr_alice"));
+    assertEquals(1L, countFollows("usr_bob", "usr_alice"));
+  }
+
+  @Test
+  void followUser_StoresCreatedAt() {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+    seedUser("usr_bob", "bob", "Bob", "", "");
+
+    adapter.followUser("usr_bob", "usr_alice");
+
+    try (Session session = driver.session()) {
+      List<String> keys =
+          session
+              .run("MATCH (:Usuario {id: 'usr_bob'})-[r:SIGUE]->() RETURN keys(r) AS k")
+              .single()
+              .get("k")
+              .asList(org.neo4j.driver.Value::asString);
+      assertEquals(List.of("createdAt"), keys);
+    }
+  }
+
+  @Test
+  void followUser_CreatesSingleRelationship_UnderConcurrentRequests() throws Exception {
+    seedUser("usr_alice", "alice", "Alice", "", "");
+    seedUser("usr_bob", "bob", "Bob", "", "");
+    int requests = 20;
+    ExecutorService pool = Executors.newFixedThreadPool(requests);
+    try {
+      List<Future<Boolean>> results = new ArrayList<>();
+      for (int i = 0; i < requests; i++) {
+        results.add(pool.submit(() -> adapter.followUser("usr_bob", "usr_alice")));
+      }
+      long created = 0;
+      for (Future<Boolean> result : results) {
+        if (result.get(30, TimeUnit.SECONDS)) {
+          created++;
+        }
+      }
+
+      assertEquals(1L, created);
+      assertEquals(1L, countFollows("usr_bob", "usr_alice"));
+    } finally {
+      pool.shutdownNow();
+    }
   }
 
   @Test
@@ -162,7 +188,7 @@ class Neo4jUserProfileRepositoryAdapterIT {
     seedUser("usr_bob", "bob", "Bob", "", "");
     follow("usr_bob", "usr_alice");
 
-    adapter.unfollowUser("usr_bob", "usr_alice");
+    assertTrue(adapter.unfollowUser("usr_bob", "usr_alice"));
 
     assertFalse(adapter.isFollowing("usr_bob", "usr_alice"));
   }
@@ -172,7 +198,7 @@ class Neo4jUserProfileRepositoryAdapterIT {
     seedUser("usr_alice", "alice", "Alice", "", "");
     seedUser("usr_bob", "bob", "Bob", "", "");
 
-    adapter.unfollowUser("usr_bob", "usr_alice");
+    assertFalse(adapter.unfollowUser("usr_bob", "usr_alice"));
 
     assertFalse(adapter.isFollowing("usr_bob", "usr_alice"));
   }
@@ -231,11 +257,24 @@ class Neo4jUserProfileRepositoryAdapterIT {
     }
   }
 
+  private long countFollows(String followerId, String targetId) {
+    try (Session session = driver.session()) {
+      return session
+          .run(
+              "MATCH (:Usuario {id: $followerId})-[r:SIGUE]->(:Usuario {id: $targetId}) "
+                  + "RETURN count(r) AS c",
+              Map.of("followerId", followerId, "targetId", targetId))
+          .single()
+          .get("c")
+          .asLong();
+    }
+  }
+
   private void follow(String followerId, String targetId) {
     try (Session session = driver.session()) {
       session.run(
           "MATCH (a:Usuario {id: $followerId}), (b:Usuario {id: $targetId}) "
-              + "MERGE (a)-[:SIGUE {fecha: datetime()}]->(b)",
+              + "MERGE (a)-[r:SIGUE]->(b) ON CREATE SET r.createdAt = datetime()",
           Map.of("followerId", followerId, "targetId", targetId));
     }
   }

@@ -74,15 +74,11 @@ public class ResilientNeo4jUserProfileRepositoryAdapter implements UserProfileRe
   @Retry(maxRetries = 2, delay = 100)
   @Timeout(3000)
   @Fallback(fallbackMethod = "followUserFallback")
-  public void followUser(String followerId, String followingId) {
-    neo4jLatency.record(
-        () -> {
-          delegate.followUser(followerId, followingId);
-          return null;
-        });
+  public boolean followUser(String followerId, String followingId) {
+    return neo4jLatency.record(() -> delegate.followUser(followerId, followingId));
   }
 
-  public void followUserFallback(String followerId, String followingId) {
+  public boolean followUserFallback(String followerId, String followingId) {
     LOGGER.severe("CircuitBreaker OPEN - Cannot follow user: " + followerId + " -> " + followingId);
     neo4jErrors.increment();
     throw new RuntimeException("Database temporarily unavailable");
@@ -93,15 +89,11 @@ public class ResilientNeo4jUserProfileRepositoryAdapter implements UserProfileRe
   @Retry(maxRetries = 2, delay = 100)
   @Timeout(3000)
   @Fallback(fallbackMethod = "unfollowUserFallback")
-  public void unfollowUser(String followerId, String followingId) {
-    neo4jLatency.record(
-        () -> {
-          delegate.unfollowUser(followerId, followingId);
-          return null;
-        });
+  public boolean unfollowUser(String followerId, String followingId) {
+    return neo4jLatency.record(() -> delegate.unfollowUser(followerId, followingId));
   }
 
-  public void unfollowUserFallback(String followerId, String followingId) {
+  public boolean unfollowUserFallback(String followerId, String followingId) {
     LOGGER.severe(
         "CircuitBreaker OPEN - Cannot unfollow user: " + followerId + " -> " + followingId);
     neo4jErrors.increment();

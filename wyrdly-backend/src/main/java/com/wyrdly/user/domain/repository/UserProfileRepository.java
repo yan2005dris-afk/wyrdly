@@ -10,9 +10,19 @@ public interface UserProfileRepository {
 
   Optional<UserProfile> updateProfile(String userId, String fullName, String bio, String avatarUrl);
 
-  void followUser(String followerId, String followingId);
+  /**
+   * Idempotently make {@code followerId} follow {@code followingId}.
+   *
+   * @return {@code true} if the relationship was created, {@code false} if it already existed
+   */
+  boolean followUser(String followerId, String followingId);
 
-  void unfollowUser(String followerId, String followingId);
+  /**
+   * Idempotently remove the follow relationship.
+   *
+   * @return {@code true} if a relationship was removed, {@code false} if there was none
+   */
+  boolean unfollowUser(String followerId, String followingId);
 
   boolean isFollowing(String followerId, String followingId);
 
