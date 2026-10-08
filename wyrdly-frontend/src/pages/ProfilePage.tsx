@@ -26,7 +26,7 @@ import { Button } from "../components/ui/Button";
 
 export const ProfilePage: FC = () => {
   const { username } = useParams<{ username: string }>();
-  const { user: authUser } = useAuth();
+  const { user: authUser, updateUser } = useAuth();
   const navigate = useNavigate();
 
   const profileUsername = username || authUser?.username;
@@ -36,6 +36,9 @@ export const ProfilePage: FC = () => {
   const [activeTab, setActiveTab] = useState<ProfileTabId>("posts");
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(
+    null,
+  );
 
   const { posts, isLoading: postsLoading } = useUserPosts(profileUsername);
   const {
@@ -65,7 +68,13 @@ export const ProfilePage: FC = () => {
     setIsSaving(true);
     try {
       await updateProfile(payload);
+      updateUser?.({
+        fullName: payload.fullName,
+        bio: payload.bio,
+        avatarUrl: payload.avatarUrl,
+      });
       setIsEditOpen(false);
+      setSaveSuccessMessage("Profile updated successfully!");
     } catch {
       // error is already surfaced via the hook
     } finally {
@@ -147,6 +156,24 @@ export const ProfilePage: FC = () => {
               )}
             </div>
           </div>
+
+          {saveSuccessMessage && (
+            <div
+              className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg text-sm flex items-center justify-between"
+              role="status"
+              data-testid="profile-save-success-banner"
+            >
+              <span>{saveSuccessMessage}</span>
+              <button
+                type="button"
+                onClick={() => setSaveSuccessMessage(null)}
+                className="text-emerald-600 hover:text-emerald-800 font-bold ml-2 text-base leading-none"
+                aria-label="Close message"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           <ProfileHeaderCard
             user={profile}
