@@ -19,9 +19,12 @@ type SW = {
 let cachedSW: SW | null = null;
 
 const loadSW = async (): Promise<SW> => {
-  if (cachedSW) {
-    return cachedSW;
-  }
+  // Always reset the module cache before importing. The SW keeps a
+  // module-level `pushChannel` for performance, but in tests we need a
+  // fresh module instance per run so the `BroadcastChannel` mock injected
+  // via globalThis on the current test is the one the SW actually uses.
+  vi.resetModules();
+  cachedSW = null;
   await import("../../../../public/sw.js");
   const w = globalThis as unknown as { __wyrdlySW?: SW };
   if (!w.__wyrdlySW) {
@@ -170,20 +173,23 @@ describe("service worker handlers", () => {
       MockBroadcastChannel;
 
     try {
-      vi.useFakeTimers();
       await sw.broadcastPushReceived({ title: "Test", body: "Hello" });
       expect(channelPostMessage).toHaveBeenCalledWith({
         type: "wyrdly:push-received",
         payload: { title: "Test", body: "Hello" },
       });
-      vi.advanceTimersByTime(1000);
-      expect(channelClose).toHaveBeenCalled();
+      // The SW now reuses a single BroadcastChannel for its lifetime instead
+      // of creating-and-closing one per push. Verify the channel is not
+      // closed, even after the previous 1s debounce window elapses.
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2000);
+      vi.useRealTimers();
+      expect(channelClose).not.toHaveBeenCalled();
       expect(postMessageClient).toHaveBeenCalledWith({
         type: "wyrdly:push-received",
         payload: { title: "Test", body: "Hello" },
       });
     } finally {
-      vi.useRealTimers();
       (
         globalThis as unknown as { BroadcastChannel: unknown }
       ).BroadcastChannel = origBroadcastChannel;

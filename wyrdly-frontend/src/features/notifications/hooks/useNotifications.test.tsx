@@ -220,15 +220,27 @@ describe("useNotifications", () => {
       });
       expect(mockedGet).toHaveBeenCalledTimes(1);
 
-      // Simulate incoming push event broadcast
-      await act(async () => {
-        channelListener?.({
-          data: { type: "wyrdly:push-received" },
-        } as MessageEvent);
-        await Promise.resolve();
-      });
-
-      expect(mockedGet).toHaveBeenCalledTimes(2);
+      // Simulate incoming push event broadcast. The hook defers the refetch
+      // by 600ms to avoid racing the optimistic update with the backend's
+      // INSERT, so we exercise that timer.
+      vi.useFakeTimers();
+      try {
+        await act(async () => {
+          channelListener?.({
+            data: { type: "wyrdly:push-received" },
+          } as MessageEvent);
+          await Promise.resolve();
+        });
+        // Before the timer fires the refetch must not have been triggered.
+        expect(mockedGet).toHaveBeenCalledTimes(1);
+        await act(async () => {
+          vi.advanceTimersByTime(700);
+          await Promise.resolve();
+        });
+        expect(mockedGet).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
     } finally {
       (
         globalThis as unknown as { BroadcastChannel: unknown }
@@ -269,15 +281,26 @@ describe("useNotifications", () => {
       });
       expect(mockedGet).toHaveBeenCalledTimes(1);
 
-      // Simulate incoming serviceWorker postMessage
-      await act(async () => {
-        swMessageListener?.({
-          data: { type: "wyrdly:push-received" },
-        } as MessageEvent);
-        await Promise.resolve();
-      });
-
-      expect(mockedGet).toHaveBeenCalledTimes(2);
+      // Simulate incoming serviceWorker postMessage. The refetch is deferred
+      // 600ms so the optimistic update is not overwritten by a racing GET,
+      // so we drive the timer explicitly here.
+      vi.useFakeTimers();
+      try {
+        await act(async () => {
+          swMessageListener?.({
+            data: { type: "wyrdly:push-received" },
+          } as MessageEvent);
+          await Promise.resolve();
+        });
+        expect(mockedGet).toHaveBeenCalledTimes(1);
+        await act(async () => {
+          vi.advanceTimersByTime(700);
+          await Promise.resolve();
+        });
+        expect(mockedGet).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
     } finally {
       Object.defineProperty(globalThis, "navigator", {
         value: origNavigator,

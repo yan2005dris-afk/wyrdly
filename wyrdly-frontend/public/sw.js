@@ -41,31 +41,42 @@ function urlBase64ToUint8Array(base64String) {
   return out;
 }
 
+// Reuse a single BroadcastChannel for the lifetime of the SW. Creating a
+// fresh channel per push and closing it 1s later was both wasteful and
+// racy: any push that arrived while the React side was re-mounting its
+// listener (due to the unstable queryKey) would land on a closing channel
+// and be dropped. A persistent module-level channel avoids that entirely.
+let pushChannel = null;
+function getPushChannel() {
+  if (pushChannel === null && typeof BroadcastChannel !== "undefined") {
+    try {
+      pushChannel = new BroadcastChannel("wyrdly-notifications");
+    } catch (_err) {
+      pushChannel = null;
+    }
+  }
+  return pushChannel;
+}
+
 async function broadcastPushReceived(payload) {
   const message = {
     type: "wyrdly:push-received",
     payload,
   };
 
-  // 1. Try BroadcastChannel if available
-  if (typeof BroadcastChannel !== "undefined") {
+  // 1. BroadcastChannel: same channel instance for the SW's lifetime.
+  const channel = getPushChannel();
+  if (channel !== null) {
     try {
-      const channel = new BroadcastChannel("wyrdly-notifications");
       channel.postMessage(message);
-      // Allow the event loop tick to dispatch before closing
-      setTimeout(() => {
-        try {
-          channel.close();
-        } catch (_err) {
-          /* ignore close error */
-        }
-      }, 1000);
     } catch (_err) {
       /* BroadcastChannel error fallback */
     }
   }
 
-  // 2. Also postMessage to matched window clients
+  // 2. Also postMessage to matched window clients (covers tabs that the
+  // BroadcastChannel may not have reached — e.g. controlled clients with
+  // a fresh controller before the channel is open).
   if (self.clients && typeof self.clients.matchAll === "function") {
     try {
       const windowClients = await self.clients.matchAll({

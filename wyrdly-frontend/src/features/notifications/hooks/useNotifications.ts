@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../../api/axios";
 import type { NotificationDto, NotificationListResponseDto } from "../types";
@@ -36,7 +36,14 @@ export const useNotifications = (
 ): UseNotificationsResult => {
   const { enabled = true, pageSize = 20 } = options;
   const queryClient = useQueryClient();
-  const queryKey = notificationsQueryKey(pageSize);
+  // Stabilise the queryKey reference: notificationsQueryKey returns a fresh
+  // array on every call, which would otherwise retrigger the push-listener
+  // useEffect on every render and cause the BroadcastChannel to be torn down
+  // and recreated — losing any incoming push that lands in that window.
+  const queryKey = useMemo(
+    () => notificationsQueryKey(pageSize),
+    [pageSize],
+  );
 
   const {
     data,
@@ -120,8 +127,13 @@ export const useNotifications = (
           totalElements: old.totalElements + 1,
         };
       });
-      // 2. Refetch in background to sync authoritative state from server
-      void queryClient.invalidateQueries({ queryKey });
+      // 2. Refetch in background to sync authoritative state from server.
+      // Defer so the optimistic update is not overwritten by a refetch that
+      // may race the backend's INSERT for the very notification we just
+      // received over push.
+      setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey });
+      }, 600);
     };
 
     // 1. Observer: Listen to BroadcastChannel from Service Worker
