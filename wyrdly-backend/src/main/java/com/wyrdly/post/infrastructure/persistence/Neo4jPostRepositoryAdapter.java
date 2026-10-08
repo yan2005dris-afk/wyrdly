@@ -282,6 +282,41 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         userReactionType);
   }
 
+  private static final String FIND_POST_BY_ID_QUERY =
+      "MATCH (author:Usuario)-[:PUBLICA]->(p:Post {id: $postId}) "
+          + "OPTIONAL MATCH (p)<-[rlike:REACCIONA {tipo: 'LIKE'}]-() "
+          + "OPTIONAL MATCH (p)<-[rlove:REACCIONA {tipo: 'LOVE'}]-() "
+          + "OPTIONAL MATCH (p)<-[rceleb:REACCIONA {tipo: 'CELEBRATE'}]-() "
+          + "OPTIONAL MATCH (me:Usuario {id: $userId})-[myR:REACCIONA]->(p) "
+          + "WITH DISTINCT p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+          + "              p.createdAt AS createdAt, author.id AS authorId, "
+          + "              author.username AS authorUsername, author.fullName AS authorFullName, "
+          + "              author.avatarUrl AS authorAvatarUrl, "
+          + "              count(DISTINCT rlike) AS likeCount, "
+          + "              count(DISTINCT rlove) AS loveCount, "
+          + "              count(DISTINCT rceleb) AS celebrateCount, "
+          + "              myR.tipo AS userReactionType, "
+          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount "
+          + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
+          + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
+          + "       celebrateCount, commentsCount, userReactionType";
+
+  @Override
+  public Optional<FeedPost> findFeedPostById(String postId, String userId) {
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx
+                  .run(FIND_POST_BY_ID_QUERY, Values.parameters("postId", postId, "userId", userId))
+                  .list(this::mapRecordToFeedPost)
+                  .stream()
+                  .findFirst());
+    } catch (Exception e) {
+      Log.errorf(e, "Failed to query Post by id: %s", postId);
+      throw new PostPersistenceException("Failed to query Post by id=" + postId, e);
+    }
+  }
+
   private static final String FIND_BY_AUTHOR_QUERY =
       "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
           + "OPTIONAL MATCH (p)<-[rlike:REACCIONA {tipo: 'LIKE'}]-() "

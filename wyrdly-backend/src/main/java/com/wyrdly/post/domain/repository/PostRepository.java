@@ -16,6 +16,8 @@ public interface PostRepository {
 
   Optional<Post> findById(String id);
 
+  Optional<FeedPost> findFeedPostById(String postId, String userId);
+
   List<FeedPost> findFeedByUserId(String userId, int page, int pageSize);
 
   long countFeedByUserId(String userId);

@@ -108,9 +108,10 @@ export const PostCard: FC<PostCardProps> = ({
   onShareClick,
   className = "",
   isReactionPending = false,
+  defaultCommentsOpen = false,
 }) => {
   const isBoosted = post.userReaction === "RETWEET";
-  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [isCommentsOpen, setIsCommentsOpen] = useState(defaultCommentsOpen);
 
   const authorProfileUrl = `/profile/${post.author.username}`;
 

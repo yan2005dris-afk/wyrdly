@@ -15,6 +15,7 @@ import com.wyrdly.post.application.dto.CreatePostRequest;
 import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.post.application.dto.PostResponse.AuthorDto;
 import com.wyrdly.post.application.usecase.CreatePostUseCase;
+import com.wyrdly.post.application.usecase.GetPostUseCase;
 import com.wyrdly.post.application.usecase.ReactToPostUseCase;
 import com.wyrdly.post.domain.exception.PostNotFoundException;
 import com.wyrdly.post.domain.exception.PostValidationException;
@@ -37,6 +38,7 @@ class PostResourceTest {
 
   @InjectMock CreatePostUseCase createPostUseCase;
   @InjectMock ReactToPostUseCase reactToPostUseCase;
+  @InjectMock GetPostUseCase getPostUseCase;
 
   @Test
   void createPost_Returns401_WhenNoAuthenticationProvided() {
@@ -480,6 +482,55 @@ class PostResourceTest {
         .body("{\"type\":\"LIKE\"}")
         .when()
         .post("/api/posts/pst_missing/react")
+        .then()
+        .statusCode(404)
+        .body("code", equalTo("POST_NOT_FOUND"));
+  }
+
+  @Test
+  void getPost_Returns401_WhenNoAuthenticationProvided() {
+    given().when().get("/api/posts/pst_123").then().statusCode(401);
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void getPost_Returns200_WhenPostExists() {
+    PostResponse response =
+        new PostResponse(
+            "pst_123",
+            "A test post",
+            null,
+            Instant.now(),
+            new AuthorDto("usr_author", "author", "Author User", null),
+            new PostResponse.ReactionCounts(5, 2, 1),
+            3L,
+            "LIKE");
+
+    when(getPostUseCase.getPost("usr_123", "pst_123")).thenReturn(response);
+
+    given()
+        .when()
+        .get("/api/posts/pst_123")
+        .then()
+        .statusCode(200)
+        .body("id", equalTo("pst_123"))
+        .body("content", equalTo("A test post"))
+        .body("author.username", equalTo("author"))
+        .body("commentsCount", equalTo(3))
+        .body("userReaction", equalTo("LIKE"));
+  }
+
+  @Test
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void getPost_Returns404_WhenPostNotFound() {
+    when(getPostUseCase.getPost("usr_123", "pst_notfound"))
+        .thenThrow(new PostNotFoundException("Post not found: pst_notfound"));
+
+    given()
+        .when()
+        .get("/api/posts/pst_notfound")
         .then()
         .statusCode(404)
         .body("code", equalTo("POST_NOT_FOUND"));

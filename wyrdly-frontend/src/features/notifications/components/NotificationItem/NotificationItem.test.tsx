@@ -45,6 +45,37 @@ describe("NotificationItem Component", () => {
 
     const item = screen.getByTestId("notification-item-notif-1");
     fireEvent.click(item);
-    expect(handleClick).toHaveBeenCalledWith("notif-1");
+    expect(handleClick).toHaveBeenCalledWith("notif-1", MOCK_NOTIFICATION);
+  });
+
+  it("handles item double click and fires onDoubleClick callback", () => {
+    const handleDoubleClick = vi.fn();
+    render(
+      <NotificationItem
+        notification={MOCK_NOTIFICATION}
+        onDoubleClick={handleDoubleClick}
+      />,
+    );
+
+    const item = screen.getByTestId("notification-item-notif-1");
+    fireEvent.doubleClick(item);
+    expect(handleDoubleClick).toHaveBeenCalledWith(MOCK_NOTIFICATION);
+  });
+
+  it("handles Enter and Space keydown events", () => {
+    const handleClick = vi.fn();
+    render(
+      <NotificationItem
+        notification={MOCK_NOTIFICATION}
+        onClick={handleClick}
+      />,
+    );
+
+    const item = screen.getByTestId("notification-item-notif-1");
+    fireEvent.keyDown(item, { key: "Enter" });
+    expect(handleClick).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(item, { key: " " });
+    expect(handleClick).toHaveBeenCalledTimes(2);
   });
 });
