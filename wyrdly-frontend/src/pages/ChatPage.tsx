@@ -314,23 +314,48 @@ export const ChatPage: FC = () => {
     );
   };
 
+  const [isMobileViewingChat, setIsMobileViewingChat] = useState<boolean>(() => {
+    return Boolean(queryUserId);
+  });
+
+  const handleSelectConversation = (convId: string) => {
+    setSelectedConvId(convId);
+    setIsMobileViewingChat(true);
+  };
+
+  const handleBackToConversations = () => {
+    setIsMobileViewingChat(false);
+  };
+
   return (
     <div
       className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full h-[calc(100vh-10rem)] min-h-[500px]"
       data-testid="chat-page"
     >
-      <div className="lg:col-span-5 h-full overflow-hidden">
+      {/* Conversation List: hidden on mobile when viewing chat thread */}
+      <div
+        className={`${
+          isMobileViewingChat ? "hidden lg:block" : "block"
+        } lg:col-span-5 h-full overflow-hidden`}
+        data-testid="chat-conversations-panel"
+      >
         <ConversationList
           conversations={allConversations}
           activeConversationId={activeConvId ?? undefined}
           isLoading={isLoadingConversations}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onSelectConversation={setSelectedConvId}
+          onSelectConversation={handleSelectConversation}
         />
       </div>
 
-      <div className="lg:col-span-7 h-full overflow-hidden flex flex-col">
+      {/* Chat Window: hidden on mobile when viewing conversation list */}
+      <div
+        className={`${
+          !isMobileViewingChat ? "hidden lg:flex" : "flex"
+        } lg:col-span-7 h-full overflow-hidden flex-col`}
+        data-testid="chat-window-panel"
+      >
         {chatError && (
           <div
             className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-2.5 rounded-lg text-sm mb-3 flex items-center justify-between shrink-0"
@@ -355,6 +380,7 @@ export const ChatPage: FC = () => {
             messages={messages}
             isLoadingMessages={isLoadingMessages}
             onSendMessage={handleSendMessage}
+            onBack={handleBackToConversations}
           />
         ) : (
           <div

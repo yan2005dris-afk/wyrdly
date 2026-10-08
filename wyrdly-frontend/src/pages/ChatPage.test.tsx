@@ -368,4 +368,37 @@ describe("ChatPage Component", () => {
     expect(useUnreadMessagesStore.getState().totalUnread).toBe(1);
     useUnreadMessagesStore.getState().resetAll();
   });
+
+  it("handles mobile master-detail navigation between conversation list and chat window", async () => {
+    vi.spyOn(usersApi, "getUserFollowing").mockResolvedValue(MOCK_FOLLOWING);
+    vi.spyOn(chatApi, "getChatHistory").mockResolvedValue({
+      data: [],
+      page: 1,
+      pageSize: 50,
+      total: 0,
+    });
+
+    renderChatPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-conversations-panel")).toBeInTheDocument();
+      expect(screen.getByTestId("chat-window-panel")).toBeInTheDocument();
+    });
+
+    // When clicking a conversation in the list
+    const aliceBtn = screen.getByTestId("conversation-item-conv-user-alice");
+    fireEvent.click(aliceBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-window")).toBeInTheDocument();
+    });
+
+    // Back button should be present in ChatHeader
+    const backBtn = screen.getByTestId("chat-back-btn");
+    expect(backBtn).toBeInTheDocument();
+
+    // Clicking back toggles isMobileViewingChat back to false
+    fireEvent.click(backBtn);
+    expect(screen.getByTestId("chat-conversations-panel")).not.toHaveClass("hidden");
+  });
 });

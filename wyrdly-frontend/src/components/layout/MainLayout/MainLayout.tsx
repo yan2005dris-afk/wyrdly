@@ -14,6 +14,7 @@ import { useAuth } from "../../../features/auth";
 import { useUserProfile } from "../../../features/profile";
 import { AppNavbar } from "../AppNavbar";
 import { SidebarNav } from "../SidebarNav";
+import { BottomNav } from "../BottomNav";
 import { UserSummaryCard } from "../../../features/social";
 import styles from "./MainLayout.module.css";
 
@@ -189,6 +190,16 @@ export const MainLayout: FC<MainLayoutProps> = ({
           <Outlet context={{ currentUser: currentUserSummary }} />
         </main>
       </div>
+
+      {/* Persistent Bottom Navigation for Mobile (< 1024px) */}
+      <BottomNav
+        unreadMessagesCount={unreadMessagesCount}
+        profileUsername={user?.username}
+        onNewPostClick={() => {
+          navigate("/feed");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
     </div>
   );
 };
