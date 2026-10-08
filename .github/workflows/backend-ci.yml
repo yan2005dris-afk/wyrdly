@@ -126,7 +126,10 @@ jobs:
           cache: 'maven'
       - name: Generate JWT Keys
         run: bash ../scripts/generate-jwt-keys.sh src/main/resources/jwt
-      - run: ./mvnw verify -DskipUnitTests
+      # skipITs defaults to true in pom.xml; the *IT suites (Testcontainers)
+      # only run with this flag. The neo4j service above is a fallback —
+      # Testcontainers provisions its own container per suite.
+      - run: ./mvnw verify -DskipUnitTests -DskipITs=false
 
   build:
     name: Package Build (Quarkus)
