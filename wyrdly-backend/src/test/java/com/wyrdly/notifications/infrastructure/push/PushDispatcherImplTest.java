@@ -159,6 +159,59 @@ class PushDispatcherImplTest {
   }
 
   @Test
+  void dispatchToUsesResolvedSubscriptionWithoutLookup() throws Exception {
+    String userId = "usr_fanout";
+    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(201);
+
+    double before = counterValue("result", "ok");
+    dispatcher
+        .dispatchTo(subscriptionFor(userId), newEvent(userId))
+        .get(5, java.util.concurrent.TimeUnit.SECONDS);
+
+    awaitCounterIncrease("result", "ok", before, 1);
+    verify(subscriptionRepository, never()).findByUserId(userId);
+  }
+
+  @Test
+  void dispatchToFutureCompletesNormallyEvenWhenPushFails() throws Exception {
+    String userId = "usr_fanout_fail";
+    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(410);
+
+    double before = counterValue("result", "gone");
+    dispatcher
+        .dispatchTo(subscriptionFor(userId), newEvent(userId))
+        .get(5, java.util.concurrent.TimeUnit.SECONDS);
+
+    awaitCounterIncrease("result", "gone", before, 1);
+    verify(subscriptionRepository, times(1)).deleteByUserId(userId);
+  }
+
+  @Test
+  void reusesCachedVapidJwtForTheSamePushServiceOrigin() throws Exception {
+    java.util.concurrent.BlockingQueue<java.util.Map<String, String>> captured =
+        new java.util.concurrent.LinkedBlockingQueue<>();
+    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap()))
+        .thenAnswer(
+            inv -> {
+              captured.add(inv.getArgument(2));
+              return 201;
+            });
+
+    dispatcher
+        .dispatchTo(subscriptionFor("usr_jwt_1"), newEvent("usr_jwt_1"))
+        .get(5, java.util.concurrent.TimeUnit.SECONDS);
+    dispatcher
+        .dispatchTo(subscriptionFor("usr_jwt_2"), newEvent("usr_jwt_2"))
+        .get(5, java.util.concurrent.TimeUnit.SECONDS);
+
+    java.util.Map<String, String> first = captured.poll(5, java.util.concurrent.TimeUnit.SECONDS);
+    java.util.Map<String, String> second = captured.poll(5, java.util.concurrent.TimeUnit.SECONDS);
+    assertNotNull(first);
+    assertNotNull(second);
+    assertEquals(first.get("Authorization"), second.get("Authorization"));
+  }
+
+  @Test
   void payloadContainsVapidAuthorizationHeaderOnSuccess() throws Exception {
     String userId = "usr_hdr";
     when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
@@ -275,6 +328,9 @@ class PushDispatcherImplTest {
   void handlesTaskRejectionGracefullyWhenQueueIsFull() throws Exception {
     org.eclipse.microprofile.context.ManagedExecutor rejectingExecutor =
         org.mockito.Mockito.mock(org.eclipse.microprofile.context.ManagedExecutor.class);
+    org.mockito.Mockito.doThrow(new java.util.concurrent.RejectedExecutionException("Queue full"))
+        .when(rejectingExecutor)
+        .execute(any(Runnable.class));
     org.mockito.Mockito.doThrow(new java.util.concurrent.RejectedExecutionException("Queue full"))
         .when(rejectingExecutor)
         .submit(any(Runnable.class));

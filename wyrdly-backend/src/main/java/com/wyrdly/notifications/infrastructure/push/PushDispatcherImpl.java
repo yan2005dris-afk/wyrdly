@@ -17,11 +17,17 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.net.URI;
+import java.security.KeyFactory;
 import java.security.interfaces.ECPrivateKey;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -48,6 +54,9 @@ import org.eclipse.microprofile.context.ManagedExecutor;
  * <p>All HTTP I/O runs on a container-managed {@link ManagedExecutor} so {@link #dispatch} returns
  * to the caller immediately. Rate limiting, backpressure protection, and Micrometer telemetry are
  * built-in.
+ *
+ * <p>The parsed VAPID signing key and the VAPID JWT per Push Service origin are cached: a fan-out
+ * to thousands of recipients signs a handful of JWTs instead of one per push.
  */
 @ApplicationScoped
 public class PushDispatcherImpl implements PushDispatcherPort {
@@ -55,6 +64,12 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   private static final Logger LOG = Logger.getLogger(PushDispatcherImpl.class.getName());
 
   private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
+
+  /** Lifetime of a signed VAPID JWT (RFC 8292 caps it at 24h). */
+  static final Duration JWT_TTL = Duration.ofMinutes(10);
+
+  /** A cached JWT is re-signed once it gets this close to expiring. */
+  static final Duration JWT_REFRESH_MARGIN = Duration.ofMinutes(2);
 
   private final VapidKeyProvider vapidKeyProvider;
   private final PushSubscriptionRepositoryPort subscriptionRepository;
@@ -66,6 +81,8 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   private final int maxRetries;
   private final Duration initialBackoff;
   private final ManagedExecutor executor;
+  private final ConcurrentMap<String, CachedJwt> jwtCache = new ConcurrentHashMap<>();
+  private volatile CachedSigningKey signingKeyCache;
 
   private final long recipientRateIntervalMs;
   private final TokenBucket globalTokenBucket;
@@ -141,30 +158,46 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     }
   }
 
+  @Override
   public void dispatch(PushEvent event) {
-    if (event == null) {
+    if (event == null || isRateLimited(event)) {
       return;
     }
-    String eventType = event.type() != null ? event.type() : "unknown";
+    submit(
+        typeOf(event),
+        () -> {
+          PushSubscription subscription =
+              subscriptionRepository.findByUserId(event.recipientUserId());
+          if (subscription == null) {
+            recordDispatch(typeOf(event), "skipped_no_subscription");
+            LOG.log(Level.FINE, "no subscription for user {0}", event.recipientUserId());
+            return;
+          }
+          send(subscription, event);
+        });
+  }
+
+  @Override
+  public CompletableFuture<Void> dispatchTo(PushSubscription subscription, PushEvent event) {
+    if (event == null || isRateLimited(event)) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return submit(typeOf(event), () -> send(subscription, event));
+  }
+
+  /** Records and logs a rate-limited push; {@code true} means the push must be dropped. */
+  private boolean isRateLimited(PushEvent event) {
     if (isGlobalRateLimited()) {
-      recordDispatch(eventType, "rate_limited");
+      recordDispatch(typeOf(event), "rate_limited");
       LOG.log(Level.WARNING, "Global push dispatch rate limit exceeded");
-      return;
+      return true;
     }
     if (isRecipientRateLimited(event.recipientUserId())) {
-      recordDispatch(eventType, "rate_limited");
+      recordDispatch(typeOf(event), "rate_limited");
       LOG.log(Level.FINE, "Push rate limit exceeded for recipient {0}", event.recipientUserId());
-      return;
+      return true;
     }
-    try {
-      executor.submit(() -> doDispatch(event));
-    } catch (RejectedExecutionException ex) {
-      recordDispatch(eventType, "rejected");
-      LOG.log(
-          Level.WARNING,
-          "Push dispatcher executor rejected task for recipient {0}; queue full",
-          event.recipientUserId());
-    }
+    return false;
   }
 
   private boolean isGlobalRateLimited() {
@@ -194,30 +227,38 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     }
   }
 
-  private void doDispatch(PushEvent event) {
-    String eventType = event.type() != null ? event.type() : "unknown";
-    PushSubscription subscription = subscriptionRepository.findByUserId(event.recipientUserId());
-    if (subscription == null) {
-      recordDispatch(eventType, "skipped_no_subscription");
-      LOG.log(Level.FINE, "no subscription for user {0}", event.recipientUserId());
-      return;
+  /** Runs {@code task} on the dispatcher pool; the returned future always completes normally. */
+  private CompletableFuture<Void> submit(String eventType, Runnable task) {
+    CompletableFuture<Void> done = new CompletableFuture<>();
+    try {
+      executor.execute(
+          () -> {
+            try {
+              task.run();
+            } catch (RuntimeException ex) {
+              recordDispatch(eventType, "failed");
+              LOG.log(Level.WARNING, "push dispatch task failed", ex);
+            } finally {
+              done.complete(null);
+            }
+          });
+    } catch (RejectedExecutionException ex) {
+      recordDispatch(eventType, "rejected");
+      LOG.log(Level.WARNING, "push dispatcher saturated; push dropped");
+      done.complete(null);
     }
+    return done;
+  }
 
+  private void send(PushSubscription subscription, PushEvent event) {
+    String eventType = typeOf(event);
     try {
       byte[] plaintext = encodePayload(event);
       byte[] ciphertext =
           MessageEncryptor.encrypt(plaintext, subscription.p256dh(), subscription.auth());
       recordBytes(eventType, ciphertext.length);
 
-      String audience = extractOrigin(subscription.endpoint());
-      ECPrivateKey signingKey =
-          (ECPrivateKey)
-              java.security.KeyFactory.getInstance("EC")
-                  .generatePrivate(
-                      new java.security.spec.PKCS8EncodedKeySpec(
-                          java.util.Base64.getUrlDecoder()
-                              .decode(vapidKeyProvider.getPrivateKey())));
-      String jwt = VapidJwtSigner.sign(audience, subject, signingKey);
+      String jwt = jwtFor(extractOrigin(subscription.endpoint()));
 
       Map<String, String> headers = new LinkedHashMap<>();
       headers.put("TTL", String.valueOf(60 * 60 * 24));
@@ -277,6 +318,10 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     }
   }
 
+  private static String typeOf(PushEvent event) {
+    return event.type() != null ? event.type() : "unknown";
+  }
+
   private void recordDispatch(String type, String result) {
     meterRegistry.counter("wyrdly.push.dispatch", "type", type, "result", result).increment();
   }
@@ -323,6 +368,38 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     }
     return status;
   }
+
+  /** Returns a cached VAPID JWT for {@code audience}, re-signing it shortly before it expires. */
+  private String jwtFor(String audience) throws Exception {
+    ECPrivateKey key = signingKey();
+    Instant now = Instant.now();
+    CachedJwt cached = jwtCache.get(audience);
+    if (cached != null && cached.key() == key && now.isBefore(cached.refreshAt())) {
+      return cached.token();
+    }
+    String token = VapidJwtSigner.sign(audience, subject, key, JWT_TTL);
+    jwtCache.put(audience, new CachedJwt(token, key, now.plus(JWT_TTL).minus(JWT_REFRESH_MARGIN)));
+    return token;
+  }
+
+  /** Parses the PKCS#8 VAPID private key once; re-parses only if the provider's key changes. */
+  private ECPrivateKey signingKey() throws Exception {
+    String encoded = vapidKeyProvider.getPrivateKey();
+    CachedSigningKey cached = signingKeyCache;
+    if (cached != null && cached.encoded().equals(encoded)) {
+      return cached.key();
+    }
+    ECPrivateKey key =
+        (ECPrivateKey)
+            KeyFactory.getInstance("EC")
+                .generatePrivate(new PKCS8EncodedKeySpec(Base64.getUrlDecoder().decode(encoded)));
+    signingKeyCache = new CachedSigningKey(encoded, key);
+    return key;
+  }
+
+  private record CachedSigningKey(String encoded, ECPrivateKey key) {}
+
+  private record CachedJwt(String token, ECPrivateKey key, Instant refreshAt) {}
 
   private byte[] encodePayload(PushEvent event) throws JsonProcessingException {
     Map<String, Object> payload = new LinkedHashMap<>();

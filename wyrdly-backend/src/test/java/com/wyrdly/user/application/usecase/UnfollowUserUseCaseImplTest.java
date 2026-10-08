@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.wyrdly.user.application.dto.FollowActionResponse;
 import com.wyrdly.user.domain.event.UserFollowRelationshipChangedEvent;
@@ -31,6 +33,7 @@ class UnfollowUserUseCaseImplTest {
   void unfollow_DeletesRelationship_WhenTargetUserExists() {
     String userId = "usr_123";
     String targetUserId = "usr_456";
+    when(userProfileRepository.unfollowUser(userId, targetUserId)).thenReturn(true);
 
     FollowActionResponse response = unfollowUserUseCase.unfollow(userId, targetUserId);
 
@@ -40,6 +43,19 @@ class UnfollowUserUseCaseImplTest {
     verify(userProfileRepository).validateUserExists(targetUserId);
     verify(userProfileRepository).unfollowUser(userId, targetUserId);
     verify(followEvent).fire(new UserFollowRelationshipChangedEvent(userId, targetUserId, false));
+  }
+
+  @Test
+  void unfollow_IsIdempotentAndFiresNoEvent_WhenNotFollowing() {
+    String userId = "usr_123";
+    String targetUserId = "usr_456";
+    when(userProfileRepository.unfollowUser(userId, targetUserId)).thenReturn(false);
+
+    FollowActionResponse response = unfollowUserUseCase.unfollow(userId, targetUserId);
+
+    assertEquals(false, response.following());
+    verify(userProfileRepository).unfollowUser(userId, targetUserId);
+    verifyNoInteractions(followEvent);
   }
 
   @Test

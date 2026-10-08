@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +29,8 @@ import io.quarkus.test.security.jwt.JwtSecurity;
 import io.restassured.http.ContentType;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @QuarkusTest
 class PostResourceTest {
@@ -191,7 +194,7 @@ class PostResourceTest {
         .post("/api/posts")
         .then()
         .statusCode(400)
-        .body("attributeName", equalTo("content"));
+        .body(containsString("Content is required"));
   }
 
   @Test
@@ -424,20 +427,45 @@ class PostResourceTest {
         .when()
         .post("/api/posts/pst_abc/react")
         .then()
-        .statusCode(400);
+        .statusCode(400)
+        .body("message", equalTo("Invalid value for field 'type'"));
+
+    verify(reactToPostUseCase, never()).react(any(), any(), any());
+  }
+
+  // The global enum policy (StrictObjectMapperCustomizer) is the only guard: no per-field
+  // deserializer. Unknown, differently cased, numeric and blank values must all be rejected.
+  @ParameterizedTest
+  @ValueSource(strings = {"\"DISLIKE\"", "\"like\"", "\"Love\"", "0", "\"\"", "\"  \""})
+  @TestSecurity(user = "usr_123")
+  @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
+  void react_Returns400_WhenTypeIsNotAValidEnumName(String type) {
+    given()
+        .contentType(ContentType.JSON)
+        .body("{\"type\":" + type + "}")
+        .when()
+        .post("/api/posts/pst_abc/react")
+        .then()
+        .statusCode(400)
+        .body("error", equalTo("Bad Request"))
+        .body("message", equalTo("Invalid value for field 'type'"));
+
+    verify(reactToPostUseCase, never()).react(any(), any(), any());
   }
 
   @Test
   @TestSecurity(user = "usr_123")
   @JwtSecurity(claims = {@Claim(key = "sub", value = "usr_123")})
-  void react_Returns400_WhenTypeIsInvalidEnum() {
+  void react_Returns400_WhenTypeIsNull() {
     given()
         .contentType(ContentType.JSON)
-        .body("{\"type\":\"DISLIKE\"}")
+        .body("{\"type\":null}")
         .when()
         .post("/api/posts/pst_abc/react")
         .then()
         .statusCode(400);
+
+    verify(reactToPostUseCase, never()).react(any(), any(), any());
   }
 
   @Test
