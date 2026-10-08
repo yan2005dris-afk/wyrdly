@@ -3,8 +3,10 @@ package com.wyrdly.chat.infrastructure.websocket;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.websocket.Session;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -42,6 +44,10 @@ public class ChatSessionRegistry {
 
   public boolean isUserOnline(String userId) {
     return !getSessionsForUser(userId).isEmpty();
+  }
+
+  public Set<String> getActiveSessionUserIds() {
+    return Collections.unmodifiableSet(userSessions.keySet());
   }
 
   public String getUserForSession(String sessionId) {
