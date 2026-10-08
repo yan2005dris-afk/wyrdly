@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type FC } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Share2, Edit3, AlertCircle } from "lucide-react";
-import type { PostApiResponse, ReactionType } from "../types/feed";
+import type { Post, PostApiResponse, ReactionType } from "../types/feed";
 import { mapPostApiResponseToPost } from "../types/feed";
 import type { UpdateProfilePayload } from "../api/users";
 import { useAuth } from "../features/auth";
@@ -23,7 +23,7 @@ import {
   UserListRowSkeleton,
   useGraphSuggestions,
   useFollow,
-  useReaction,
+  useOptimisticReaction,
 } from "../features/social";
 import { Button } from "../components/ui/Button";
 
@@ -48,80 +48,50 @@ export const ProfilePage: FC = () => {
     Record<
       string,
       {
-        userReaction: ReactionType | null;
-        reactionCounts: {
-          likeCount: number;
-          loveCount: number;
-          celebrateCount: number;
-        };
+        userReaction?: Post["userReaction"];
+        reactions: Post["reactions"];
       }
     >
   >({});
-  const { react: reactToPost, isPending: isReactionPending } = useReaction();
 
-  const displayPosts = useMemo(() => {
+  const displayPosts: readonly Post[] = useMemo(() => {
     return posts.map((post) => {
+      const mapped = mapPostApiResponseToPost(post);
       const override = reactionOverrides[post.id];
-      if (!override) return post;
+      if (!override) return mapped;
       return {
-        ...post,
+        ...mapped,
         userReaction: override.userReaction,
-        reactionCounts: override.reactionCounts,
+        reactions: override.reactions,
       };
     });
   }, [posts, reactionOverrides]);
 
-  const handleReaction = useCallback(
-    (postId: string, reaction: ReactionType) => {
-      const originalPost = posts.find((p) => p.id === postId);
-      if (!originalPost) return;
+  const findPost = useCallback(
+    (postId: string) => displayPosts.find((p) => p.id === postId),
+    [displayPosts],
+  );
 
-      const currentOverride = reactionOverrides[postId];
-      const currentUserReaction =
-        currentOverride !== undefined
-          ? currentOverride.userReaction
-          : originalPost.userReaction;
-
-      const currentCounts =
-        currentOverride !== undefined
-          ? currentOverride.reactionCounts
-          : {
-              likeCount: originalPost.reactionCounts?.likeCount ?? 0,
-              loveCount: originalPost.reactionCounts?.loveCount ?? 0,
-              celebrateCount: originalPost.reactionCounts?.celebrateCount ?? 0,
-            };
-
-      const isActive = currentUserReaction === reaction;
-      const diff = isActive ? -1 : 1;
-      const newCounts = { ...currentCounts };
-      if (reaction === "LIKE") {
-        newCounts.likeCount = Math.max(0, newCounts.likeCount + diff);
-      } else if (reaction === "LOVE") {
-        newCounts.loveCount = Math.max(0, newCounts.loveCount + diff);
-      } else if (reaction === "CELEBRATE") {
-        newCounts.celebrateCount = Math.max(0, newCounts.celebrateCount + diff);
-      }
-
-      setReactionOverrides((prev) => ({
-        ...prev,
-        [postId]: {
-          userReaction: isActive ? null : reaction,
-          reactionCounts: newCounts,
-        },
-      }));
-
-      void reactToPost(postId, reaction, {
-        onRollback: () => {
-          setReactionOverrides((prev) => {
-            const next = { ...prev };
-            delete next[postId];
-            return next;
-          });
-        },
+  const updatePost = useCallback(
+    (postId: string, updater: (post: Post) => Post) => {
+      setReactionOverrides((prev) => {
+        const currentPost = displayPosts.find((p) => p.id === postId);
+        if (!currentPost) return prev;
+        const updated = updater(currentPost);
+        return {
+          ...prev,
+          [postId]: {
+            userReaction: updated.userReaction,
+            reactions: updated.reactions,
+          },
+        };
       });
     },
-    [posts, reactionOverrides, reactToPost],
+    [displayPosts],
   );
+
+  const { toggle: handleReaction, isPending: isReactionPending } =
+    useOptimisticReaction({ findPost, updatePost });
   const {
     users: followers,
     isLoading: followersLoading,
@@ -372,7 +342,7 @@ export const ProfilePage: FC = () => {
 };
 
 interface PostsTabProps {
-  readonly posts: readonly PostApiResponse[];
+  readonly posts: readonly Post[];
   readonly isLoading: boolean;
   readonly onReaction?: (postId: string, reaction: ReactionType) => void;
   readonly isReactionPending?: (postId: string) => boolean;
@@ -410,7 +380,7 @@ const PostsTab: FC<PostsTabProps> = ({
       {posts.map((post) => (
         <PostCard
           key={post.id}
-          post={mapPostApiResponseToPost(post)}
+          post={post}
           onReaction={onReaction}
           isReactionPending={isReactionPending?.(post.id)}
         />

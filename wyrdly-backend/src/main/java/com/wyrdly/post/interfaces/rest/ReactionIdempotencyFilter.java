@@ -36,6 +36,7 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
 
   private static final String PATH_PREFIX = "/api/posts/";
   private static final String SUFFIX = "/react";
+  static final String REACTION_TYPE_PROPERTY = "com.wyrdly.reaction.type";
 
   @Inject RedisDataSource redis;
   @Inject ObjectMapper objectMapper;
@@ -71,7 +72,13 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
       return;
     }
 
-    String key = "react:" + userId + ":" + postId;
+    String type = extractReactionType(req);
+    if (type == null) {
+      return;
+    }
+    req.setProperty(REACTION_TYPE_PROPERTY, type);
+
+    String key = cacheKey(userId, postId, type);
     try {
       String cached = values().get(key);
       if (cached != null) {
@@ -102,17 +109,57 @@ public class ReactionIdempotencyFilter implements ContainerRequestFilter, Contai
       return;
     }
 
+    String type = (String) req.getProperty(REACTION_TYPE_PROPERTY);
+    if (type == null) {
+      return;
+    }
+
     Object entity = resp.getEntity();
     if (entity == null) {
       return;
     }
-    String key = "react:" + userId + ":" + postId;
+    String key = cacheKey(userId, postId, type);
     try {
       String json = objectMapper.writeValueAsString(entity);
       values().setex(key, TTL_SECONDS, json);
+      // Invalidate cache for other reaction types for this (userId, postId)
+      for (com.wyrdly.post.domain.model.ReactionType rt :
+          com.wyrdly.post.domain.model.ReactionType.values()) {
+        if (!rt.name().equals(type)) {
+          try {
+            redis.execute("DEL", cacheKey(userId, postId, rt.name()));
+          } catch (Exception ignored) {
+          }
+        }
+      }
     } catch (Exception e) {
       Log.warnf(e, "Idempotency cache write failed for key=%s — toggle still completed", key);
     }
+  }
+
+  private String extractReactionType(ContainerRequestContext req) {
+    if (!req.hasEntity()) {
+      return null;
+    }
+    try {
+      java.io.InputStream stream = req.getEntityStream();
+      if (stream == null) {
+        return null;
+      }
+      byte[] body = stream.readAllBytes();
+      req.setEntityStream(new java.io.ByteArrayInputStream(body));
+      com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(body);
+      if (node != null && node.hasNonNull("type")) {
+        return node.get("type").asText();
+      }
+    } catch (Exception e) {
+      // Degrade gracefully if body cannot be parsed
+    }
+    return null;
+  }
+
+  private static String cacheKey(String userId, String postId, String type) {
+    return "react:" + userId + ":" + postId + ":" + type;
   }
 
   private static String normalizePath(String path) {
