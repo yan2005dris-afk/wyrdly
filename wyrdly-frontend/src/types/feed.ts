@@ -58,6 +58,7 @@ export interface PostApiResponse {
     readonly celebrateCount: number;
   };
   readonly userReaction: ReactionType | null;
+  readonly commentsCount?: number;
 }
 
 /** Payload sent to POST /api/posts. Mirrors CreatePostRequest record. */
@@ -110,13 +111,13 @@ export function mapPostApiResponseToPost(
         ]
       : [],
     reactions: {
-      LIKE: response.reactionCounts.likeCount,
-      LOVE: response.reactionCounts.loveCount,
-      CELEBRATE: response.reactionCounts.celebrateCount,
+      LIKE: response.reactionCounts?.likeCount ?? 0,
+      LOVE: response.reactionCounts?.loveCount ?? 0,
+      CELEBRATE: response.reactionCounts?.celebrateCount ?? 0,
       RETWEET: 0,
     },
     userReaction: response.userReaction ?? undefined,
-    commentsCount: 0,
+    commentsCount: response.commentsCount ?? 0,
     visibility,
   };
 }

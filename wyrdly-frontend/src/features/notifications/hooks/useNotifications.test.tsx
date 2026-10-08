@@ -10,6 +10,7 @@ vi.mock("../../../api/axios", () => ({
     post: vi.fn(),
     delete: vi.fn(),
   },
+  API_BASE_URL: "http://localhost:8080",
 }));
 
 import { apiClient } from "../../../api/axios";

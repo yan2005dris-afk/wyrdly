@@ -72,8 +72,10 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
                     post.createdAt(),
                     new PostResponse.AuthorDto(
                         profile.id(), profile.username(), profile.fullName(), profile.avatarUrl()),
-                    new PostResponse.ReactionCounts(0, 0, 0),
-                    null))
+                    new PostResponse.ReactionCounts(
+                        post.likeCount(), post.loveCount(), post.celebrateCount()),
+                    post.commentsCount(),
+                    post.userReaction()))
         .toList();
   }
 

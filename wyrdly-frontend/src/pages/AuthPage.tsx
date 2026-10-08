@@ -1,5 +1,5 @@
-import { useState, type FC } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, type FC } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   useAuth,
   AuthGraphHero,
@@ -7,13 +7,30 @@ import {
   type LoginCredentials,
   type RegisterCredentials,
 } from "../features/auth";
+import { getApiErrorMessage } from "../api/apiErrors";
 
 export const AuthPage: FC = () => {
-  const [error, setError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [error, setError] = useState<string | null>(() => {
+    return searchParams.get("reason") === "session_expired"
+      ? "Your session has expired. Please sign in again."
+      : null;
+  });
   const [loading, setLoading] = useState(false);
 
-  const { login, register } = useAuth();
+  const {
+    login,
+    register,
+    isAuthenticated,
+    isLoading: authLoading,
+  } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      navigate("/feed", { replace: true });
+    }
+  }, [isAuthenticated, authLoading, navigate]);
 
   const handleSignIn = async (credentials: LoginCredentials) => {
     setError(null);
@@ -22,11 +39,7 @@ export const AuthPage: FC = () => {
       await login(credentials);
       navigate("/feed");
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Error signing in. Please check your credentials.");
-      }
+      setError(getApiErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -39,11 +52,7 @@ export const AuthPage: FC = () => {
       await register(credentials);
       navigate("/feed");
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Error registering account. Please try again.");
-      }
+      setError(getApiErrorMessage(err));
     } finally {
       setLoading(false);
     }

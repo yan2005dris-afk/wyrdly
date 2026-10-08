@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import { useState, type FC } from "react";
 import { Link } from "react-router-dom";
 import {
   Heart,
@@ -15,6 +15,7 @@ import type { ReactionType } from "../../../../types/feed";
 import { Avatar } from "../../../../components/ui/Avatar";
 import { AuthImage } from "../../../../components/ui/AuthImage";
 import { Skeleton } from "../../../../components/ui/Skeleton";
+import { CommentSection } from "../CommentSection";
 import styles from "./PostCard.module.css";
 
 export const PostCardSkeleton: FC<{ className?: string }> = ({
@@ -108,6 +109,7 @@ export const PostCard: FC<PostCardProps> = ({
   isReactionPending = false,
 }) => {
   const isBoosted = post.userReaction === "RETWEET";
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
 
   const authorProfileUrl = `/profile/${post.author.username}`;
 
@@ -216,10 +218,14 @@ export const PostCard: FC<PostCardProps> = ({
 
         <button
           type="button"
-          onClick={() => onCommentClick?.(post.id)}
+          onClick={() => {
+            setIsCommentsOpen((prev) => !prev);
+            onCommentClick?.(post.id);
+          }}
           className={styles.actionButton}
           data-testid="comment-btn"
           aria-label="Comments"
+          aria-expanded={isCommentsOpen}
         >
           <MessageCircle className="w-3.5 h-3.5" />
           <span>{formatCount(post.commentsCount)}</span>
@@ -236,6 +242,10 @@ export const PostCard: FC<PostCardProps> = ({
           <span>Share</span>
         </button>
       </div>
+
+      {isCommentsOpen && (
+        <CommentSection postId={post.id} postAuthorId={post.author.id} />
+      )}
     </article>
   );
 };

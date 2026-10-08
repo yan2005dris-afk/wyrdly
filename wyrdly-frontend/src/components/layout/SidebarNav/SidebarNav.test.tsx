@@ -14,17 +14,19 @@ describe("SidebarNav Component", () => {
     expect(screen.getByText("Feed")).toBeInTheDocument();
     expect(screen.getByText("Explore")).toBeInTheDocument();
     expect(screen.getByText("Messages")).toBeInTheDocument();
-    expect(screen.getByText("Alerts")).toBeInTheDocument();
+    expect(screen.getByText("Notifications")).toBeInTheDocument();
     expect(screen.queryByTestId("nav-link-profile")).not.toBeInTheDocument();
   });
 
-  it("renders message and alert badge counts", () => {
+  it("renders message and notification badge counts", () => {
     renderWithRouter(
-      <SidebarNav unreadMessagesCount={4} unreadAlertsCount={12} />,
+      <SidebarNav unreadMessagesCount={4} unreadNotificationsCount={12} />,
     );
 
     expect(screen.getByTestId("nav-badge-messages")).toHaveTextContent("4");
-    expect(screen.getByTestId("nav-badge-alerts")).toHaveTextContent("9+");
+    expect(screen.getByTestId("nav-badge-notifications")).toHaveTextContent(
+      "9+",
+    );
   });
 
   it("renders New Post button and fires callback on click", () => {
@@ -37,11 +39,11 @@ describe("SidebarNav Component", () => {
     expect(handleNewPost).toHaveBeenCalledTimes(1);
   });
 
-  it("renders connected relays status and latency", () => {
-    renderWithRouter(<SidebarNav connectedRelaysCount={5} pingMs={38} />);
+  it("does not render mock relay telemetry or node status card", () => {
+    renderWithRouter(<SidebarNav />);
 
-    expect(screen.getByText("5 relays connected")).toBeInTheDocument();
-    expect(screen.getByText("38ms")).toBeInTheDocument();
+    expect(screen.queryByTestId("sidebar-node-status")).not.toBeInTheDocument();
+    expect(screen.queryByText(/relays connected/i)).not.toBeInTheDocument();
   });
 
   it("renders the log out button only when onLogout is provided", () => {

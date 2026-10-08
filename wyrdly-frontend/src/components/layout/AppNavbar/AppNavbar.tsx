@@ -146,7 +146,7 @@ export const AppNavbar: FC<AppNavbarProps> = ({
 
         {/* Right: Status badge, Notification Popover trigger, Actions, Avatar */}
         <div className={styles.rightSection}>
-          {getStatusBadge()}
+          <div className={styles.statusContainer}>{getStatusBadge()}</div>
 
           {actions}
 

@@ -1,19 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 
-// Mock the api axios module so the hook uses a controlled surface.
-vi.mock("../../../api/axios", () => ({
-  apiClient: {
-    post: vi.fn(),
-    delete: vi.fn(),
+// Mock the notifications API module so the hook uses a controlled surface.
+vi.mock("../../../api/notifications", () => ({
+  notificationsApi: {
+    getVapidPublicKey: vi.fn(),
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
   },
 }));
 
-import { apiClient } from "../../../api/axios";
-import { PUSH_OPT_OUT_STORAGE_KEY, useWebPush } from "./useWebPush";
+import { notificationsApi } from "../../../api/notifications";
+import {
+  PUSH_OPT_OUT_STORAGE_KEY,
+  PUSH_SUBSCRIPTION_CHANGE_FAILED,
+  useWebPush,
+} from "./useWebPush";
 
-const mockedPost = vi.mocked(apiClient.post);
-const mockedDelete = vi.mocked(apiClient.delete);
+const mockedGetVapidPublicKey = vi.mocked(notificationsApi.getVapidPublicKey);
+const mockedSubscribe = vi.mocked(notificationsApi.subscribe);
+const mockedUnsubscribe = vi.mocked(notificationsApi.unsubscribe);
 
 // Minimal PushSubscription shape we rely on (toJSON only).
 type FakeSubscriptionJson = {
@@ -46,13 +52,12 @@ interface MockState {
     };
     showNotification: ReturnType<typeof vi.fn>;
   };
-  fetch: ReturnType<typeof vi.fn>;
+  swMessageListeners: Set<(event: MessageEvent) => void>;
 }
 
 let state: MockState;
 
 let originalNavigator: PropertyDescriptor | undefined;
-let originalFetch: typeof fetch | undefined;
 let hadNotification: boolean;
 let hadPushManager: boolean;
 
@@ -82,6 +87,18 @@ const installBrowserShims = () => {
       get ready() {
         return Promise.resolve(state.registration);
       },
+      addEventListener: (
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ) => {
+        if (type === "message") state.swMessageListeners.add(listener);
+      },
+      removeEventListener: (
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ) => {
+        if (type === "message") state.swMessageListeners.delete(listener);
+      },
     },
   };
 
@@ -91,9 +108,6 @@ const installBrowserShims = () => {
     configurable: true,
     writable: true,
   });
-
-  originalFetch = globalThis.fetch;
-  globalThis.fetch = state.fetch as unknown as typeof fetch;
 };
 
 const restoreBrowserShims = () => {
@@ -101,9 +115,6 @@ const restoreBrowserShims = () => {
     Object.defineProperty(globalThis, "navigator", originalNavigator);
   } else {
     delete (globalThis as unknown as { navigator?: unknown }).navigator;
-  }
-  if (originalFetch) {
-    globalThis.fetch = originalFetch;
   }
   if (hadNotification) {
     // keep it
@@ -141,11 +152,6 @@ const buildState = (overrides: Partial<MockState> = {}): MockState => {
     showNotification: showNotificationFn,
   };
 
-  const fetchFn = vi.fn().mockResolvedValue({
-    ok: true,
-    text: () => Promise.resolve(VAPID_BASE64URL),
-  });
-
   return {
     notificationPermission: "default",
     requestPermission: vi.fn().mockResolvedValue("granted"),
@@ -157,7 +163,7 @@ const buildState = (overrides: Partial<MockState> = {}): MockState => {
     showNotification: showNotificationFn,
     pushManager,
     registration,
-    fetch: fetchFn,
+    swMessageListeners: new Set(),
     ...overrides,
   };
 };
@@ -173,6 +179,9 @@ const flushMicrotasks = async () => {
 describe("useWebPush", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedGetVapidPublicKey.mockResolvedValue(VAPID_BASE64URL);
+    mockedSubscribe.mockResolvedValue(undefined);
+    mockedUnsubscribe.mockResolvedValue(undefined);
     if (typeof localStorage !== "undefined") {
       localStorage.clear();
     }
@@ -224,9 +233,7 @@ describe("useWebPush", () => {
 
     expect(success).toBe(true);
     expect(state.requestPermission).toHaveBeenCalledTimes(1);
-    expect(state.fetch).toHaveBeenCalledWith(
-      "/api/notifications/vapid-public-key",
-    );
+    expect(mockedGetVapidPublicKey).toHaveBeenCalledTimes(1);
     expect(state.pushManager.subscribe).toHaveBeenCalledTimes(1);
     const subscribeArgs = state.pushManager.subscribe.mock.calls[0]?.[0] as
       | { userVisibleOnly: boolean; applicationServerKey: Uint8Array }
@@ -234,8 +241,7 @@ describe("useWebPush", () => {
     expect(subscribeArgs?.userVisibleOnly).toBe(true);
     expect(subscribeArgs?.applicationServerKey).toBeInstanceOf(Uint8Array);
 
-    expect(mockedPost).toHaveBeenCalledWith(
-      "/api/notifications/subscribe",
+    expect(mockedSubscribe).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: "https://push.example.com/endpoint/abc",
         keys: expect.objectContaining({
@@ -266,7 +272,7 @@ describe("useWebPush", () => {
     expect(result.current.permission).toBe("denied");
     expect(result.current.error).toBeInstanceOf(Error);
     expect(state.pushManager.subscribe).not.toHaveBeenCalled();
-    expect(mockedPost).not.toHaveBeenCalled();
+    expect(mockedSubscribe).not.toHaveBeenCalled();
   });
 
   it("subscribe() returns false and sets error when SW registration fails", async () => {
@@ -287,7 +293,7 @@ describe("useWebPush", () => {
     expect(success).toBe(false);
     expect(result.current.error).toBeInstanceOf(Error);
     expect(state.pushManager.subscribe).not.toHaveBeenCalled();
-    expect(mockedPost).not.toHaveBeenCalled();
+    expect(mockedSubscribe).not.toHaveBeenCalled();
   });
 
   it("unsubscribe() calls pushManager.unsubscribe() and DELETE /api/notifications/subscribe", async () => {
@@ -295,7 +301,6 @@ describe("useWebPush", () => {
     state.pushManager.getSubscription = vi.fn().mockResolvedValue({
       endpoint: "https://push.example.com/endpoint/abc",
     });
-    mockedDelete.mockResolvedValueOnce({ data: { ok: true } });
 
     const { result } = renderHook(() => useWebPush({ enabled: true }));
 
@@ -308,7 +313,7 @@ describe("useWebPush", () => {
 
     expect(success).toBe(true);
     expect(state.pushManager.unsubscribe).toHaveBeenCalledTimes(1);
-    expect(mockedDelete).toHaveBeenCalledWith("/api/notifications/subscribe");
+    expect(mockedUnsubscribe).toHaveBeenCalledTimes(1);
     expect(result.current.error).toBeNull();
   });
 
@@ -326,7 +331,115 @@ describe("useWebPush", () => {
     });
 
     expect(success).toBe(true);
-    expect(mockedDelete).not.toHaveBeenCalled();
+    expect(mockedUnsubscribe).not.toHaveBeenCalled();
+  });
+
+  it("subscribe() returns false and sets error when the VAPID key cannot be fetched", async () => {
+    mockedGetVapidPublicKey.mockRejectedValueOnce(
+      new Error("VAPID public key was empty"),
+    );
+
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+
+    await flushMicrotasks();
+
+    let success: boolean | undefined;
+    await act(async () => {
+      success = await result.current.subscribe();
+    });
+
+    expect(success).toBe(false);
+    expect(result.current.error?.message).toBe("VAPID public key was empty");
+    expect(state.pushManager.subscribe).not.toHaveBeenCalled();
+    expect(mockedSubscribe).not.toHaveBeenCalled();
+  });
+
+  describe("pushsubscriptionchange recovery", () => {
+    const emitSwMessage = async (data: unknown) => {
+      await act(async () => {
+        for (const listener of state.swMessageListeners) {
+          listener({ data } as MessageEvent);
+        }
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    };
+
+    it("re-subscribes silently when the SW reports a failed change and permission is granted", async () => {
+      state.notificationPermission = "granted";
+      state.pushManager.getSubscription = vi.fn().mockResolvedValue({
+        endpoint: "https://push.example.com/endpoint/abc",
+      });
+      const { result } = renderHook(() => useWebPush({ enabled: true }));
+      await flushMicrotasks();
+
+      await emitSwMessage({ type: PUSH_SUBSCRIPTION_CHANGE_FAILED });
+
+      expect(state.requestPermission).not.toHaveBeenCalled();
+      expect(mockedGetVapidPublicKey).toHaveBeenCalledTimes(1);
+      expect(state.pushManager.subscribe).toHaveBeenCalledTimes(1);
+      expect(mockedSubscribe).toHaveBeenCalledTimes(1);
+      expect(result.current.isSubscribed).toBe(true);
+      expect(result.current.error).toBeNull();
+    });
+
+    it("does not re-subscribe when permission is no longer granted", async () => {
+      state.notificationPermission = "denied";
+      renderHook(() => useWebPush({ enabled: true }));
+      await flushMicrotasks();
+
+      await emitSwMessage({ type: PUSH_SUBSCRIPTION_CHANGE_FAILED });
+
+      expect(state.pushManager.subscribe).not.toHaveBeenCalled();
+      expect(mockedSubscribe).not.toHaveBeenCalled();
+    });
+
+    it("ignores unrelated SW messages", async () => {
+      state.notificationPermission = "granted";
+      state.pushManager.getSubscription = vi.fn().mockResolvedValue({
+        endpoint: "https://push.example.com/endpoint/abc",
+      });
+      renderHook(() => useWebPush({ enabled: true }));
+      await flushMicrotasks();
+
+      await emitSwMessage({ type: "something-else" });
+      await emitSwMessage(null);
+
+      expect(mockedSubscribe).not.toHaveBeenCalled();
+    });
+
+    it("exposes the error when silent re-subscription fails", async () => {
+      state.notificationPermission = "granted";
+      state.pushManager.getSubscription = vi.fn().mockResolvedValue({
+        endpoint: "https://push.example.com/endpoint/abc",
+      });
+      mockedSubscribe.mockRejectedValueOnce(new Error("401"));
+      const { result } = renderHook(() => useWebPush({ enabled: true }));
+      await flushMicrotasks();
+
+      await emitSwMessage({ type: PUSH_SUBSCRIPTION_CHANGE_FAILED });
+
+      expect(result.current.isSubscribed).toBe(false);
+      expect(result.current.error?.message).toBe("401");
+    });
+
+    it("removes the SW message listener on unmount", async () => {
+      const { unmount } = renderHook(() => useWebPush({ enabled: true }));
+      await flushMicrotasks();
+      expect(state.swMessageListeners.size).toBe(1);
+
+      unmount();
+
+      expect(state.swMessageListeners.size).toBe(0);
+    });
+
+    it("does not listen to SW messages when disabled", async () => {
+      renderHook(() => useWebPush({ enabled: false }));
+      await flushMicrotasks();
+
+      expect(state.swMessageListeners.size).toBe(0);
+    });
   });
 
   it("silently auto-resubscribes on mount when permission is granted but no subscription exists", async () => {
@@ -341,14 +454,37 @@ describe("useWebPush", () => {
     await flushMicrotasks();
     await flushMicrotasks();
 
-    expect(state.fetch).toHaveBeenCalledWith(
-      "/api/notifications/vapid-public-key",
-    );
+    expect(mockedGetVapidPublicKey).toHaveBeenCalledTimes(1);
     expect(state.pushManager.subscribe).toHaveBeenCalledTimes(1);
-    expect(mockedPost).toHaveBeenCalledWith(
-      "/api/notifications/subscribe",
+    expect(mockedSubscribe).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: "https://push.example.com/endpoint/abc",
+      }),
+    );
+    expect(result.current.isSubscribed).toBe(true);
+  });
+
+  it("syncs existing browser subscription with backend on mount when permission is granted", async () => {
+    const existingSub = {
+      toJSON: () => ({
+        endpoint: "https://push.example.com/existing",
+        keys: { p256dh: "p256dh-val", auth: "auth-val" },
+      }),
+    };
+    state = buildState({
+      notificationPermission: "granted",
+    });
+    state.pushManager.getSubscription = vi.fn().mockResolvedValue(existingSub);
+    installBrowserShims();
+
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(mockedSubscribe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: "https://push.example.com/existing",
       }),
     );
     expect(result.current.isSubscribed).toBe(true);
@@ -369,7 +505,7 @@ describe("useWebPush", () => {
       await flushMicrotasks();
 
       expect(state.pushManager.subscribe).not.toHaveBeenCalled();
-      expect(mockedPost).not.toHaveBeenCalled();
+      expect(mockedSubscribe).not.toHaveBeenCalled();
       expect(result.current.isSubscribed).toBe(false);
     } finally {
       localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);

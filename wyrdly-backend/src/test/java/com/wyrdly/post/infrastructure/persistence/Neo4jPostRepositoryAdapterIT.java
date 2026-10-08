@@ -4,53 +4,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wyrdly.post.domain.model.Post;
+import com.wyrdly.testsupport.Neo4jTestContainer;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Session;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.neo4j.Neo4jContainer;
 
-@Testcontainers
 class Neo4jPostRepositoryAdapterIT {
 
-  @Container
-  static final Neo4jContainer NEO4J_CONTAINER =
-      new Neo4jContainer("neo4j:5.26-community").withoutAuthentication();
-
-  static Driver driver;
+  static final Driver driver = Neo4jTestContainer.driver();
 
   Neo4jPostRepositoryAdapter adapter;
-
-  @BeforeAll
-  static void setUpDriver() {
-    driver = GraphDatabase.driver(NEO4J_CONTAINER.getBoltUrl(), AuthTokens.none());
-  }
-
-  @AfterAll
-  static void tearDownDriver() {
-    driver.close();
-  }
 
   @BeforeEach
   void setUp() {
     adapter = new Neo4jPostRepositoryAdapter(driver);
   }
 
-  @AfterEach
+  @BeforeEach
   void cleanDatabase() {
-    try (Session session = driver.session()) {
-      session.run("MATCH (n) DETACH DELETE n");
-    }
+    Neo4jTestContainer.deleteAllData();
   }
 
   @Test
@@ -235,7 +211,7 @@ class Neo4jPostRepositoryAdapterIT {
     try (Session session = driver.session()) {
       session.run(
           "MATCH (a:Usuario {id: $followerId}), (b:Usuario {id: $followedId}) "
-              + "MERGE (a)-[:SIGUE {createdAt: datetime()}]->(b)",
+              + "MERGE (a)-[r:SIGUE]->(b) ON CREATE SET r.createdAt = datetime()",
           Map.of("followerId", followerId, "followedId", followedId));
     }
   }

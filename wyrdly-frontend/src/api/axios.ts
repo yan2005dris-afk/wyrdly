@@ -11,7 +11,7 @@ const resolveBaseUrl = (): string => {
   return import.meta.env.DEV ? "http://localhost:8080" : "";
 };
 
-const API_BASE_URL = resolveBaseUrl();
+export const API_BASE_URL = resolveBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -93,6 +93,11 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         setAccessToken(null);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("wyrdly_user");
+          localStorage.removeItem("wyrdly_token");
+          window.dispatchEvent(new CustomEvent("wyrdly:session-expired"));
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -42,6 +42,23 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    const handleSessionExpired = () => {
+      setAccessToken(null);
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem("wyrdly_user");
+    };
+
+    window.addEventListener("wyrdly:session-expired", handleSessionExpired);
+    return () => {
+      window.removeEventListener(
+        "wyrdly:session-expired",
+        handleSessionExpired,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
     const initAuth = async () => {
       const savedUser = localStorage.getItem("wyrdly_user");
       if (!savedUser) {

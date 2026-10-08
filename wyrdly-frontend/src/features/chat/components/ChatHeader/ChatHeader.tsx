@@ -1,5 +1,11 @@
 import type { FC } from "react";
-import { Phone, Video, MoreVertical, CheckCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Phone,
+  Video,
+  MoreVertical,
+  CheckCircle,
+} from "lucide-react";
 import type { ChatHeaderProps } from "./ChatHeader.types";
 import { Avatar } from "../../../../components/ui/Avatar";
 import styles from "./ChatHeader.module.css";
@@ -8,6 +14,7 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
   participant,
   isOnline = false,
   statusText = "Online",
+  onBack,
   onCallClick,
   onVideoClick,
   onOptionsClick,
@@ -16,6 +23,17 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
   return (
     <div className={`${styles.header} ${className}`} data-testid="chat-header">
       <div className={styles.leftCol}>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className={styles.backBtn}
+            aria-label="Back to conversations"
+            data-testid="chat-back-btn"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        )}
         <Avatar
           src={participant.avatarUrl}
           alt={participant.fullName}

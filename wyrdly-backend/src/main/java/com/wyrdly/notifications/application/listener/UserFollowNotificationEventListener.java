@@ -1,5 +1,7 @@
 package com.wyrdly.notifications.application.listener;
 
+import com.wyrdly.notifications.application.dto.NotificationDto;
+import com.wyrdly.notifications.application.port.NotificationBroadcasterPort;
 import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.domain.model.Notification;
 import com.wyrdly.notifications.domain.model.PushEvent;
@@ -38,17 +40,20 @@ public class UserFollowNotificationEventListener {
   private final PushDispatcherPort dispatcher;
   private final NotificationRepository notificationRepository;
   private final UserProfileRepository userProfileRepository;
+  private final NotificationBroadcasterPort broadcaster;
 
   @Inject
   public UserFollowNotificationEventListener(
       PushDispatcherPort dispatcher,
       NotificationRepository notificationRepository,
-      @ResilientNeo4j UserProfileRepository userProfileRepository) {
+      @ResilientNeo4j UserProfileRepository userProfileRepository,
+      NotificationBroadcasterPort broadcaster) {
     this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher must not be null");
     this.notificationRepository =
         Objects.requireNonNull(notificationRepository, "notificationRepository must not be null");
     this.userProfileRepository =
         Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
+    this.broadcaster = Objects.requireNonNull(broadcaster, "broadcaster must not be null");
   }
 
   public void on(@Observes UserFollowRelationshipChangedEvent event) {
@@ -60,7 +65,13 @@ public class UserFollowNotificationEventListener {
       return;
     }
 
-    String actorName = resolveActorName(event.followerId());
+    FollowerSummary actorSummary = resolveActorSummary(event.followerId());
+    String actorName =
+        actorSummary != null
+                && actorSummary.fullName() != null
+                && !actorSummary.fullName().isBlank()
+            ? actorSummary.fullName()
+            : null;
     String body = buildBody(actorName);
 
     Notification notification =
@@ -84,6 +95,17 @@ public class UserFollowNotificationEventListener {
           persistError);
     }
 
+    NotificationDto.ActorDto actorDto = buildActorDto(event.followerId(), actorSummary);
+    NotificationDto ssePayload = NotificationDto.from(notification, actorDto);
+    try {
+      broadcaster.broadcast(event.targetUserId(), ssePayload);
+    } catch (RuntimeException sseError) {
+      LOG.log(
+          Level.FINE,
+          "Failed to broadcast follow notification to SSE for " + event.targetUserId(),
+          sseError);
+    }
+
     PushEvent push =
         new PushEvent(
             event.targetUserId(),
@@ -95,19 +117,28 @@ public class UserFollowNotificationEventListener {
     dispatcher.dispatch(push);
   }
 
-  private String resolveActorName(String actorId) {
+  private FollowerSummary resolveActorSummary(String actorId) {
     try {
       var actors = userProfileRepository.findProfileSummariesByIds(Set.of(actorId));
-      FollowerSummary actor = actors.get(actorId);
-      if (actor == null || actor.fullName() == null || actor.fullName().isBlank()) {
-        return null;
-      }
-      return actor.fullName();
+      return actors.get(actorId);
     } catch (RuntimeException lookupError) {
       LOG.log(
           Level.WARNING, "Failed to resolve follower's display name for " + actorId, lookupError);
       return null;
     }
+  }
+
+  private static NotificationDto.ActorDto buildActorDto(
+      String actorId, FollowerSummary actorSummary) {
+    if (actorSummary == null) {
+      return NotificationDto.ActorDto.placeholder(actorId);
+    }
+    return new NotificationDto.ActorDto(
+        actorSummary.id(),
+        actorSummary.username(),
+        actorSummary.fullName(),
+        actorSummary.avatarUrl(),
+        null);
   }
 
   private static String buildBody(String actorName) {

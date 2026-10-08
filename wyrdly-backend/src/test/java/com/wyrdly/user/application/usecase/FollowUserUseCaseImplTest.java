@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.wyrdly.user.application.dto.FollowActionResponse;
 import com.wyrdly.user.domain.event.UserFollowRelationshipChangedEvent;
@@ -33,6 +34,7 @@ class FollowUserUseCaseImplTest {
   void follow_CreatesRelationship_WhenTargetUserExists() {
     String userId = "usr_123";
     String targetUserId = "usr_456";
+    when(userProfileRepository.followUser(userId, targetUserId)).thenReturn(true);
 
     FollowActionResponse response = followUserUseCase.follow(userId, targetUserId);
 
@@ -42,6 +44,19 @@ class FollowUserUseCaseImplTest {
     verify(userProfileRepository).validateUserExists(targetUserId);
     verify(userProfileRepository).followUser(userId, targetUserId);
     verify(followEvent).fire(new UserFollowRelationshipChangedEvent(userId, targetUserId, true));
+  }
+
+  @Test
+  void follow_IsIdempotentAndFiresNoEvent_WhenAlreadyFollowing() {
+    String userId = "usr_123";
+    String targetUserId = "usr_456";
+    when(userProfileRepository.followUser(userId, targetUserId)).thenReturn(false);
+
+    FollowActionResponse response = followUserUseCase.follow(userId, targetUserId);
+
+    assertEquals(true, response.following());
+    verify(userProfileRepository).followUser(userId, targetUserId);
+    verifyNoInteractions(followEvent);
   }
 
   @Test

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.wyrdly.notifications.application.port.NotificationBroadcasterPort;
 import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.domain.repository.NotificationRepository;
 import com.wyrdly.post.domain.event.PostReactionEvent;
@@ -25,6 +26,7 @@ class PostReactionNotificationEventListenerTest {
   private PushDispatcherPort dispatcher;
   private NotificationRepository notificationRepository;
   private UserProfileRepository userProfileRepository;
+  private NotificationBroadcasterPort broadcaster;
   private PostReactionNotificationEventListener listener;
 
   @BeforeEach
@@ -32,9 +34,10 @@ class PostReactionNotificationEventListenerTest {
     dispatcher = mock(PushDispatcherPort.class);
     notificationRepository = mock(NotificationRepository.class);
     userProfileRepository = mock(UserProfileRepository.class);
+    broadcaster = mock(NotificationBroadcasterPort.class);
     listener =
         new PostReactionNotificationEventListener(
-            dispatcher, notificationRepository, userProfileRepository);
+            dispatcher, notificationRepository, userProfileRepository, broadcaster);
     when(userProfileRepository.findProfileSummariesByIds(anySet())).thenReturn(Map.of());
   }
 
@@ -68,6 +71,16 @@ class PostReactionNotificationEventListenerTest {
                 push -> {
                   assertEquals("Yandris Tech le dio Like a tu publicación", push.body());
                   assertEquals("POST_LIKE", push.type());
+                  return true;
+                }));
+    verify(broadcaster)
+        .broadcast(
+            org.mockito.ArgumentMatchers.eq("usr_author"),
+            argThat(
+                dto -> {
+                  assertEquals("POST_LIKE", dto.type());
+                  assertEquals("Yandris Tech le dio Like a tu publicación", dto.body());
+                  assertEquals("Yandris Tech", dto.actor().fullName());
                   return true;
                 }));
   }

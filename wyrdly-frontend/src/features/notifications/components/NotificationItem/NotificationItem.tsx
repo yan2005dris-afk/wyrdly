@@ -6,6 +6,7 @@ import {
   Repeat,
   UserPlus,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import type { NotificationItemProps } from "./NotificationItem.types";
 import type { NotificationType } from "../../types";
@@ -39,6 +40,14 @@ const TYPE_CONFIG: Record<
   CHAT_MESSAGE: {
     badgeClass: styles.badgeChat,
     icon: <MessageSquare className="w-2.5 h-2.5" />,
+  },
+  POST_COMMENT: {
+    badgeClass: styles.badgeChat,
+    icon: <MessageSquare className="w-2.5 h-2.5" />,
+  },
+  NEW_POST_FROM_FOLLOWED: {
+    badgeClass: styles.badgePost,
+    icon: <FileText className="w-2.5 h-2.5" />,
   },
 };
 
