@@ -464,6 +464,32 @@ describe("useWebPush", () => {
     expect(result.current.isSubscribed).toBe(true);
   });
 
+  it("syncs existing browser subscription with backend on mount when permission is granted", async () => {
+    const existingSub = {
+      toJSON: () => ({
+        endpoint: "https://push.example.com/existing",
+        keys: { p256dh: "p256dh-val", auth: "auth-val" },
+      }),
+    };
+    state = buildState({
+      notificationPermission: "granted",
+    });
+    state.pushManager.getSubscription = vi.fn().mockResolvedValue(existingSub);
+    installBrowserShims();
+
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(mockedSubscribe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: "https://push.example.com/existing",
+      }),
+    );
+    expect(result.current.isSubscribed).toBe(true);
+  });
+
   it("does not auto-resubscribe on mount when user explicitly opted out", async () => {
     state = buildState({
       notificationPermission: "granted",

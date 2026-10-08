@@ -152,12 +152,15 @@ export const useWebPush = (
         // Gated by !isOptedOut so an explicit user unsubscribe is respected.
         if (
           !cancelled &&
-          !existing &&
           !isOptedOut &&
           readCurrentPermission() === "granted"
         ) {
           try {
-            await createPushSubscription(ready);
+            if (existing) {
+              await notificationsApi.subscribe(existing.toJSON());
+            } else {
+              await createPushSubscription(ready);
+            }
             if (!cancelled) {
               setIsSubscribed(true);
             }
