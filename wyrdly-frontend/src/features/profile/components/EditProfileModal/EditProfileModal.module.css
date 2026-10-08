@@ -145,6 +145,13 @@
   text-align: center;
 }
 
+.avatarSuccess {
+  font-size: 0.75rem;
+  color: #10b981;
+  text-align: center;
+  font-weight: 500;
+}
+
 .textareaContainer {
   display: flex;
   flex-direction: column;

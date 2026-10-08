@@ -23,6 +23,7 @@ export const EditProfileModal: FC<EditProfileModalProps> = ({
   const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? "");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [isLocalUploading, setIsLocalUploading] = useState(false);
 
   const objectUrlRef = useRef<string | null>(null);
@@ -49,6 +50,7 @@ export const EditProfileModal: FC<EditProfileModalProps> = ({
 
   const handleFileSelect = async (file: File) => {
     setLocalError(null);
+    setUploadSuccess(null);
 
     // Instant local preview
     if (objectUrlRef.current) {
@@ -65,6 +67,7 @@ export const EditProfileModal: FC<EditProfileModalProps> = ({
         const url = await uploadAvatar(file);
         if (url) {
           setAvatarUrl(url);
+          setUploadSuccess("Photo uploaded successfully!");
         } else {
           setLocalError("Failed to upload avatar. Please try again.");
         }
@@ -79,6 +82,7 @@ export const EditProfileModal: FC<EditProfileModalProps> = ({
       const res = await mediaUpload.upload(file);
       if (res?.fileUrl) {
         setAvatarUrl(res.fileUrl);
+        setUploadSuccess("Photo uploaded successfully!");
       }
     }
   };
@@ -139,6 +143,7 @@ export const EditProfileModal: FC<EditProfileModalProps> = ({
               isUploading={isUploading}
               isDisabled={isSaving}
               error={currentUploadError}
+              successMessage={uploadSuccess}
               onFileSelect={handleFileSelect}
             />
 
