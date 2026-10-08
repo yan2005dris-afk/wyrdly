@@ -19,9 +19,12 @@ type SW = {
 let cachedSW: SW | null = null;
 
 const loadSW = async (): Promise<SW> => {
-  if (cachedSW) {
-    return cachedSW;
-  }
+  // Always reset the module cache before importing. The SW keeps a
+  // module-level `pushChannel` for performance, but in tests we need a
+  // fresh module instance per run so the `BroadcastChannel` mock injected
+  // via globalThis on the current test is the one the SW actually uses.
+  vi.resetModules();
+  cachedSW = null;
   await import("../../../../public/sw.js");
   const w = globalThis as unknown as { __wyrdlySW?: SW };
   if (!w.__wyrdlySW) {
@@ -144,6 +147,98 @@ describe("service worker handlers", () => {
     ];
     expect(options.body).toBe("raw text");
   });
+
+  it("handlePush syncs the OS-level app badge with the visible notification count", async () => {
+    const sw = await loadSW();
+    const showNotification = vi.fn().mockResolvedValue(undefined);
+    const setAppBadge = vi.fn().mockResolvedValue(undefined);
+    const clearAppBadge = vi.fn().mockResolvedValue(undefined);
+    const getNotifications = vi.fn().mockResolvedValue([{}, {}]);
+    const matchAll = vi.fn().mockResolvedValue([]);
+
+    (globalThis as unknown as { registration: unknown }).registration = {
+      showNotification,
+      getNotifications,
+    };
+    (globalThis as unknown as { self: unknown }).self = {
+      ...globalThis,
+      navigator: { setAppBadge, clearAppBadge },
+      clients: { matchAll },
+    };
+
+    const event = {
+      data: {
+        json: () => ({ title: "X", body: "Y", data: { type: "POST_LIKE" } }),
+      },
+    };
+
+    await sw.handlePush(event);
+
+    expect(showNotification).toHaveBeenCalledTimes(1);
+    expect(getNotifications).toHaveBeenCalledTimes(1);
+    // 2 currently visible notifications in the registration → badge = 2.
+    expect(setAppBadge).toHaveBeenCalledWith(2);
+    expect(clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it("handlePush clears the OS-level app badge when no notifications are visible", async () => {
+    const sw = await loadSW();
+    const showNotification = vi.fn().mockResolvedValue(undefined);
+    const setAppBadge = vi.fn().mockResolvedValue(undefined);
+    const clearAppBadge = vi.fn().mockResolvedValue(undefined);
+    const getNotifications = vi.fn().mockResolvedValue([]);
+    const matchAll = vi.fn().mockResolvedValue([]);
+
+    (globalThis as unknown as { registration: unknown }).registration = {
+      showNotification,
+      getNotifications,
+    };
+    (globalThis as unknown as { self: unknown }).self = {
+      ...globalThis,
+      navigator: { setAppBadge, clearAppBadge },
+      clients: { matchAll },
+    };
+
+    const event = {
+      data: {
+        json: () => ({ title: "X", body: "Y" }),
+      },
+    };
+
+    await sw.handlePush(event);
+
+    expect(setAppBadge).not.toHaveBeenCalled();
+    expect(clearAppBadge).toHaveBeenCalledTimes(1);
+  });
+
+  it("handlePush silently skips badge updates when the UA does not expose setAppBadge", async () => {
+    const sw = await loadSW();
+    const showNotification = vi.fn().mockResolvedValue(undefined);
+    const getNotifications = vi.fn().mockResolvedValue([{}, {}, {}]);
+    const matchAll = vi.fn().mockResolvedValue([]);
+
+    (globalThis as unknown as { registration: unknown }).registration = {
+      showNotification,
+      getNotifications,
+    };
+    // No navigator.setAppBadge on this UA (Safari iOS pre-16.4, some Firefox builds).
+    (globalThis as unknown as { self: unknown }).self = {
+      ...globalThis,
+      navigator: {},
+      clients: { matchAll },
+    };
+
+    const event = {
+      data: {
+        json: () => ({ title: "X", body: "Y" }),
+      },
+    };
+
+    // Must not throw even though the badge API is missing.
+    await expect(sw.handlePush(event)).resolves.toBeUndefined();
+    expect(showNotification).toHaveBeenCalledTimes(1);
+  });
+
   it("broadcastPushReceived notifies BroadcastChannel and clients.matchAll", async () => {
     const sw = await loadSW();
     const postMessageClient = vi.fn();
@@ -171,15 +266,25 @@ describe("service worker handlers", () => {
 
     try {
       await sw.broadcastPushReceived({ title: "Test", body: "Hello" });
-      expect(channelPostMessage).toHaveBeenCalledWith({
-        type: "wyrdly:push-received",
-        payload: { title: "Test", body: "Hello" },
-      });
-      expect(channelClose).toHaveBeenCalled();
-      expect(postMessageClient).toHaveBeenCalledWith({
-        type: "wyrdly:push-received",
-        payload: { title: "Test", body: "Hello" },
-      });
+      expect(channelPostMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "wyrdly:push-received",
+          payload: { title: "Test", body: "Hello" },
+        }),
+      );
+      // The SW now reuses a single BroadcastChannel for its lifetime instead
+      // of creating-and-closing one per push. Verify the channel is not
+      // closed, even after the previous 1s debounce window elapses.
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2000);
+      vi.useRealTimers();
+      expect(channelClose).not.toHaveBeenCalled();
+      expect(postMessageClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "wyrdly:push-received",
+          payload: { title: "Test", body: "Hello" },
+        }),
+      );
     } finally {
       (
         globalThis as unknown as { BroadcastChannel: unknown }

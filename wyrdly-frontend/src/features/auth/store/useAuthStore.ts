@@ -19,7 +19,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   isAuthenticated: false,
   isLoading: false,
-
   initAuth: async () => {
     const savedUser = localStorage.getItem("wyrdly_user");
     if (!savedUser) {

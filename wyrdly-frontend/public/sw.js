@@ -1,25 +1,14 @@
-/* eslint-disable no-restricted-globals */
 /**
  * Wyrdly Service Worker — Web Push delivery.
  *
  * Responsibilities:
  *  - Lifecycle (install / activate) with skipWaiting + clients.claim so updates
  *    take over fast.
- *  - `push` — decode the JSON payload sent by the backend's
- *    `PushDispatcherImpl`, render a `showNotification` with the title/body/icon
- *    the payload carries, and preserve `data` for the click handler.
- *  - `notificationclick` — focus an existing tab on the same origin if any,
- *    otherwise open a new window on `data.url`. Falls back to `/` if the
- *    payload had no URL.
- *  - `pushsubscriptionchange` — re-subscribe silently using the current VAPID
- *    key, then POST the new subscription to the backend. If any step fails
- *    (including a non-2xx response such as 401, since the SW holds no access
- *    token), postMessage every open client so `useWebPush` re-subscribes with
- *    the page's credentials.
- *
- * The handler bodies are exposed as pure functions on `globalThis.__wyrdlySW`
- * so the Vitest suite can exercise them against a mocked `self` without
- * spinning up a real ServiceWorkerGlobalScope.
+ *  - `push` — decode JSON payload, render `showNotification` with title/body/icon/data,
+ *    sync OS-level app badge, and broadcast event to open windows.
+ *  - `notificationclick` — focus existing window on same origin or open target URL.
+ *  - `pushsubscriptionchange` — re-subscribe silently and POST to backend. If non-2xx
+ *    or error, notify open windows via `push-subscription-change-failed`.
  */
 const VAPID_PUBLIC_KEY_URL = "/api/notifications/vapid-public-key";
 const SUBSCRIBE_URL = "/api/notifications/subscribe";
@@ -42,24 +31,36 @@ function urlBase64ToUint8Array(base64String) {
   return out;
 }
 
+// Reuse a single BroadcastChannel for the lifetime of the SW.
+let pushChannel = null;
+function getPushChannel() {
+  if (pushChannel === null && typeof BroadcastChannel !== "undefined") {
+    try {
+      pushChannel = new BroadcastChannel("wyrdly-notifications");
+    } catch (_err) {
+      pushChannel = null;
+    }
+  }
+  return pushChannel;
+}
+
 async function broadcastPushReceived(payload) {
   const message = {
     type: "wyrdly:push-received",
     payload,
   };
 
-  // 1. Try BroadcastChannel if available
-  if (typeof BroadcastChannel !== "undefined") {
+  // 1. BroadcastChannel: persistent channel instance
+  const channel = getPushChannel();
+  if (channel !== null) {
     try {
-      const channel = new BroadcastChannel("wyrdly-notifications");
       channel.postMessage(message);
-      channel.close();
     } catch (_err) {
-      /* BroadcastChannel error fallback */
+      /* BroadcastChannel fallback */
     }
   }
 
-  // 2. Also postMessage to matched window clients
+  // 2. Window clients fallback (for clients not yet connected to BroadcastChannel)
   if (self.clients && typeof self.clients.matchAll === "function") {
     try {
       const windowClients = await self.clients.matchAll({
@@ -102,6 +103,27 @@ async function handlePush(event) {
     data: payload.data || {},
   };
   await self.registration.showNotification(title, options);
+
+  // Update OS-level app badge if supported
+  if (
+    self.registration &&
+    typeof self.registration.getNotifications === "function" &&
+    self.navigator &&
+    typeof self.navigator.setAppBadge === "function"
+  ) {
+    try {
+      const visible = await self.registration.getNotifications();
+      const unread = visible.length;
+      if (unread > 0) {
+        await self.navigator.setAppBadge(unread);
+      } else if (typeof self.navigator.clearAppBadge === "function") {
+        await self.navigator.clearAppBadge();
+      }
+    } catch (_err) {
+      /* setAppBadge unsupported on this UA */
+    }
+  }
+
   await broadcastPushReceived(payload);
 }
 

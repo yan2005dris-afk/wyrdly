@@ -24,6 +24,7 @@ export interface UseWebPushResult {
 }
 
 const SW_SCOPE_OPTION: RegistrationOptions = { scope: "/" };
+export const PUSH_OPT_OUT_STORAGE_KEY = "wyrdly:push:opt-out";
 
 /**
  * Decodes a base64url VAPID public key into a `Uint8Array` suitable for
@@ -134,13 +135,36 @@ export const useWebPush = (
         }
         const ready = (await nav.serviceWorker
           .ready) as ServiceWorkerRegistration;
+        void reg;
         registrationRef.current = ready;
         const existing = await ready.pushManager.getSubscription();
         if (!cancelled) {
           setIsSubscribed(Boolean(existing));
         }
-        // Touch `reg` so TS does not flag it as unused across refactorings.
-        void reg;
+
+        const isOptedOut =
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY) === "true";
+
+        // Silent auto-resubscription (analogous to token refresh):
+        // If the browser already granted permission (or had it previously), but no active
+        // subscription is registered or the SW was refreshed, sync it with the backend automatically.
+        // Gated by !isOptedOut so an explicit user unsubscribe is respected.
+        if (
+          !cancelled &&
+          !existing &&
+          !isOptedOut &&
+          readCurrentPermission() === "granted"
+        ) {
+          try {
+            await createPushSubscription(ready);
+            if (!cancelled) {
+              setIsSubscribed(true);
+            }
+          } catch {
+            // Non-blocking background sync failure; user can still manually re-enable
+          }
+        }
       } catch (caught) {
         if (!cancelled) {
           setError(
@@ -233,6 +257,13 @@ export const useWebPush = (
         throw new Error("Service worker registration unavailable");
       }
       await createPushSubscription(reg);
+      if (typeof localStorage !== "undefined") {
+        try {
+          localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
       setIsSubscribed(true);
       return true;
     } catch (caught) {
@@ -261,8 +292,16 @@ export const useWebPush = (
         registrationRef.current = existing;
       }
       const sub = await reg.pushManager.getSubscription();
+      if (typeof localStorage !== "undefined") {
+        try {
+          localStorage.setItem(PUSH_OPT_OUT_STORAGE_KEY, "true");
+        } catch {
+          /* ignore */
+        }
+      }
       if (!sub) {
         // No active subscription: idempotent success, do not call backend.
+        setIsSubscribed(false);
         return true;
       }
       await notificationsApi.unsubscribe();

@@ -11,7 +11,11 @@ vi.mock("../../../api/notifications", () => ({
 }));
 
 import { notificationsApi } from "../../../api/notifications";
-import { PUSH_SUBSCRIPTION_CHANGE_FAILED, useWebPush } from "./useWebPush";
+import {
+  PUSH_OPT_OUT_STORAGE_KEY,
+  PUSH_SUBSCRIPTION_CHANGE_FAILED,
+  useWebPush,
+} from "./useWebPush";
 
 const mockedGetVapidPublicKey = vi.mocked(notificationsApi.getVapidPublicKey);
 const mockedSubscribe = vi.mocked(notificationsApi.subscribe);
@@ -178,12 +182,18 @@ describe("useWebPush", () => {
     mockedGetVapidPublicKey.mockResolvedValue(VAPID_BASE64URL);
     mockedSubscribe.mockResolvedValue(undefined);
     mockedUnsubscribe.mockResolvedValue(undefined);
+    if (typeof localStorage !== "undefined") {
+      localStorage.clear();
+    }
     state = buildState();
     installBrowserShims();
   });
 
   afterEach(() => {
     restoreBrowserShims();
+    if (typeof localStorage !== "undefined") {
+      localStorage.clear();
+    }
   });
 
   it("reports isSupported=true when serviceWorker, PushManager and Notification are all available", () => {
@@ -358,6 +368,9 @@ describe("useWebPush", () => {
 
     it("re-subscribes silently when the SW reports a failed change and permission is granted", async () => {
       state.notificationPermission = "granted";
+      state.pushManager.getSubscription = vi.fn().mockResolvedValue({
+        endpoint: "https://push.example.com/endpoint/abc",
+      });
       const { result } = renderHook(() => useWebPush({ enabled: true }));
       await flushMicrotasks();
 
@@ -384,6 +397,9 @@ describe("useWebPush", () => {
 
     it("ignores unrelated SW messages", async () => {
       state.notificationPermission = "granted";
+      state.pushManager.getSubscription = vi.fn().mockResolvedValue({
+        endpoint: "https://push.example.com/endpoint/abc",
+      });
       renderHook(() => useWebPush({ enabled: true }));
       await flushMicrotasks();
 
@@ -395,6 +411,9 @@ describe("useWebPush", () => {
 
     it("exposes the error when silent re-subscription fails", async () => {
       state.notificationPermission = "granted";
+      state.pushManager.getSubscription = vi.fn().mockResolvedValue({
+        endpoint: "https://push.example.com/endpoint/abc",
+      });
       mockedSubscribe.mockRejectedValueOnce(new Error("401"));
       const { result } = renderHook(() => useWebPush({ enabled: true }));
       await flushMicrotasks();
@@ -421,6 +440,75 @@ describe("useWebPush", () => {
 
       expect(state.swMessageListeners.size).toBe(0);
     });
+  });
+
+  it("silently auto-resubscribes on mount when permission is granted but no subscription exists", async () => {
+    state = buildState({
+      notificationPermission: "granted",
+    });
+    state.pushManager.getSubscription = vi.fn().mockResolvedValue(null);
+    installBrowserShims();
+
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(mockedGetVapidPublicKey).toHaveBeenCalledTimes(1);
+    expect(state.pushManager.subscribe).toHaveBeenCalledTimes(1);
+    expect(mockedSubscribe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: "https://push.example.com/endpoint/abc",
+      }),
+    );
+    expect(result.current.isSubscribed).toBe(true);
+  });
+
+  it("does not auto-resubscribe on mount when user explicitly opted out", async () => {
+    state = buildState({
+      notificationPermission: "granted",
+    });
+    state.pushManager.getSubscription = vi.fn().mockResolvedValue(null);
+    installBrowserShims();
+
+    localStorage.setItem(PUSH_OPT_OUT_STORAGE_KEY, "true");
+    try {
+      const { result } = renderHook(() => useWebPush({ enabled: true }));
+
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      expect(state.pushManager.subscribe).not.toHaveBeenCalled();
+      expect(mockedSubscribe).not.toHaveBeenCalled();
+      expect(result.current.isSubscribed).toBe(false);
+    } finally {
+      localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
+    }
+  });
+
+  it("sets opt-out flag on unsubscribe and removes it on subscribe", async () => {
+    state = buildState({
+      notificationPermission: "granted",
+    });
+    installBrowserShims();
+
+    localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+    await flushMicrotasks();
+
+    // Unsubscribe sets the flag
+    await act(async () => {
+      const unsubSuccess = await result.current.unsubscribe();
+      expect(unsubSuccess).toBe(true);
+    });
+    expect(localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY)).toBe("true");
+
+    // Subscribe clears the flag
+    await act(async () => {
+      const subSuccess = await result.current.subscribe();
+      expect(subSuccess).toBe(true);
+    });
+    expect(localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY)).toBeNull();
   });
 });
 
