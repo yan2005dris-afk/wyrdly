@@ -58,6 +58,7 @@ export interface PostApiResponse {
     readonly celebrateCount: number;
   };
   readonly userReaction: ReactionType | null;
+  readonly commentsCount?: number;
 }
 
 /** Payload sent to POST /api/posts. Mirrors CreatePostRequest record. */
@@ -116,7 +117,7 @@ export function mapPostApiResponseToPost(
       RETWEET: 0,
     },
     userReaction: response.userReaction ?? undefined,
-    commentsCount: 0,
+    commentsCount: response.commentsCount ?? 0,
     visibility,
   };
 }

@@ -4,6 +4,21 @@ import { BrowserRouter } from "react-router-dom";
 import { PostCard } from "./PostCard";
 import type { Post } from "../../../../types/feed";
 
+vi.mock("../CommentSection", () => ({
+  CommentSection: ({
+    postId,
+    postAuthorId,
+  }: {
+    postId: string;
+    postAuthorId: string;
+  }) => (
+    <div
+      data-testid={`comment-section-stub-${postId}`}
+      data-post-author-id={postAuthorId}
+    />
+  ),
+}));
+
 const MOCK_POST: Post = {
   id: "post-1",
   author: {
@@ -192,5 +207,69 @@ describe("PostCard Component", () => {
     expect(screen.getByTestId("like-btn")).toHaveTextContent("0");
     expect(screen.getByTestId("love-btn")).toHaveTextContent("0");
     expect(screen.getByTestId("celebrate-btn")).toHaveTextContent("0");
+  });
+
+  // HU10 — Post Comments (#122)
+  it("commentSectionHiddenWhenClosed", () => {
+    renderCard();
+
+    expect(
+      screen.queryByTestId("comment-section-stub-post-1"),
+    ).not.toBeInTheDocument();
+
+    const commentBtn = screen.getByTestId("comment-btn");
+    expect(commentBtn).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("commentSectionRendersWhenOpen", () => {
+    renderCard();
+
+    fireEvent.click(screen.getByTestId("comment-btn"));
+
+    expect(
+      screen.getByTestId("comment-section-stub-post-1"),
+    ).toBeInTheDocument();
+  });
+
+  it("commentButtonTogglesInternalState", () => {
+    renderCard();
+
+    const commentBtn = screen.getByTestId("comment-btn");
+    expect(commentBtn).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(commentBtn);
+    expect(commentBtn).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByTestId("comment-section-stub-post-1"),
+    ).toBeInTheDocument();
+
+    // Second click collapses the section.
+    fireEvent.click(commentBtn);
+    expect(commentBtn).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByTestId("comment-section-stub-post-1"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("commentButtonCallsOnCommentClickCallback", () => {
+    const onCommentClick = vi.fn();
+    renderCard({ onCommentClick });
+
+    fireEvent.click(screen.getByTestId("comment-btn"));
+
+    expect(onCommentClick).toHaveBeenCalledWith("post-1");
+
+    // Toggle back: the callback fires again.
+    fireEvent.click(screen.getByTestId("comment-btn"));
+    expect(onCommentClick).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders CommentSection for the given post author", () => {
+    renderCard();
+
+    fireEvent.click(screen.getByTestId("comment-btn"));
+
+    const stub = screen.getByTestId("comment-section-stub-post-1");
+    expect(stub).toHaveAttribute("data-post-author-id", "user-1");
   });
 });

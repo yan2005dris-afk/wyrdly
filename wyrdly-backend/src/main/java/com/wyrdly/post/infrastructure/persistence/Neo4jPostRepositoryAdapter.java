@@ -128,7 +128,9 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
    *
    * <p>Counts reactions via the unified {@code [:REACCIONA {tipo}]} relationship introduced in HU09
    * (post V100 migration; legacy {@code [:LIKE|:LOVE|:CELEBRATE]} relationships have been migrated
-   * and are no longer present in the graph).
+   * and are no longer present in the graph). Comments are aggregated with a {@code COUNT {}}
+   * subquery (HU10) so that adding the {@code commentsCount} projection does NOT introduce a
+   * cartesian explosion with the reaction OPTIONAL MATCH chains.
    */
   private static final String FEED_QUERY =
       "MATCH (me:Usuario {id: $userId}) "
@@ -152,12 +154,13 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "              count(DISTINCT rlike) AS likeCount, "
           + "              count(DISTINCT rlove) AS loveCount, "
           + "              count(DISTINCT rceleb) AS celebrateCount, "
-          + "              ur.tipo AS userReactionType "
+          + "              ur.tipo AS userReactionType, "
+          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount "
           + "ORDER BY createdAt DESC "
           + "SKIP $skip LIMIT $limit "
           + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
           + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
-          + "       celebrateCount, userReactionType";
+          + "       celebrateCount, commentsCount, userReactionType";
 
   private static final String COUNT_FEED_QUERY =
       "MATCH (me:Usuario {id: $userId}) "
@@ -258,6 +261,10 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     long likeCount = record.get("likeCount").asLong();
     long loveCount = record.get("loveCount").asLong();
     long celebrateCount = record.get("celebrateCount").asLong();
+    long commentsCount =
+        record.containsKey("commentsCount") && !record.get("commentsCount").isNull()
+            ? record.get("commentsCount").asLong()
+            : 0L;
     String userReactionType =
         record.get("userReactionType").isNull() ? null : record.get("userReactionType").asString();
 
@@ -271,6 +278,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         likeCount,
         loveCount,
         celebrateCount,
+        commentsCount,
         userReactionType);
   }
 
