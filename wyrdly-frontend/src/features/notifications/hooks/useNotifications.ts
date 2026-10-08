@@ -36,10 +36,7 @@ export const useNotifications = (
   const { enabled = true, pageSize = 20 } = options;
   const queryClient = useQueryClient();
   // Stabilise queryKey so push-listener useEffect doesn't tear down on every render
-  const queryKey = useMemo(
-    () => notificationsQueryKey(pageSize),
-    [pageSize],
-  );
+  const queryKey = useMemo(() => notificationsQueryKey(pageSize), [pageSize]);
 
   const {
     data,
