@@ -93,6 +93,11 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         setAccessToken(null);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("wyrdly_user");
+          localStorage.removeItem("wyrdly_token");
+          window.dispatchEvent(new CustomEvent("wyrdly:session-expired"));
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

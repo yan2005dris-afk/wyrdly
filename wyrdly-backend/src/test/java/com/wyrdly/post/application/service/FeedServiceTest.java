@@ -40,10 +40,10 @@ class FeedServiceTest {
 
   @Test
   void getFeed_Success_WithPosts() {
-    FeedPost post1 = new FeedPost("pst_1", "First post", null, NOW, AUTHOR, 5, 2, 0, "LIKE");
+    FeedPost post1 = new FeedPost("pst_1", "First post", null, NOW, AUTHOR, 5, 2, 0, 2L, "LIKE");
     FeedPost post2 =
         new FeedPost(
-            "pst_2", "Second post", "https://example.com/p.webp", NOW, AUTHOR, 10, 5, 3, null);
+            "pst_2", "Second post", "https://example.com/p.webp", NOW, AUTHOR, 10, 5, 3, 0L, null);
 
     when(postRepository.findFeedByUserId("usr_me", 1, 20)).thenReturn(List.of(post1, post2));
     when(postRepository.countFeedByUserId("usr_me")).thenReturn(2L);
@@ -84,7 +84,7 @@ class FeedServiceTest {
 
   @Test
   void getFeed_CalculatesHasNext_WhenMorePagesExist() {
-    FeedPost post = new FeedPost("pst_1", "Post", null, NOW, AUTHOR, 0, 0, 0, null);
+    FeedPost post = new FeedPost("pst_1", "Post", null, NOW, AUTHOR, 0, 0, 0, 0L, null);
     when(postRepository.findFeedByUserId("usr_me", 1, 20)).thenReturn(List.of(post));
     when(postRepository.countFeedByUserId("usr_me")).thenReturn(25L);
 
@@ -96,7 +96,7 @@ class FeedServiceTest {
 
   @Test
   void getFeed_HasNextFalse_OnLastPage() {
-    FeedPost post = new FeedPost("pst_1", "Post", null, NOW, AUTHOR, 1, 0, 0, "LOVE");
+    FeedPost post = new FeedPost("pst_1", "Post", null, NOW, AUTHOR, 1, 0, 0, 0L, "LOVE");
     when(postRepository.findFeedByUserId("usr_me", 2, 20)).thenReturn(List.of(post));
     when(postRepository.countFeedByUserId("usr_me")).thenReturn(25L);
 

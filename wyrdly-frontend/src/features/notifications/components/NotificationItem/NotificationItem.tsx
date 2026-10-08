@@ -41,6 +41,10 @@ const TYPE_CONFIG: Record<
     badgeClass: styles.badgeChat,
     icon: <MessageSquare className="w-2.5 h-2.5" />,
   },
+  POST_COMMENT: {
+    badgeClass: styles.badgeChat,
+    icon: <MessageSquare className="w-2.5 h-2.5" />,
+  },
   NEW_POST_FROM_FOLLOWED: {
     badgeClass: styles.badgePost,
     icon: <FileText className="w-2.5 h-2.5" />,
