@@ -649,4 +649,150 @@ describe("useNotifications", () => {
       ).BroadcastChannel = origBroadcastChannel;
     }
   });
+
+  it("deduplicates push events delivered across both BroadcastChannel and serviceWorker message", async () => {
+    mockedGet.mockResolvedValue({ data: baseResponse });
+
+    let channelListener: ((event: MessageEvent) => void) | null = null;
+    class MockBroadcastChannel {
+      readonly name: string;
+      constructor(name: string) {
+        this.name = name;
+      }
+      set onmessage(fn: (event: MessageEvent) => void) {
+        channelListener = fn;
+      }
+      close = vi.fn();
+    }
+    const origBroadcastChannel = globalThis.BroadcastChannel;
+    (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+      MockBroadcastChannel;
+
+    let swMessageListener: ((event: MessageEvent) => void) | null = null;
+    const origNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        ...origNavigator,
+        serviceWorker: {
+          addEventListener: vi.fn((type: string, fn: (event: MessageEvent) => void) => {
+            if (type === "message") swMessageListener = fn;
+          }),
+          removeEventListener: vi.fn(),
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      const { result } = renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => {
+        expect(result.current.notifications).toHaveLength(2);
+      });
+
+      const pushMessage = {
+        data: {
+          type: "wyrdly:push-received",
+          eventId: "push_evt_42",
+          payload: {
+            title: "Nuevo seguidor",
+            body: "Alice comenzó a seguirte",
+            data: {
+              type: "GRAPH_FOLLOW",
+              followerId: "usr_alice",
+            },
+          },
+        },
+      } as MessageEvent;
+
+      // Both channels deliver the same push event in rapid succession
+      await act(async () => {
+        channelListener?.(pushMessage);
+        swMessageListener?.(pushMessage);
+      });
+
+      await waitFor(() => {
+        // Must only increment once (1 -> 2, not 3)
+        expect(result.current.unreadCount).toBe(2);
+        // Must only prepend once (2 -> 3, not 4)
+        expect(result.current.notifications).toHaveLength(3);
+        expect(result.current.notifications[0]?.actor.id).toBe("usr_alice");
+        expect(result.current.notifications[0]?.actor.fullName).toBe("Someone");
+      });
+    } finally {
+      (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+        origBroadcastChannel;
+      Object.defineProperty(globalThis, "navigator", {
+        value: origNavigator,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it("marks synthetic push notification as read without dispatching HTTP call to backend", async () => {
+    mockedGet.mockResolvedValue({ data: baseResponse });
+
+    let channelListener: ((event: MessageEvent) => void) | null = null;
+    class MockBroadcastChannel {
+      readonly name: string;
+      constructor(name: string) {
+        this.name = name;
+      }
+      set onmessage(fn: (event: MessageEvent) => void) {
+        channelListener = fn;
+      }
+      close = vi.fn();
+    }
+    const origBroadcastChannel = globalThis.BroadcastChannel;
+    (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+      MockBroadcastChannel;
+
+    try {
+      const { result } = renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => {
+        expect(result.current.notifications).toHaveLength(2);
+      });
+
+      await act(async () => {
+        channelListener?.({
+          data: {
+            type: "wyrdly:push-received",
+            payload: {
+              title: "Alerta rápida",
+              body: "Texto",
+            },
+          },
+        } as MessageEvent);
+      });
+
+      await waitFor(() => {
+        expect(result.current.notifications).toHaveLength(3);
+      });
+
+      const syntheticId = result.current.notifications[0]!.id;
+      expect(syntheticId.startsWith("push_")).toBe(true);
+
+      mockedPost.mockClear();
+
+      // Mark the synthetic notification as read
+      await act(async () => {
+        await result.current.markRead(syntheticId);
+      });
+
+      // Optimistic cache updated to read
+      await waitFor(() => {
+        expect(result.current.notifications[0]?.isRead).toBe(true);
+      });
+      // Backend call was bypassed because synthetic ID is not authoritative
+      expect(mockedPost).not.toHaveBeenCalled();
+    } finally {
+      (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+        origBroadcastChannel;
+    }
+  });
 });

@@ -201,9 +201,15 @@ function getPushChannel() {
 }
 
 async function broadcastPushReceived(payload) {
+  const eventId =
+    payload && payload.data && typeof payload.data.postId === "string"
+      ? `push_post_${payload.data.postId}`
+      : `push_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
   const message = {
     type: "wyrdly:push-received",
     payload,
+    eventId,
   };
 
   // 1. BroadcastChannel: same channel instance for the SW's lifetime.

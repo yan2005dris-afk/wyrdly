@@ -10,7 +10,7 @@ vi.mock("../../../api/axios", () => ({
 }));
 
 import { apiClient } from "../../../api/axios";
-import { useWebPush } from "./useWebPush";
+import { PUSH_OPT_OUT_STORAGE_KEY, useWebPush } from "./useWebPush";
 
 const mockedPost = vi.mocked(apiClient.post);
 const mockedDelete = vi.mocked(apiClient.delete);
@@ -173,12 +173,18 @@ const flushMicrotasks = async () => {
 describe("useWebPush", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    if (typeof localStorage !== "undefined") {
+      localStorage.clear();
+    }
     state = buildState();
     installBrowserShims();
   });
 
   afterEach(() => {
     restoreBrowserShims();
+    if (typeof localStorage !== "undefined") {
+      localStorage.clear();
+    }
   });
 
   it("reports isSupported=true when serviceWorker, PushManager and Notification are all available", () => {
@@ -346,6 +352,53 @@ describe("useWebPush", () => {
       }),
     );
     expect(result.current.isSubscribed).toBe(true);
+  });
+
+  it("does not auto-resubscribe on mount when user explicitly opted out", async () => {
+    state = buildState({
+      notificationPermission: "granted",
+    });
+    state.pushManager.getSubscription = vi.fn().mockResolvedValue(null);
+    installBrowserShims();
+
+    localStorage.setItem(PUSH_OPT_OUT_STORAGE_KEY, "true");
+    try {
+      const { result } = renderHook(() => useWebPush({ enabled: true }));
+
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      expect(state.pushManager.subscribe).not.toHaveBeenCalled();
+      expect(mockedPost).not.toHaveBeenCalled();
+      expect(result.current.isSubscribed).toBe(false);
+    } finally {
+      localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
+    }
+  });
+
+  it("sets opt-out flag on unsubscribe and removes it on subscribe", async () => {
+    state = buildState({
+      notificationPermission: "granted",
+    });
+    installBrowserShims();
+
+    localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+    await flushMicrotasks();
+
+    // Unsubscribe sets the flag
+    await act(async () => {
+      const unsubSuccess = await result.current.unsubscribe();
+      expect(unsubSuccess).toBe(true);
+    });
+    expect(localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY)).toBe("true");
+
+    // Subscribe clears the flag
+    await act(async () => {
+      const subSuccess = await result.current.subscribe();
+      expect(subSuccess).toBe(true);
+    });
+    expect(localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY)).toBeNull();
   });
 });
 

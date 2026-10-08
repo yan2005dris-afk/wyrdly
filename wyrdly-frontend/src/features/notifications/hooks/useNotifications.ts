@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../../api/axios";
 import type { NotificationDto, NotificationListResponseDto } from "../types";
@@ -36,6 +36,7 @@ export const useNotifications = (
 ): UseNotificationsResult => {
   const { enabled = true, pageSize = 20 } = options;
   const queryClient = useQueryClient();
+  const recentPushEventsRef = useRef<Map<string, number>>(new Map());
   // Stabilise the queryKey reference: notificationsQueryKey returns a fresh
   // array on every call, which would otherwise retrigger the push-listener
   // useEffect on every render and cause the BroadcastChannel to be torn down
@@ -85,7 +86,44 @@ export const useNotifications = (
       };
     }
 
-    const onPushReceived = (payload?: PushReceivedEventData) => {
+    const onPushReceived = (
+      payload?: PushReceivedEventData,
+      eventId?: string,
+    ) => {
+      // Event deduplication: if both BroadcastChannel and serviceWorker.onmessage
+      // fire for the same push event, ignore the duplicate delivery.
+      const now = Date.now();
+      for (const [key, ts] of recentPushEventsRef.current.entries()) {
+        if (now - ts > 5000) {
+          recentPushEventsRef.current.delete(key);
+        }
+      }
+
+      const dedupeKey =
+        eventId ||
+        [
+          payload?.title,
+          payload?.body,
+          payload?.data?.postId,
+          payload?.data?.reactorId,
+          payload?.data?.followerId,
+          payload?.data?.type,
+        ]
+          .filter(Boolean)
+          .join("|") ||
+        `empty_${Math.floor(now / 1000)}`;
+
+      if (recentPushEventsRef.current.has(dedupeKey)) {
+        return;
+      }
+      recentPushEventsRef.current.set(dedupeKey, now);
+
+      const syntheticId =
+        eventId ||
+        (payload?.data?.postId
+          ? `push_post_${payload.data.postId}`
+          : `push_${now}`);
+
       // 1. Optimistic feedback: update cached unread count and prepend notification if payload is present
       queryClient.setQueryData<NotificationListResponseDto>(queryKey, (old) => {
         if (!old) return old;
@@ -97,8 +135,19 @@ export const useNotifications = (
           };
         }
 
+        const actorFullName =
+          (payload.data?.actorFullName as string) ||
+          (payload.data?.actorUsername as string) ||
+          "Someone";
+
+        const actorId =
+          (payload.data?.actorId as string) ||
+          (payload.data?.reactorId as string) ||
+          (payload.data?.followerId as string) ||
+          "usr_push";
+
         const syntheticNotif: NotificationDto = {
-          id: `push_${Date.now()}`,
+          id: syntheticId,
           type: (payload.data?.type as NotificationDto["type"]) || "POST_LIKE",
           title: payload.title,
           body: payload.body || "",
@@ -107,12 +156,9 @@ export const useNotifications = (
           isRead: false,
           createdAt: new Date().toISOString(),
           actor: {
-            id:
-              (payload.data?.actorId as string) ||
-              (payload.data?.reactorId as string) ||
-              "usr_push",
+            id: actorId,
             username: (payload.data?.actorUsername as string) || "user",
-            fullName: (payload.data?.actorFullName as string) || payload.title,
+            fullName: actorFullName,
             avatarUrl: (payload.data?.actorAvatarUrl as string) || payload.icon,
           },
         };
@@ -153,7 +199,7 @@ export const useNotifications = (
         broadcastChannel = new BroadcastChannel("wyrdly-notifications");
         broadcastChannel.onmessage = (event: MessageEvent) => {
           if (event.data?.type === "wyrdly:push-received") {
-            onPushReceived(event.data.payload);
+            onPushReceived(event.data.payload, event.data.eventId);
           } else if (event.data?.type === "wyrdly:notifications-refreshed") {
             onNotificationsRefreshed(event.data.payload);
           }
@@ -166,7 +212,7 @@ export const useNotifications = (
     // 2. Observer: Listen to navigator.serviceWorker message events
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === "wyrdly:push-received") {
-        onPushReceived(event.data.payload);
+        onPushReceived(event.data.payload, event.data.eventId);
       } else if (event.data?.type === "wyrdly:notifications-refreshed") {
         onNotificationsRefreshed(event.data.payload);
       }
@@ -245,6 +291,10 @@ export const useNotifications = (
 
   const markReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
+      if (notificationId.startsWith("push_")) {
+        // Optimistic-only item not yet saved on backend; skip network call.
+        return;
+      }
       await apiClient.post(`/api/notifications/${notificationId}/read`);
     },
     onMutate: async (notificationId: string) => {

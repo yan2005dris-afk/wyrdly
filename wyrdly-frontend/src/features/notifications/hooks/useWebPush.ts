@@ -19,6 +19,7 @@ export interface UseWebPushResult {
 }
 
 const SW_SCOPE_OPTION: RegistrationOptions = { scope: "/" };
+export const PUSH_OPT_OUT_STORAGE_KEY = "wyrdly:push:opt-out";
 
 /**
  * Decodes a base64url VAPID public key into a `Uint8Array` suitable for
@@ -118,10 +119,20 @@ export const useWebPush = (
           setIsSubscribed(Boolean(existing));
         }
 
+        const isOptedOut =
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY) === "true";
+
         // Silent auto-resubscription (analogous to token refresh):
         // If the browser already granted permission (or had it previously), but no active
         // subscription is registered or the SW was refreshed, sync it with the backend automatically.
-        if (!cancelled && !existing && readCurrentPermission() === "granted") {
+        // Gated by !isOptedOut so an explicit user unsubscribe is respected.
+        if (
+          !cancelled &&
+          !existing &&
+          !isOptedOut &&
+          readCurrentPermission() === "granted"
+        ) {
           try {
             const response = await fetch(VAPID_PUBLIC_KEY_URL);
             if (response.ok) {
@@ -209,6 +220,13 @@ export const useWebPush = (
         applicationServerKey,
       });
       await apiClient.post(SUBSCRIBE_URL, sub.toJSON());
+      if (typeof localStorage !== "undefined") {
+        try {
+          localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
       setIsSubscribed(true);
       return true;
     } catch (caught) {
@@ -237,8 +255,16 @@ export const useWebPush = (
         registrationRef.current = existing;
       }
       const sub = await reg.pushManager.getSubscription();
+      if (typeof localStorage !== "undefined") {
+        try {
+          localStorage.setItem(PUSH_OPT_OUT_STORAGE_KEY, "true");
+        } catch {
+          /* ignore */
+        }
+      }
       if (!sub) {
         // No active subscription: idempotent success, do not call backend.
+        setIsSubscribed(false);
         return true;
       }
       await apiClient.delete(SUBSCRIBE_URL);

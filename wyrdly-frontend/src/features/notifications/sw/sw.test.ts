@@ -553,10 +553,12 @@ describe("service worker handlers", () => {
 
     try {
       await sw.broadcastPushReceived({ title: "Test", body: "Hello" });
-      expect(channelPostMessage).toHaveBeenCalledWith({
-        type: "wyrdly:push-received",
-        payload: { title: "Test", body: "Hello" },
-      });
+      expect(channelPostMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "wyrdly:push-received",
+          payload: { title: "Test", body: "Hello" },
+        }),
+      );
       // The SW now reuses a single BroadcastChannel for its lifetime instead
       // of creating-and-closing one per push. Verify the channel is not
       // closed, even after the previous 1s debounce window elapses.
@@ -564,10 +566,12 @@ describe("service worker handlers", () => {
       vi.advanceTimersByTime(2000);
       vi.useRealTimers();
       expect(channelClose).not.toHaveBeenCalled();
-      expect(postMessageClient).toHaveBeenCalledWith({
-        type: "wyrdly:push-received",
-        payload: { title: "Test", body: "Hello" },
-      });
+      expect(postMessageClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "wyrdly:push-received",
+          payload: { title: "Test", body: "Hello" },
+        }),
+      );
     } finally {
       (
         globalThis as unknown as { BroadcastChannel: unknown }
