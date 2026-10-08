@@ -142,7 +142,7 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     }
     if (isRecipientRateLimited(event.recipientUserId())) {
       recordDispatch(eventType, "rate_limited");
-      LOG.log(Level.WARNING, "Push rate limit exceeded for recipient {0}", event.recipientUserId());
+      LOG.log(Level.FINE, "Push rate limit exceeded for recipient {0}", event.recipientUserId());
       return;
     }
     executor.submit(() -> doDispatch(event));
@@ -156,17 +156,18 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     if (recipientRateIntervalMs <= 0 || recipientUserId == null) {
       return false;
     }
-    long now = System.currentTimeMillis();
+    long now = System.nanoTime();
+    long intervalNanos = TimeUnit.MILLISECONDS.toNanos(recipientRateIntervalMs);
     AtomicLong lastAllowedTime =
         lastPushTimeByRecipient.computeIfAbsent(recipientUserId, k -> new AtomicLong(0));
     while (true) {
       long last = lastAllowedTime.get();
-      if (last > 0 && (now - last) < recipientRateIntervalMs) {
+      if (last > 0 && (now - last) < intervalNanos) {
         return true;
       }
       if (lastAllowedTime.compareAndSet(last, now)) {
         if (lastPushTimeByRecipient.size() > 10_000) {
-          long cutoff = now - 60_000;
+          long cutoff = now - TimeUnit.MINUTES.toNanos(1);
           lastPushTimeByRecipient.entrySet().removeIf(e -> e.getValue().get() < cutoff);
         }
         return false;

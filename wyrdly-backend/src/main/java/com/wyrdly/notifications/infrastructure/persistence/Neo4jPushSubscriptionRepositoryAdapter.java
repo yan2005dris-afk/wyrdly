@@ -5,6 +5,8 @@ import com.wyrdly.notifications.domain.model.PushSubscription;
 import io.quarkus.arc.Unremovable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
@@ -20,6 +22,9 @@ import org.neo4j.driver.Values;
 @ApplicationScoped
 @Unremovable
 public class Neo4jPushSubscriptionRepositoryAdapter implements PushSubscriptionRepositoryPort {
+
+  private static final Logger LOG =
+      Logger.getLogger(Neo4jPushSubscriptionRepositoryAdapter.class.getName());
 
   private static final String CYPHER_READ =
       "MATCH (u:Usuario {id: $userId}) "
@@ -96,6 +101,7 @@ public class Neo4jPushSubscriptionRepositoryAdapter implements PushSubscriptionR
       }
       return 0L;
     } catch (Exception e) {
+      LOG.log(Level.WARNING, "Failed to count active push subscriptions, gauge returns 0", e);
       return 0L;
     }
   }

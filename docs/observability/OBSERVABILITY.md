@@ -26,6 +26,7 @@ El despachador de notificaciones Web Push (`PushDispatcherImpl`) instrumenta mé
 - `network_error`: Falla de conectividad a nivel de socket / DNS / timeout.
 - `skipped_no_subscription`: Evento generado para un usuario sin suscripción activa registrada.
 - `rate_limited`: Despacho throttled para proteger recursos o mitigar tormentas de eventos.
+- `failed`: Estado HTTP inesperado (fuera de 2xx/4xx/5xx) o excepción durante el cifrado/despacho (catch genérico en `doDispatch`).
 
 ### 1.3 Valores del Tag `type`
 
@@ -34,6 +35,7 @@ El despachador de notificaciones Web Push (`PushDispatcherImpl`) instrumenta mé
 - `GRAPH_FOLLOW`: Notificación de un nuevo seguidor en el grafo.
 - `CHAT_MESSAGE`: Mensaje privado cuando el destinatario está offline.
 - `NEW_POST_FROM_FOLLOWED`: Nueva publicación de un autor seguido.
+- `unknown`: Fallback cuando el evento llega sin `type` (`event.type() == null`). Contrato de cardinalidad: los 5 valores conocidos de arriba más `unknown`; no hay allowlist en código (follow-up pendiente), así que un `type` inesperado desde el frontend crearía una serie nueva — mantener acotado el vocabulario.
 
 ---
 
@@ -47,8 +49,9 @@ Para evitar saturación de la infraestructura o penalizaciones de los servicios 
    - Las solicitudes excedentes se descartan inmediatamente y se registra `result="rate_limited"`.
 
 2. **Cap Global (`globalRatePerSecond`)**:
-   - Token bucket global configurable mediante `wyrdly.push.dispatch.global-rate-per-second` (default: `1000`).
-   - Protege los límites de salida hacia internet y los hilos de I/O.
+    - Token bucket global configurable mediante `wyrdly.push.dispatch.global-rate-per-second` (default: `1000`).
+    - Protege los límites de salida hacia internet y los hilos de I/O.
+    - `<= 0` deshabilita el cap global (sin `TokenBucket`, todo pasa al limiter por destinatario).
 
 ### Configuración en `application.properties`:
 ```properties
@@ -88,9 +91,9 @@ wyrdly_push_subscriptions
 
 ## 4. Grafana Dashboard Sugerido
 
-Un dashboard para Grafana está disponible en [`docs/observability/hu11-push-dashboard.json`](file:///c:/Users/Gino/Proyectos/yaga-social/docs/observability/hu11-push-dashboard.json) con los siguientes paneles:
-1. **Push Dispatch Throughput & Success Rate** (Timeseries con `ok`, `gone`, `http_4xx`, `http_5xx`, `rate_limited`).
-2. **Push Delivery Latency (p50 / p95 / p99)** (Timeseries en milisegundos).
-3. **Encrypted Payload Size Distribution** (Histogram / DistributionSummary de bytes).
-4. **Active Push Subscriptions** (Stat gauge consultando `wyrdly_push_subscriptions`).
-5. **Rate-limited Dispatches Alerting Panel** (Stat panel con color de advertencia si la tasa supera umbral).
+Un dashboard para Grafana está disponible en [`docs/observability/hu11-push-dashboard.json`](./hu11-push-dashboard.json) con los siguientes paneles (ids 1:1 con el JSON):
+1. **Push Dispatch Rate by Result** (id 1, Timeseries con `ok`, `gone`, `http_4xx`, `http_5xx`, `rate_limited`).
+2. **Active Push Subscriptions** (id 2, Stat gauge consultando `wyrdly_push_subscriptions`).
+3. **Rate Limited Percentage** (id 3, Stat panel con color de advertencia si la tasa supera umbral).
+4. **Push Gateway Latency (p50 / p95 / p99)** (id 4, Timeseries en milisegundos).
+5. **Average Encrypted Payload Size** (id 5, Timeseries con promedio `rate(wyrdly_push_dispatch_bytes_sum[5m]) / rate(wyrdly_push_dispatch_bytes_count[5m])` en bytes — promedio porque el `DistributionSummary` plano no publica serie `_bucket`).

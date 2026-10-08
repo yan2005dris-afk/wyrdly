@@ -99,17 +99,13 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Encrypted Payload Size (p50 / p95)",
+      "title": "Average Encrypted Payload Size",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(wyrdly_push_dispatch_bytes_bucket[5m])))",
-          "legendFormat": "p50 bytes"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(wyrdly_push_dispatch_bytes_bucket[5m])))",
-          "legendFormat": "p95 bytes"
+          "expr": "rate(wyrdly_push_dispatch_bytes_sum[5m]) / rate(wyrdly_push_dispatch_bytes_count[5m])",
+          "legendFormat": "avg payload bytes"
         }
       ],
       "fieldConfig": {
