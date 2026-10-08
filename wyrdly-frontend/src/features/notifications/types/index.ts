@@ -29,3 +29,31 @@ export interface PushSubscriptionConfig {
   readonly vapidPublicKey: string;
   readonly endpoint?: string;
 }
+
+/** Mirrors backend `NotificationDto`. */
+export interface NotificationDto {
+  readonly id: string;
+  readonly type: NotificationType;
+  readonly title: string;
+  readonly body: string;
+  readonly deepLink: string;
+  readonly targetResourceId?: string;
+  readonly isRead: boolean;
+  readonly createdAt: ISO8601Timestamp;
+  readonly actor: {
+    readonly id: string;
+    readonly username: string;
+    readonly fullName: string;
+    readonly avatarUrl?: string;
+    readonly instanceUrl?: string;
+  };
+}
+
+/** Mirrors backend `NotificationListResponseDto`. */
+export interface NotificationListResponseDto {
+  readonly notifications: NotificationDto[];
+  readonly unreadCount: number;
+  readonly page: number;
+  readonly pageSize: number;
+  readonly totalElements: number;
+}

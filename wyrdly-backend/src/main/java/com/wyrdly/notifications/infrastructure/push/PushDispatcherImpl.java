@@ -207,6 +207,7 @@ public class PushDispatcherImpl implements PushDispatcherPort {
 
       Map<String, String> headers = new LinkedHashMap<>();
       headers.put("TTL", String.valueOf(60 * 60 * 24));
+      headers.put("Urgency", "high");
       headers.put("Content-Encoding", "aes128gcm");
       headers.put("Content-Type", "application/octet-stream");
       headers.put("Authorization", "vapid t=" + jwt + ",k=" + vapidKeyProvider.getPublicKey());

@@ -2,7 +2,9 @@ package com.wyrdly.user.domain.repository;
 
 import com.wyrdly.user.domain.model.UserProfile;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public interface UserProfileRepository {
 
@@ -40,6 +42,13 @@ public interface UserProfileRepository {
    * other direction.
    */
   List<FollowerSummary> findFollowing(String userId, String viewerId, int page, int pageSize);
+
+  /**
+   * Batch lookup of bare user summaries by id. Returns a map keyed by user id; ids that do not
+   * resolve are omitted from the result. Used by other bounded contexts (e.g. notifications) to
+   * enrich their projections without N+1 queries.
+   */
+  Map<String, FollowerSummary> findProfileSummariesByIds(Set<String> userIds);
 
   record FollowerSummary(
       String id, String username, String fullName, String avatarUrl, boolean isFollowing) {}

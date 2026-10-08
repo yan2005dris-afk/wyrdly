@@ -9,25 +9,30 @@ En la especificación original (HU02), se definió la autenticación stateless b
 ## Decisión
 Adoptar un esquema de **Doble Token (Access Token + Refresh Token)**:
 
-1. **Access Token (JWT Stateless):**
+1. **Access Token (JWT Stateless en Memoria):**
    - **Tiempo de vida (TTL):** 15 minutos.
-   - **Formato:** JWT firmado con algoritmo RSA/ECDSA o HMAC-SHA256 gestionado por SmallRye JWT.
+   - **Formato:** JWT firmado con algoritmo RSA/ECDSA (SmallRye JWT).
    - **Claims:** `sub` (userId), `username`, `roles`, `iat`, `exp`.
+   - **Almacenamiento en Cliente:** **Exclusivamente en memoria** (`tokenStore.ts` / runtime state). Queda estrictamente prohibido persistirlo en `localStorage` o `sessionStorage` para mitigar vectores de ataque XSS.
    - **Transporte:** Encabezado HTTP `Authorization: Bearer <ACCESS_TOKEN>`.
 
-2. **Refresh Token (Rotación Segura):**
+2. **Refresh Token (Rotación en Cookie HttpOnly):**
    - **Tiempo de vida (TTL):** 7 días.
-   - **Formato:** Cadena opaca criptográficamente segura (UUIDv4 o hash SHA-256) persistida temporalmente asociada al nodo `:Usuario` o JWT específico para refresco.
-   - **Transporte:** Retornado en el payload de login y enviado en `POST /api/auth/refresh`.
+   - **Formato:** Cadena criptográfica opaca generada por el backend.
+   - **Almacenamiento y Transporte en Cliente:** **Cookie HTTP-Only** (`refreshToken`):
+     - Atributos: `HttpOnly; Secure (en prod); SameSite=Lax; Path=/`.
+     - Inaccesible por scripts en el navegador (`document.cookie`), protegiéndolo de robo por XSS.
+     - `Path=/` asegura que la cookie se incluya de forma transparente en las peticiones del frontend incluso tras recargas completas del navegador (*Hard Refresh* / `Ctrl + Shift + R`).
 
-3. **Nuevo Endpoint:**
-   - `POST /api/auth/refresh`
-   - **Request:** `{ "refreshToken": "<TOKEN>" }`
-   - **Response 200 OK:** `{ "token": "<NEW_ACCESS_TOKEN>", "refreshToken": "<NEW_OR_CURRENT_REFRESH_TOKEN>" }`
-   - **Response 401 Unauthorized:** Refresh token expirado, inválido o revocado.
+3. **Endpoints y Ciclo de Vida:**
+   - `POST /api/auth/login` y `POST /api/auth/register`: devuelven el Access Token en el cuerpo JSON y emiten la cookie `refreshToken` vía encabezado `Set-Cookie`.
+   - `POST /api/auth/refresh`: consume la cookie HttpOnly de forma transparente (`withCredentials: true`), rota el token y emite un nuevo Access Token en memoria.
+   - `POST /api/auth/logout`: invalida la sesión y limpia la cookie emitiendo `Max-Age=0`.
 
 4. **Estrategia en Frontend (React):**
-   - Interceptor de Axios que captura respuestas `401 Unauthorized`, solicita de forma transparente un nuevo Access Token vía `/api/auth/refresh` y reintenta la petición original sin cerrar la sesión del usuario.
+   - Al montar la aplicación (`initAuth`), se invoca de forma silenciosa `POST /api/auth/refresh` con `withCredentials: true`. Si la cookie está presente y válida, se hidrata el Access Token en memoria sin requerir re-login.
+   - Interceptor de Axios que captura respuestas `401 Unauthorized`, solicita un nuevo token vía `/api/auth/refresh` y reintenta las peticiones encoladas.
+   - Si el refresh falla (sesión expirada o revocada), se purga el estado y se redirige a login.
 
 ## Consecuencias
 - **Positivas:**
