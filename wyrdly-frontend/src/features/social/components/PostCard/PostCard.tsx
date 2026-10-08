@@ -172,9 +172,6 @@ export const PostCard: FC<PostCardProps> = ({
             alt={post.attachments[0].altText || "Post attachment"}
             className={styles.mediaImage}
           />
-          <span className={styles.rustfsBadge} data-testid="rustfs-badge">
-            RustFS S3 Bucket
-          </span>
         </div>
       )}
 
