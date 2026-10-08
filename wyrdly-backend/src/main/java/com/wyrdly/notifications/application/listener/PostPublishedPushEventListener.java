@@ -42,6 +42,7 @@ public class PostPublishedPushEventListener {
     Map<String, Object> data = new LinkedHashMap<>();
     data.put("postId", event.postId());
     data.put("authorId", event.authorId());
+    data.put("authorUsername", event.authorUsername());
 
     PushMessage message =
         new PushMessage(

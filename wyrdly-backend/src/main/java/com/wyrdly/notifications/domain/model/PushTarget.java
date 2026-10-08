@@ -9,6 +9,5 @@ import java.util.Objects;
 public record PushTarget(String userId, PushSubscription subscription) {
   public PushTarget {
     Objects.requireNonNull(userId, "userId");
-    Objects.requireNonNull(subscription, "subscription");
   }
 }

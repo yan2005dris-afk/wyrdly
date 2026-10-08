@@ -12,19 +12,26 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.wyrdly.notifications.application.dto.NotificationDto;
+import com.wyrdly.notifications.application.port.NotificationBroadcasterPort;
 import com.wyrdly.notifications.application.port.PushAudienceQueryPort;
 import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.application.usecase.impl.NotifyFollowersUseCaseImpl;
+import com.wyrdly.notifications.domain.model.Notification;
 import com.wyrdly.notifications.domain.model.PushEvent;
 import com.wyrdly.notifications.domain.model.PushMessage;
 import com.wyrdly.notifications.domain.model.PushSubscription;
 import com.wyrdly.notifications.domain.model.PushTarget;
+import com.wyrdly.notifications.domain.repository.NotificationRepository;
+import com.wyrdly.user.domain.repository.UserProfileRepository;
+import com.wyrdly.user.domain.repository.UserProfileRepository.FollowerSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,28 +51,48 @@ class NotifyFollowersUseCaseImplTest {
 
   private PushAudienceQueryPort audience;
   private PushDispatcherPort dispatcher;
+  private NotificationBroadcasterPort broadcaster;
+  private NotificationRepository notificationRepository;
+  private UserProfileRepository userProfileRepository;
   private MeterRegistry meterRegistry;
 
   @BeforeEach
   void setUp() {
     audience = mock(PushAudienceQueryPort.class);
     dispatcher = mock(PushDispatcherPort.class);
+    broadcaster = mock(NotificationBroadcasterPort.class);
+    notificationRepository = mock(NotificationRepository.class);
+    userProfileRepository = mock(UserProfileRepository.class);
     meterRegistry = new SimpleMeterRegistry();
     when(dispatcher.dispatchTo(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+    when(userProfileRepository.findProfileSummariesByIds(Set.of(AUTHOR)))
+        .thenReturn(
+            Map.of(
+                AUTHOR,
+                new FollowerSummary(AUTHOR, "alice", "Alice Wonder", "https://avatar.png", false)));
   }
 
   private NotifyFollowersUseCaseImpl useCase(int batchSize, int maxRecipients) {
     return new NotifyFollowersUseCaseImpl(
-        audience, dispatcher, meterRegistry, batchSize, maxRecipients);
+        audience,
+        dispatcher,
+        broadcaster,
+        notificationRepository,
+        userProfileRepository,
+        meterRegistry,
+        batchSize,
+        maxRecipients);
   }
 
-  private static List<PushTarget> targets(int fromInclusive, int toExclusive) {
+  private static List<PushTarget> targets(int fromInclusive, int toExclusive, boolean withSubscription) {
     return IntStream.range(fromInclusive, toExclusive)
         .mapToObj(
             i ->
                 new PushTarget(
                     String.format("usr_%03d", i),
-                    new PushSubscription("https://push.example/" + i, "p256dh", "auth")))
+                    withSubscription
+                        ? new PushSubscription("https://push.example/" + i, "p256dh", "auth")
+                        : null))
         .toList();
   }
 
@@ -75,59 +102,81 @@ class NotifyFollowersUseCaseImplTest {
 
   @Test
   void noFollowersIsANoOp() {
-    when(audience.findSubscribedFollowers(AUTHOR, "", 200)).thenReturn(List.of());
+    when(audience.findAllFollowers(AUTHOR, "", 200)).thenReturn(List.of());
 
     useCase(200, 10_000).notifyFollowers(AUTHOR, MESSAGE);
 
     verify(dispatcher, never()).dispatchTo(any(), any());
+    verify(notificationRepository, never()).save(any());
+    verify(broadcaster, never()).broadcast(any(), any());
     assertEquals(1.0, counter("completed"));
     assertEquals(0.0, counter("capped"));
   }
 
   @Test
-  void dispatchesEveryTargetWithItsResolvedSubscription() {
-    List<PushTarget> batch = targets(0, 3);
-    when(audience.findSubscribedFollowers(AUTHOR, "", 200)).thenReturn(batch);
+  void dispatchesInAppNotificationAndSseToAllAndPushOnlyToSubscribed() {
+    // usr_000 and usr_001 are subscribed, usr_002 is not
+    List<PushTarget> batch =
+        List.of(
+            new PushTarget("usr_000", new PushSubscription("https://push.example/0", "p256", "auth")),
+            new PushTarget("usr_001", new PushSubscription("https://push.example/1", "p256", "auth")),
+            new PushTarget("usr_002", null));
+    when(audience.findAllFollowers(AUTHOR, "", 200)).thenReturn(batch);
 
     useCase(200, 10_000).notifyFollowers(AUTHOR, MESSAGE);
 
+    // In-app Notification persisted for all 3
+    ArgumentCaptor<Notification> notifCaptor = ArgumentCaptor.forClass(Notification.class);
+    verify(notificationRepository, times(3)).save(notifCaptor.capture());
+    assertEquals("usr_000", notifCaptor.getAllValues().get(0).recipientUserId());
+    assertEquals("usr_001", notifCaptor.getAllValues().get(1).recipientUserId());
+    assertEquals("usr_002", notifCaptor.getAllValues().get(2).recipientUserId());
+    assertEquals("pst_1", notifCaptor.getAllValues().get(0).targetResourceId());
+
+    // SSE Broadcast for all 3
+    ArgumentCaptor<NotificationDto> sseCaptor = ArgumentCaptor.forClass(NotificationDto.class);
+    verify(broadcaster, times(3)).broadcast(anyString(), sseCaptor.capture());
+    assertEquals("Alice Wonder", sseCaptor.getAllValues().get(0).actor().fullName());
+
+    // Push dispatched ONLY for the 2 subscribed users
     ArgumentCaptor<PushSubscription> subs = ArgumentCaptor.forClass(PushSubscription.class);
     ArgumentCaptor<PushEvent> events = ArgumentCaptor.forClass(PushEvent.class);
-    verify(dispatcher, times(3)).dispatchTo(subs.capture(), events.capture());
-    for (int i = 0; i < 3; i++) {
-      assertEquals(batch.get(i).subscription(), subs.getAllValues().get(i));
-      PushEvent event = events.getAllValues().get(i);
-      assertEquals(batch.get(i).userId(), event.recipientUserId());
-      assertEquals("NEW_POST_FROM_FOLLOWED", event.type());
-      assertEquals("/posts/pst_1", event.deepLink());
-    }
-    // A partial batch means the audience is exhausted: no second query.
-    verify(audience, times(1)).findSubscribedFollowers(anyString(), anyString(), anyInt());
+    verify(dispatcher, times(2)).dispatchTo(subs.capture(), events.capture());
+    assertEquals("https://push.example/0", subs.getAllValues().get(0).endpoint());
+    assertEquals("usr_000", events.getAllValues().get(0).recipientUserId());
+    assertEquals("https://push.example/1", subs.getAllValues().get(1).endpoint());
+    assertEquals("usr_001", events.getAllValues().get(1).recipientUserId());
+
+    verify(audience, times(1)).findAllFollowers(anyString(), anyString(), anyInt());
     assertEquals(3.0, meterRegistry.counter("wyrdly.push.fanout.recipients").count());
   }
 
   @Test
   void pagesThroughAudienceWithKeysetCursor() {
-    when(audience.findSubscribedFollowers(AUTHOR, "", 2)).thenReturn(targets(0, 2));
-    when(audience.findSubscribedFollowers(AUTHOR, "usr_001", 2)).thenReturn(targets(2, 4));
-    when(audience.findSubscribedFollowers(AUTHOR, "usr_003", 2)).thenReturn(targets(4, 5));
+    when(audience.findAllFollowers(AUTHOR, "", 2)).thenReturn(targets(0, 2, true));
+    when(audience.findAllFollowers(AUTHOR, "usr_001", 2)).thenReturn(targets(2, 4, true));
+    when(audience.findAllFollowers(AUTHOR, "usr_003", 2)).thenReturn(targets(4, 5, true));
 
     useCase(2, 10_000).notifyFollowers(AUTHOR, MESSAGE);
 
     verify(dispatcher, times(5)).dispatchTo(any(), any());
-    verify(audience, times(3)).findSubscribedFollowers(eq(AUTHOR), anyString(), eq(2));
+    verify(notificationRepository, times(5)).save(any());
+    verify(broadcaster, times(5)).broadcast(anyString(), any());
+    verify(audience, times(3)).findAllFollowers(eq(AUTHOR), anyString(), eq(2));
     assertEquals(1.0, counter("completed"));
   }
 
   @Test
   void stopsAtMaxRecipientsAndReportsCapped() {
-    when(audience.findSubscribedFollowers(AUTHOR, "", 2)).thenReturn(targets(0, 2));
-    when(audience.findSubscribedFollowers(AUTHOR, "usr_001", 1)).thenReturn(targets(2, 3));
+    when(audience.findAllFollowers(AUTHOR, "", 2)).thenReturn(targets(0, 2, true));
+    when(audience.findAllFollowers(AUTHOR, "usr_001", 1)).thenReturn(targets(2, 3, true));
 
     useCase(2, 3).notifyFollowers(AUTHOR, MESSAGE);
 
     verify(dispatcher, times(3)).dispatchTo(any(), any());
-    verify(audience, never()).findSubscribedFollowers(AUTHOR, "usr_002", 2);
+    verify(notificationRepository, times(3)).save(any());
+    verify(broadcaster, times(3)).broadcast(anyString(), any());
+    verify(audience, never()).findAllFollowers(AUTHOR, "usr_002", 2);
     assertEquals(1.0, counter("capped"));
     assertEquals(0.0, counter("completed"));
   }
@@ -139,17 +188,16 @@ class NotifyFollowersUseCaseImplTest {
         .thenAnswer(
             inv -> {
               timeline.add("dispatch");
-              // Completes asynchronously, a bit later, like the real dispatcher pool.
               return CompletableFuture.runAsync(() -> sleep(50))
                   .thenRun(() -> timeline.add("done"));
             });
-    when(audience.findSubscribedFollowers(AUTHOR, "", 1))
+    when(audience.findAllFollowers(AUTHOR, "", 1))
         .thenAnswer(
             inv -> {
               timeline.add("query");
-              return targets(0, 1);
+              return targets(0, 1, true);
             });
-    when(audience.findSubscribedFollowers(AUTHOR, "usr_000", 1))
+    when(audience.findAllFollowers(AUTHOR, "usr_000", 1))
         .thenAnswer(
             inv -> {
               timeline.add("query");
@@ -175,3 +223,4 @@ class NotifyFollowersUseCaseImplTest {
     }
   }
 }
+

@@ -94,4 +94,20 @@ class Neo4jPushAudienceQueryAdapterIT {
 
     assertEquals(List.of("u0", "u1", "u2", "u3", "u4", "u5", "u6"), visited);
   }
+
+  @Test
+  void findAllFollowersReturnsBothSubscribedAndUnsubscribed() {
+    follower("u1", true);
+    follower("u2", false);
+
+    List<PushTarget> result = adapter.findAllFollowers("author", "", 100);
+
+    assertEquals(2, result.size());
+    PushTarget t1 = result.stream().filter(t -> t.userId().equals("u1")).findFirst().orElseThrow();
+    assertEquals("https://push/u1", t1.subscription().endpoint());
+
+    PushTarget t2 = result.stream().filter(t -> t.userId().equals("u2")).findFirst().orElseThrow();
+    org.junit.jupiter.api.Assertions.assertNull(t2.subscription());
+  }
 }
+

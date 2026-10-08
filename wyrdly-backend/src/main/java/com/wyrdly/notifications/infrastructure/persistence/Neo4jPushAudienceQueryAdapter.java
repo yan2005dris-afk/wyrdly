@@ -33,6 +33,14 @@ public class Neo4jPushAudienceQueryAdapter implements PushAudienceQueryPort {
           + "ORDER BY f.id "
           + "LIMIT $limit";
 
+  static final String CYPHER_ALL_FOLLOWERS =
+      "MATCH (author:Usuario {id: $authorId})<-[:SIGUE]-(f:Usuario) "
+          + "WHERE f.id > $afterUserId AND f <> author "
+          + "RETURN f.id AS userId, f.pushEndpoint AS endpoint, "
+          + "f.pushP256dh AS p256dh, f.pushAuth AS auth "
+          + "ORDER BY f.id "
+          + "LIMIT $limit";
+
   private final Driver driver;
 
   @Inject
@@ -62,6 +70,40 @@ public class Neo4jPushAudienceQueryAdapter implements PushAudienceQueryPort {
                                   record.get("endpoint").asString(),
                                   record.get("p256dh").asString(),
                                   record.get("auth").asString()))));
+    }
+  }
+
+  @Override
+  public List<PushTarget> findAllFollowers(String authorId, String afterUserId, int limit) {
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx ->
+              tx.run(
+                      CYPHER_ALL_FOLLOWERS,
+                      Values.parameters(
+                          "authorId",
+                          authorId,
+                          "afterUserId",
+                          afterUserId == null ? "" : afterUserId,
+                          "limit",
+                          limit))
+                  .list(
+                      record -> {
+                        String userId = record.get("userId").asString();
+                        var epVal = record.get("endpoint");
+                        var p256Val = record.get("p256dh");
+                        var authVal = record.get("auth");
+                        PushSubscription sub = null;
+                        if (!epVal.isNull() && !p256Val.isNull() && !authVal.isNull()) {
+                          String ep = epVal.asString();
+                          String p256 = p256Val.asString();
+                          String auth = authVal.asString();
+                          if (!ep.isBlank() && !p256.isBlank() && !auth.isBlank()) {
+                            sub = new PushSubscription(ep, p256, auth);
+                          }
+                        }
+                        return new PushTarget(userId, sub);
+                      }));
     }
   }
 }

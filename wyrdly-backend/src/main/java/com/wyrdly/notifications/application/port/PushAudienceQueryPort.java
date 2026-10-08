@@ -16,4 +16,10 @@ public interface PushAudienceQueryPort {
    * part of their own audience.
    */
   List<PushTarget> findSubscribedFollowers(String authorId, String afterUserId, int limit);
+
+  /**
+   * Reads a keyset page of all followers of {@code authorId} (with or without active Web Push
+   * subscription). If a follower has a valid push subscription, it is attached; otherwise null.
+   */
+  List<PushTarget> findAllFollowers(String authorId, String afterUserId, int limit);
 }

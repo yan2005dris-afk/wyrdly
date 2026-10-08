@@ -1,27 +1,43 @@
 package com.wyrdly.notifications.application.usecase.impl;
 
+import com.wyrdly.notifications.application.dto.NotificationDto;
+import com.wyrdly.notifications.application.port.NotificationBroadcasterPort;
 import com.wyrdly.notifications.application.port.PushAudienceQueryPort;
 import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.application.usecase.NotifyFollowersUseCase;
+import com.wyrdly.notifications.domain.model.Notification;
 import com.wyrdly.notifications.domain.model.PushMessage;
 import com.wyrdly.notifications.domain.model.PushTarget;
+import com.wyrdly.notifications.domain.repository.NotificationRepository;
+import com.wyrdly.user.domain.repository.UserProfileRepository;
+import com.wyrdly.user.domain.repository.UserProfileRepository.FollowerSummary;
+import com.wyrdly.user.infrastructure.qualifier.ResilientNeo4j;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
- * Batched fan-out of a {@link PushMessage} to the subscribed followers of an author.
+ * Batched fan-out of post publication notifications to all followers of an author.
  *
- * <p>The audience is read in keyset batches of {@code wyrdly.push.fanout.batch-size}. Each batch is
- * handed to the dispatcher and the loop waits for the whole batch to be handled before reading the
- * next one, which bounds memory and keeps a single large fan-out from flooding the dispatcher
- * queue. {@code wyrdly.push.fanout.max-recipients} caps the audience of a single message.
+ * <p>For every follower:
+ * <ul>
+ *   <li>Persists an in-app {@link Notification} in Neo4j.</li>
+ *   <li>Broadcasts the real-time event via {@link NotificationBroadcasterPort} (SSE).</li>
+ *   <li>If the follower has an active Web Push subscription, dispatches background push via {@link PushDispatcherPort}.</li>
+ * </ul>
+ *
+ * <p>The audience is read in keyset batches of {@code wyrdly.push.fanout.batch-size}.
+ * {@code wyrdly.push.fanout.max-recipients} caps the audience of a single message.
  */
 @ApplicationScoped
 public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
@@ -30,6 +46,9 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
 
   private final PushAudienceQueryPort audience;
   private final PushDispatcherPort dispatcher;
+  private final NotificationBroadcasterPort broadcaster;
+  private final NotificationRepository notificationRepository;
+  private final UserProfileRepository userProfileRepository;
   private final int batchSize;
   private final int maxRecipients;
   private final Counter completedCounter;
@@ -40,6 +59,9 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
   public NotifyFollowersUseCaseImpl(
       PushAudienceQueryPort audience,
       PushDispatcherPort dispatcher,
+      NotificationBroadcasterPort broadcaster,
+      NotificationRepository notificationRepository,
+      @ResilientNeo4j UserProfileRepository userProfileRepository,
       MeterRegistry meterRegistry,
       @ConfigProperty(name = "wyrdly.push.fanout.batch-size", defaultValue = "200") int batchSize,
       @ConfigProperty(name = "wyrdly.push.fanout.max-recipients", defaultValue = "10000")
@@ -52,6 +74,11 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
     }
     this.audience = Objects.requireNonNull(audience, "audience must not be null");
     this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher must not be null");
+    this.broadcaster = Objects.requireNonNull(broadcaster, "broadcaster must not be null");
+    this.notificationRepository =
+        Objects.requireNonNull(notificationRepository, "notificationRepository must not be null");
+    this.userProfileRepository =
+        Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
     this.batchSize = batchSize;
     this.maxRecipients = maxRecipients;
     this.completedCounter = meterRegistry.counter(METRIC, "result", "completed");
@@ -64,21 +91,61 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
     Objects.requireNonNull(authorId, "authorId must not be null");
     Objects.requireNonNull(message, "message must not be null");
 
+    FollowerSummary authorSummary = resolveAuthorSummary(authorId);
+    NotificationDto.ActorDto authorActorDto = buildAuthorActorDto(authorId, authorSummary);
+    String postId = extractPostId(message);
+
     String cursor = "";
     int sent = 0;
     boolean exhausted = false;
     while (sent < maxRecipients) {
       int limit = Math.min(batchSize, maxRecipients - sent);
-      List<PushTarget> batch = audience.findSubscribedFollowers(authorId, cursor, limit);
+      List<PushTarget> batch = audience.findAllFollowers(authorId, cursor, limit);
       if (batch.isEmpty()) {
         exhausted = true;
         break;
       }
-      CompletableFuture.allOf(
-              batch.stream()
-                  .map(t -> dispatcher.dispatchTo(t.subscription(), message.toEvent(t.userId())))
-                  .toArray(CompletableFuture[]::new))
-          .join();
+
+      List<CompletableFuture<?>> pushFutures = new ArrayList<>();
+
+      for (PushTarget target : batch) {
+        String followerId = target.userId();
+
+        Notification notification =
+            new Notification(
+                nextId(),
+                followerId,
+                message.type(),
+                authorId,
+                message.title(),
+                message.body(),
+                message.deepLink(),
+                postId,
+                false,
+                Instant.now());
+
+        try {
+          notificationRepository.save(notification);
+        } catch (RuntimeException persistError) {
+          Log.warnf(persistError, "Failed to persist new-post notification for %s", followerId);
+        }
+
+        NotificationDto ssePayload = NotificationDto.from(notification, authorActorDto);
+        try {
+          broadcaster.broadcast(followerId, ssePayload);
+        } catch (RuntimeException sseError) {
+          Log.debugf(sseError, "Failed to broadcast new-post notification to SSE for %s", followerId);
+        }
+
+        if (target.subscription() != null) {
+          pushFutures.add(dispatcher.dispatchTo(target.subscription(), message.toEvent(followerId)));
+        }
+      }
+
+      if (!pushFutures.isEmpty()) {
+        CompletableFuture.allOf(pushFutures.toArray(CompletableFuture[]::new)).join();
+      }
+
       sent += batch.size();
       recipientsCounter.increment(batch.size());
       cursor = batch.getLast().userId();
@@ -91,12 +158,48 @@ public class NotifyFollowersUseCaseImpl implements NotifyFollowersUseCase {
     if (!exhausted) {
       cappedCounter.increment();
       Log.warnf(
-          "push fan-out capped: authorId=%s type=%s recipients=%d", authorId, message.type(), sent);
+          "post notification fan-out capped: authorId=%s type=%s recipients=%d",
+          authorId, message.type(), sent);
     } else {
       completedCounter.increment();
       Log.debugf(
-          "push fan-out completed: authorId=%s type=%s recipients=%d",
+          "post notification fan-out completed: authorId=%s type=%s recipients=%d",
           authorId, message.type(), sent);
     }
   }
+
+  private FollowerSummary resolveAuthorSummary(String authorId) {
+    try {
+      var actors = userProfileRepository.findProfileSummariesByIds(Set.of(authorId));
+      return actors.get(authorId);
+    } catch (RuntimeException lookupError) {
+      Log.warnf(lookupError, "Failed to resolve author summary for %s", authorId);
+      return null;
+    }
+  }
+
+  private static NotificationDto.ActorDto buildAuthorActorDto(
+      String authorId, FollowerSummary authorSummary) {
+    if (authorSummary == null) {
+      return NotificationDto.ActorDto.placeholder(authorId);
+    }
+    return new NotificationDto.ActorDto(
+      authorSummary.id(),
+      authorSummary.username(),
+      authorSummary.fullName(),
+      authorSummary.avatarUrl(),
+      null);
+  }
+
+  private static String extractPostId(PushMessage message) {
+    if (message.data() != null && message.data().get("postId") != null) {
+      return String.valueOf(message.data().get("postId"));
+    }
+    return null;
+  }
+
+  private static String nextId() {
+    return "ntf_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+  }
 }
+
