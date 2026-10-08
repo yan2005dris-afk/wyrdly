@@ -19,6 +19,10 @@ import org.neo4j.driver.Values;
  * <p>Notifications are persisted as {@code :Notificacion} nodes. Lookups filter by {@code
  * recipientUserId} and order by {@code createdAt DESC} using the composite index added by migration
  * {@code V005__add_notification_indexes.cypher}.
+ *
+ * <p>All read workloads are managed via {@code session.executeRead} and write workloads via {@code
+ * session.executeWrite} to guarantee proper transaction unit boundaries and automatic retry for
+ * transient errors.
  */
 @ApplicationScoped
 @Unremovable
@@ -46,6 +50,9 @@ public class Neo4jNotificationRepositoryAdapter implements NotificationRepositor
       "MATCH (n:Notificacion {recipientUserId: $recipientUserId, isRead: false}) "
           + "RETURN count(n) AS total";
 
+  private static final String CYPHER_COUNT_TOTAL =
+      "MATCH (n:Notificacion {recipientUserId: $recipientUserId}) " + "RETURN count(n) AS total";
+
   private static final String CYPHER_MARK_READ =
       "MATCH (n:Notificacion {id: $id, recipientUserId: $userId}) " + "SET n.isRead = true";
 
@@ -64,19 +71,23 @@ public class Neo4jNotificationRepositoryAdapter implements NotificationRepositor
   @Override
   public void save(Notification notification) {
     try (Session session = driver.session()) {
-      session.run(
-          CYPHER_SAVE,
-          Values.parameters(
-              "id", notification.id(),
-              "recipientUserId", notification.recipientUserId(),
-              "type", notification.type(),
-              "actorId", notification.actorId(),
-              "title", notification.title(),
-              "body", notification.body(),
-              "deepLink", notification.deepLink(),
-              "targetResourceId", notification.targetResourceId(),
-              "isRead", notification.isRead(),
-              "createdAt", notification.createdAt().toString()));
+      session.executeWrite(
+          tx -> {
+            tx.run(
+                CYPHER_SAVE,
+                Values.parameters(
+                    "id", notification.id(),
+                    "recipientUserId", notification.recipientUserId(),
+                    "type", notification.type(),
+                    "actorId", notification.actorId(),
+                    "title", notification.title(),
+                    "body", notification.body(),
+                    "deepLink", notification.deepLink(),
+                    "targetResourceId", notification.targetResourceId(),
+                    "isRead", notification.isRead(),
+                    "createdAt", notification.createdAt().toString()));
+            return null;
+          });
     }
   }
 
@@ -87,45 +98,70 @@ public class Neo4jNotificationRepositoryAdapter implements NotificationRepositor
     }
     int skip = Math.max(0, page) * pageSize;
     try (Session session = driver.session()) {
-      Result result =
-          session.run(
-              CYPHER_FIND_BY_RECIPIENT,
-              Values.parameters(
-                  "recipientUserId", recipientUserId, "skip", skip, "limit", pageSize));
-      List<Notification> notifications = new ArrayList<>();
-      while (result.hasNext()) {
-        var record = result.next();
-        var node = record.get("n").asNode();
-        notifications.add(map(node));
-      }
-      return notifications;
+      return session.executeRead(
+          tx -> {
+            Result result =
+                tx.run(
+                    CYPHER_FIND_BY_RECIPIENT,
+                    Values.parameters(
+                        "recipientUserId", recipientUserId, "skip", skip, "limit", pageSize));
+            List<Notification> notifications = new ArrayList<>();
+            while (result.hasNext()) {
+              var record = result.next();
+              var node = record.get("n").asNode();
+              notifications.add(map(node));
+            }
+            return notifications;
+          });
     }
   }
 
   @Override
   public long countUnread(String recipientUserId) {
     try (Session session = driver.session()) {
-      Result result =
-          session.run(CYPHER_COUNT_UNREAD, Values.parameters("recipientUserId", recipientUserId));
-      return result.single().get("total").asLong(0L);
+      return session.executeRead(
+          tx -> {
+            Result result =
+                tx.run(CYPHER_COUNT_UNREAD, Values.parameters("recipientUserId", recipientUserId));
+            return result.single().get("total").asLong(0L);
+          });
+    }
+  }
+
+  @Override
+  public long countTotal(String recipientUserId) {
+    try (Session session = driver.session()) {
+      return session.executeRead(
+          tx -> {
+            Result result =
+                tx.run(CYPHER_COUNT_TOTAL, Values.parameters("recipientUserId", recipientUserId));
+            return result.single().get("total").asLong(0L);
+          });
     }
   }
 
   @Override
   public void markRead(String notificationId, String userId) {
     try (Session session = driver.session()) {
-      session.run(CYPHER_MARK_READ, Values.parameters("id", notificationId, "userId", userId));
+      session.executeWrite(
+          tx -> {
+            tx.run(CYPHER_MARK_READ, Values.parameters("id", notificationId, "userId", userId));
+            return null;
+          });
     }
   }
 
   @Override
   public long markAllRead(String userId) {
     try (Session session = driver.session()) {
-      Result result = session.run(CYPHER_MARK_ALL_READ, Values.parameters("userId", userId));
-      if (!result.hasNext()) {
-        return 0L;
-      }
-      return result.single().get("updated").asLong(0L);
+      return session.executeWrite(
+          tx -> {
+            Result result = tx.run(CYPHER_MARK_ALL_READ, Values.parameters("userId", userId));
+            if (!result.hasNext()) {
+              return 0L;
+            }
+            return result.single().get("updated").asLong(0L);
+          });
     }
   }
 

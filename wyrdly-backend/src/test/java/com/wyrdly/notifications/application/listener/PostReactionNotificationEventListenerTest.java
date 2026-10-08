@@ -1,4 +1,4 @@
-package com.wyrdly.post.application.listener;
+package com.wyrdly.notifications.application.listener;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -20,12 +20,12 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class PostReactionPushEventListenerTest {
+class PostReactionNotificationEventListenerTest {
 
   private PushDispatcherPort dispatcher;
   private NotificationRepository notificationRepository;
   private UserProfileRepository userProfileRepository;
-  private PostReactionPushEventListener listener;
+  private PostReactionNotificationEventListener listener;
 
   @BeforeEach
   void setUp() {
@@ -33,7 +33,7 @@ class PostReactionPushEventListenerTest {
     notificationRepository = mock(NotificationRepository.class);
     userProfileRepository = mock(UserProfileRepository.class);
     listener =
-        new PostReactionPushEventListener(
+        new PostReactionNotificationEventListener(
             dispatcher, notificationRepository, userProfileRepository);
     when(userProfileRepository.findProfileSummariesByIds(anySet())).thenReturn(Map.of());
   }

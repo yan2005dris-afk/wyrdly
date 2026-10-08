@@ -45,7 +45,10 @@ const toSocialNotification = (dto: NotificationDto): SocialNotification => {
 // Notifications used to be hardcoded here; they now come from useNotifications
 // (real data persisted by the backend when follow/reaction listeners fire).
 
-export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
+export const MainLayout: FC<MainLayoutProps> = ({
+  className = "",
+  unreadMessagesCount = 0,
+}) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -163,7 +166,7 @@ export const MainLayout: FC<MainLayoutProps> = ({ className = "" }) => {
         <aside className={styles.leftSidebar} data-testid="main-layout-sidebar">
           <UserSummaryCard user={currentUserSummary} />
           <SidebarNav
-            unreadMessagesCount={3}
+            unreadMessagesCount={unreadMessagesCount}
             unreadAlertsCount={unreadAlertsCount}
             onLogout={logout}
             onNewPostClick={() => {

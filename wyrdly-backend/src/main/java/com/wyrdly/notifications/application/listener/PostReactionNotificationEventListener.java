@@ -1,4 +1,4 @@
-package com.wyrdly.post.application.listener;
+package com.wyrdly.notifications.application.listener;
 
 import com.wyrdly.notifications.application.port.PushDispatcherPort;
 import com.wyrdly.notifications.domain.model.Notification;
@@ -22,17 +22,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * CDI observer that turns a {@link PostReactionEvent} into two side effects: a persisted {@link
- * Notification} for the in-app feed and a dispatched {@link PushEvent} for the OS-level push
- * pipeline. The service is responsible for the upstream filter (no REMOVED, no self-reaction, no
- * missing post); this listener keeps a defensive guard for the rare case the event is fired from
- * somewhere else. The actor's display name is resolved once and embedded in both the persisted
- * notification body and the push payload (falls back to "Alguien" if the profile lookup fails).
+ * Notifications bounded context listener that observes {@link PostReactionEvent} emitted by the
+ * post module. Decouples post reaction operations from notification persistence and push dispatch.
  */
 @ApplicationScoped
-public class PostReactionPushEventListener {
+public class PostReactionNotificationEventListener {
 
-  private static final Logger LOG = Logger.getLogger(PostReactionPushEventListener.class.getName());
+  private static final Logger LOG =
+      Logger.getLogger(PostReactionNotificationEventListener.class.getName());
 
   static final String DEEP_LINK_PREFIX = "/posts/";
   static final String TITLE = "Reacción a tu publicación";
@@ -48,7 +45,7 @@ public class PostReactionPushEventListener {
   private final UserProfileRepository userProfileRepository;
 
   @Inject
-  public PostReactionPushEventListener(
+  public PostReactionNotificationEventListener(
       PushDispatcherPort dispatcher,
       NotificationRepository notificationRepository,
       @ResilientNeo4j UserProfileRepository userProfileRepository) {
@@ -59,7 +56,7 @@ public class PostReactionPushEventListener {
         Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
   }
 
-  void on(@Observes PostReactionEvent event) {
+  public void on(@Observes PostReactionEvent event) {
     Objects.requireNonNull(event, "event must not be null");
     if (event.reactionType() == null) {
       return;
@@ -88,7 +85,6 @@ public class PostReactionPushEventListener {
     try {
       notificationRepository.save(notification);
     } catch (RuntimeException persistError) {
-      // Persistence failure should not block the push dispatch.
       LOG.log(
           Level.WARNING,
           "Failed to persist reaction notification for " + event.postAuthorId(),

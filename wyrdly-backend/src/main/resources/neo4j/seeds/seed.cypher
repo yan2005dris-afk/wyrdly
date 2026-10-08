@@ -106,9 +106,17 @@ MATCH (u1:Usuario {id: "usr_yandris_01"}), (u2:Usuario {id: "usr_gino_02"})
 MERGE (u1)-[r:SIGUE]->(u2)
 ON CREATE SET r.createdAt = datetime("2026-09-24T13:00:00Z");
 
+MATCH (u2:Usuario {id: "usr_gino_02"}), (u1:Usuario {id: "usr_yandris_01"})
+MERGE (u2)-[r:SIGUE]->(u1)
+ON CREATE SET r.createdAt = datetime("2026-09-24T13:02:00Z");
+
 MATCH (u1:Usuario {id: "usr_yandris_01"}), (u3:Usuario {id: "usr_andy_03"})
 MERGE (u1)-[r:SIGUE]->(u3)
 ON CREATE SET r.createdAt = datetime("2026-09-24T13:05:00Z");
+
+MATCH (u3:Usuario {id: "usr_andy_03"}), (u1:Usuario {id: "usr_yandris_01"})
+MERGE (u3)-[r:SIGUE]->(u1)
+ON CREATE SET r.createdAt = datetime("2026-09-24T13:07:00Z");
 
 MATCH (u2:Usuario {id: "usr_gino_02"}), (u4:Usuario {id: "usr_allison_04"})
 MERGE (u2)-[r:SIGUE]->(u4)
