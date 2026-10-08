@@ -49,14 +49,13 @@ class VapidJwtSignerTest {
     byte[] signature = Base64.getUrlDecoder().decode(parts[2]);
     assertEquals(64, signature.length, "ES256 P1363 signature must be 64 bytes");
 
-    Signature verifier = Signature.getInstance("SHA256withECDSA");
+    // Verify in P1363 form directly so the test doesn't depend on a hand-rolled DER encoder.
+    Signature verifier = Signature.getInstance("SHA256withECDSAinP1363Format");
     verifier.initVerify(pair.getPublic());
     verifier.update((parts[0] + "." + parts[1]).getBytes(StandardCharsets.UTF_8));
-    // Convert P1363 back to DER for Java verification.
-    byte[] der = p1363ToDer(signature);
     assertTrue(
-        verifier.verify(der),
-        "Signature must verify against the public key (P1363 → DER conversion must round-trip)");
+        verifier.verify(signature),
+        "Signature must verify against the public key (DER → P1363 conversion must be correct)");
   }
 
   @Test
@@ -127,10 +126,10 @@ class VapidJwtSignerTest {
         VapidJwtSigner.sign("https://example.com", "mailto:ops@example.com", pair.getPrivate());
     String[] parts = jwt.split("\\.");
     byte[] signature = Base64.getUrlDecoder().decode(parts[2]);
-    Signature verifier = Signature.getInstance("SHA256withECDSA");
+    Signature verifier = Signature.getInstance("SHA256withECDSAinP1363Format");
     verifier.initVerify(rebuilt);
     verifier.update((parts[0] + "." + parts[1]).getBytes(StandardCharsets.UTF_8));
-    assertTrue(verifier.verify(p1363ToDer(signature)));
+    assertTrue(verifier.verify(signature));
   }
 
   // ---- helpers -----------------------------------------------------------
@@ -152,66 +151,5 @@ class VapidJwtSignerTest {
     if (src.length > 32) System.arraycopy(src, src.length - 32, dst, 0, 32);
     else System.arraycopy(src, 0, dst, 32 - src.length, src.length);
     return dst;
-  }
-
-  /** P1363 → ASN.1 DER for Java's {@code SHA256withECDSA}. */
-  private static byte[] p1363ToDer(byte[] p1363) {
-    byte[] r = stripLeadingZero(toFixed32Neg(java.util.Arrays.copyOfRange(p1363, 0, 32)));
-    byte[] s = stripLeadingZero(toFixed32Neg(java.util.Arrays.copyOfRange(p1363, 32, 64)));
-    byte[] rEnc = encodeAsn1Integer(r);
-    byte[] sEnc = encodeAsn1Integer(s);
-    byte[] body = new byte[rEnc.length + sEnc.length];
-    System.arraycopy(rEnc, 0, body, 0, rEnc.length);
-    System.arraycopy(sEnc, 0, body, rEnc.length, sEnc.length);
-    return wrapInSequence(body);
-  }
-
-  private static byte[] toFixed32Neg(byte[] src) {
-    if (src.length == 32) return src;
-    byte[] dst = new byte[32];
-    if (src.length > 32) System.arraycopy(src, src.length - 32, dst, 0, 32);
-    else System.arraycopy(src, 0, dst, 32 - src.length, src.length);
-    return dst;
-  }
-
-  private static byte[] stripLeadingZero(byte[] src) {
-    if (src.length > 1 && src[0] == 0 && (src[1] & 0x80) != 0) {
-      return java.util.Arrays.copyOfRange(src, 1, src.length);
-    }
-    return src;
-  }
-
-  private static byte[] encodeAsn1Integer(byte[] value) {
-    byte[] tag = new byte[] {0x02};
-    return concat(tag, encodeLength(value.length), value);
-  }
-
-  private static byte[] encodeLength(int length) {
-    if (length < 128) return new byte[] {(byte) length};
-    return new byte[] {(byte) (0x80 | 1), (byte) length};
-  }
-
-  private static byte[] wrapInSequence(byte[] body) {
-    return concat(new byte[] {0x30}, concat(encodeLength(body.length), body));
-  }
-
-  private static byte[] concat(byte[] a, byte[] b) {
-    return concatAll(new byte[][] {a, b});
-  }
-
-  private static byte[] concat(byte[] a, byte[] b, byte[] c) {
-    return concatAll(new byte[][] {a, b, c});
-  }
-
-  private static byte[] concatAll(byte[][] arrays) {
-    int total = 0;
-    for (byte[] a : arrays) total += a.length;
-    byte[] out = new byte[total];
-    int offset = 0;
-    for (byte[] a : arrays) {
-      System.arraycopy(a, 0, out, offset, a.length);
-      offset += a.length;
-    }
-    return out;
   }
 }
