@@ -14,7 +14,6 @@ import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.net.URI;
@@ -23,13 +22,13 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.context.ManagedExecutor;
 
 /**
  * Fire-and-forget Web Push dispatcher. Encrypts the payload per RFC 8291, signs a VAPID JWT per RFC
@@ -43,10 +42,12 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  *   <li>Network error → counter {@code result=network_error}.
  *   <li>No subscription stored → counter {@code result=skipped_no_subscription}.
  *   <li>Rate limited → counter {@code result=rate_limited}.
+ *   <li>Queue full / rejected → counter {@code result=rejected} (backpressure).
  * </ul>
  *
- * <p>All HTTP I/O runs on a dedicated {@link ExecutorService} so {@link #dispatch} returns to the
- * caller immediately. Rate limiting and Micrometer telemetry are built-in.
+ * <p>All HTTP I/O runs on a container-managed {@link ManagedExecutor} so {@link #dispatch} returns
+ * to the caller immediately. Rate limiting, backpressure protection, and Micrometer telemetry are
+ * built-in.
  */
 @ApplicationScoped
 public class PushDispatcherImpl implements PushDispatcherPort {
@@ -64,7 +65,7 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   private final String subject;
   private final int maxRetries;
   private final Duration initialBackoff;
-  private final ExecutorService executor;
+  private final ManagedExecutor executor;
 
   private final long recipientRateIntervalMs;
   private final TokenBucket globalTokenBucket;
@@ -78,6 +79,7 @@ public class PushDispatcherImpl implements PushDispatcherPort {
       PushGatewayClientPort gatewayClient,
       ObjectMapper objectMapper,
       MeterRegistry meterRegistry,
+      ManagedExecutor executor,
       @ConfigProperty(name = "wyrdly.push.vapid.subject", defaultValue = "mailto:ops@wyrdly.com")
           String subject,
       @ConfigProperty(name = "wyrdly.push.dispatch.max-retries", defaultValue = "3") int maxRetries,
@@ -94,20 +96,13 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     this.gatewayClient = gatewayClient;
     this.objectMapper = objectMapper;
     this.meterRegistry = meterRegistry;
+    this.executor = executor;
     this.subject = subject;
     this.maxRetries = maxRetries;
     this.initialBackoff = Duration.ofMillis(initialBackoffMs);
     this.recipientRateIntervalMs = recipientRateIntervalMs;
     this.globalTokenBucket =
         globalRatePerSecond > 0 ? new TokenBucket(globalRatePerSecond, globalRatePerSecond) : null;
-    this.executor =
-        Executors.newFixedThreadPool(
-            4,
-            r -> {
-              Thread t = new Thread(r, "push-dispatcher");
-              t.setDaemon(true);
-              return t;
-            });
   }
 
   @PostConstruct
@@ -118,23 +113,30 @@ public class PushDispatcherImpl implements PushDispatcherPort {
         PushSubscriptionRepositoryPort::countActive);
   }
 
-  @PreDestroy
+  /**
+   * Optional lifecycle fallback. In Quarkus runtime, {@link ManagedExecutor} lifecycle and thread
+   * draining are managed by the container.
+   */
   public void shutdown() {
-    executor.shutdown();
-    try {
-      if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-        executor.shutdownNow();
-        if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-          LOG.log(Level.WARNING, "push-dispatcher executor did not terminate");
-        }
-      }
-    } catch (InterruptedException e) {
-      executor.shutdownNow();
-      Thread.currentThread().interrupt();
+    if (executor != null && !executor.isShutdown()) {
       try {
-        executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      } catch (InterruptedException ie) {
+        executor.shutdown();
+        if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+          executor.shutdownNow();
+          if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            LOG.log(Level.WARNING, "push-dispatcher executor did not terminate");
+          }
+        }
+      } catch (InterruptedException e) {
+        executor.shutdownNow();
         Thread.currentThread().interrupt();
+        try {
+          executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+        }
+      } catch (IllegalStateException | UnsupportedOperationException ignored) {
+        // Container-managed executors may disallow manual lifecycle invocations
       }
     }
   }
@@ -154,7 +156,15 @@ public class PushDispatcherImpl implements PushDispatcherPort {
       LOG.log(Level.FINE, "Push rate limit exceeded for recipient {0}", event.recipientUserId());
       return;
     }
-    executor.submit(() -> doDispatch(event));
+    try {
+      executor.submit(() -> doDispatch(event));
+    } catch (RejectedExecutionException ex) {
+      recordDispatch(eventType, "rejected");
+      LOG.log(
+          Level.WARNING,
+          "Push dispatcher executor rejected task for recipient {0}; queue full",
+          event.recipientUserId());
+    }
   }
 
   private boolean isGlobalRateLimited() {
