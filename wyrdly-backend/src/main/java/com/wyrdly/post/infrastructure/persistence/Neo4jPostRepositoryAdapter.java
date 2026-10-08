@@ -128,7 +128,9 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
    *
    * <p>Counts reactions via the unified {@code [:REACCIONA {tipo}]} relationship introduced in HU09
    * (post V100 migration; legacy {@code [:LIKE|:LOVE|:CELEBRATE]} relationships have been migrated
-   * and are no longer present in the graph).
+   * and are no longer present in the graph). Comments are aggregated with a {@code COUNT {}}
+   * subquery (HU10) so that adding the {@code commentsCount} projection does NOT introduce a
+   * cartesian explosion with the reaction OPTIONAL MATCH chains.
    */
   private static final String FEED_QUERY =
       "MATCH (me:Usuario {id: $userId}) "
@@ -152,12 +154,13 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "              count(DISTINCT rlike) AS likeCount, "
           + "              count(DISTINCT rlove) AS loveCount, "
           + "              count(DISTINCT rceleb) AS celebrateCount, "
-          + "              ur.tipo AS userReactionType "
+          + "              ur.tipo AS userReactionType, "
+          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount "
           + "ORDER BY createdAt DESC "
           + "SKIP $skip LIMIT $limit "
           + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
           + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
-          + "       celebrateCount, userReactionType";
+          + "       celebrateCount, commentsCount, userReactionType";
 
   private static final String COUNT_FEED_QUERY =
       "MATCH (me:Usuario {id: $userId}) "
@@ -258,6 +261,10 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     long likeCount = record.get("likeCount").asLong();
     long loveCount = record.get("loveCount").asLong();
     long celebrateCount = record.get("celebrateCount").asLong();
+    long commentsCount =
+        record.containsKey("commentsCount") && !record.get("commentsCount").isNull()
+            ? record.get("commentsCount").asLong()
+            : 0L;
     String userReactionType =
         record.get("userReactionType").isNull() ? null : record.get("userReactionType").asString();
 
@@ -271,32 +278,46 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         likeCount,
         loveCount,
         celebrateCount,
+        commentsCount,
         userReactionType);
   }
 
+  private static final String FIND_BY_AUTHOR_QUERY =
+      "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
+          + "OPTIONAL MATCH (p)<-[rlike:REACCIONA {tipo: 'LIKE'}]-() "
+          + "OPTIONAL MATCH (p)<-[rlove:REACCIONA {tipo: 'LOVE'}]-() "
+          + "OPTIONAL MATCH (p)<-[rceleb:REACCIONA {tipo: 'CELEBRATE'}]-() "
+          + "WITH DISTINCT p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+          + "              p.createdAt AS createdAt, author.id AS authorId, "
+          + "              author.username AS authorUsername, author.fullName AS authorFullName, "
+          + "              author.avatarUrl AS authorAvatarUrl, "
+          + "              count(DISTINCT rlike) AS likeCount, "
+          + "              count(DISTINCT rlove) AS loveCount, "
+          + "              count(DISTINCT rceleb) AS celebrateCount, "
+          + "              null AS userReactionType, "
+          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount "
+          + "ORDER BY createdAt DESC "
+          + "SKIP $skip LIMIT $limit "
+          + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
+          + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
+          + "       celebrateCount, commentsCount, userReactionType";
+
   /**
-   * Finds all posts published by a specific author, with pagination.
-   *
-   * <p>Query: (:Usuario {id: authorId})-[:PUBLICA]->(:Post) traversal. Returns basic post info
-   * without reaction counts (used for user profile page).
+   * Finds all posts published by a specific author, with pagination, reactions, and comments count.
    */
   @Override
-  public List<Post> findByAuthor(String authorId, int page, int pageSize) {
-    int skip = Math.max(0, (page - 1) * pageSize);
+  public List<FeedPost> findByAuthor(String authorId, int page, int pageSize) {
+    int skip = Math.max(0, (page <= 0 ? 0 : page - 1) * pageSize);
     try (Session session = driver.session()) {
       return session.executeRead(
           tx ->
               tx.run(
-                      "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
-                          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
-                          + "       p.createdAt AS createdAt, author.id AS authorId "
-                          + "ORDER BY p.createdAt DESC "
-                          + "SKIP $skip LIMIT $limit",
+                      FIND_BY_AUTHOR_QUERY,
                       Values.parameters(
                           "authorId", authorId,
                           "skip", skip,
                           "limit", pageSize))
-                  .list(this::mapRecordToPost));
+                  .list(this::mapRecordToFeedPost));
     } catch (Exception e) {
       Log.errorf(e, "Failed to query posts by author: %s", authorId);
       throw new PostPersistenceException("Failed to query posts for authorId=" + authorId, e);

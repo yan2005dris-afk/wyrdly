@@ -1,8 +1,10 @@
 package com.wyrdly.post.interfaces.rest;
 
+import com.wyrdly.post.domain.exception.CommentNotFoundException;
 import com.wyrdly.post.domain.exception.PostNotFoundException;
 import com.wyrdly.post.domain.exception.PostPersistenceException;
 import com.wyrdly.post.domain.exception.PostValidationException;
+import com.wyrdly.post.domain.exception.UnauthorizedCommentActionException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -30,6 +32,16 @@ public class PostExceptionMappers {
   @ServerExceptionMapper
   public Response handlePostNotFound(PostNotFoundException ex) {
     return buildResponse(Response.Status.NOT_FOUND, "POST_NOT_FOUND", ex.getMessage());
+  }
+
+  @ServerExceptionMapper
+  public Response handleCommentNotFound(CommentNotFoundException ex) {
+    return buildResponse(Response.Status.NOT_FOUND, "COMMENT_NOT_FOUND", ex.getMessage());
+  }
+
+  @ServerExceptionMapper
+  public Response handleUnauthorizedCommentAction(UnauthorizedCommentActionException ex) {
+    return buildResponse(Response.Status.FORBIDDEN, "FORBIDDEN", ex.getMessage());
   }
 
   @ServerExceptionMapper
