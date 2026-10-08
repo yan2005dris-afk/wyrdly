@@ -52,7 +52,14 @@ async function broadcastPushReceived(payload) {
     try {
       const channel = new BroadcastChannel("wyrdly-notifications");
       channel.postMessage(message);
-      channel.close();
+      // Allow the event loop tick to dispatch before closing
+      setTimeout(() => {
+        try {
+          channel.close();
+        } catch (_err) {
+          /* ignore close error */
+        }
+      }, 1000);
     } catch (_err) {
       /* BroadcastChannel error fallback */
     }

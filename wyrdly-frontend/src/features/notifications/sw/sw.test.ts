@@ -170,17 +170,20 @@ describe("service worker handlers", () => {
       MockBroadcastChannel;
 
     try {
+      vi.useFakeTimers();
       await sw.broadcastPushReceived({ title: "Test", body: "Hello" });
       expect(channelPostMessage).toHaveBeenCalledWith({
         type: "wyrdly:push-received",
         payload: { title: "Test", body: "Hello" },
       });
+      vi.advanceTimersByTime(1000);
       expect(channelClose).toHaveBeenCalled();
       expect(postMessageClient).toHaveBeenCalledWith({
         type: "wyrdly:push-received",
         payload: { title: "Test", body: "Hello" },
       });
     } finally {
+      vi.useRealTimers();
       (
         globalThis as unknown as { BroadcastChannel: unknown }
       ).BroadcastChannel = origBroadcastChannel;

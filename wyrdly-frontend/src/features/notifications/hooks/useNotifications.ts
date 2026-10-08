@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../../api/axios";
-import type { NotificationListResponseDto } from "../types";
+import type { NotificationDto, NotificationListResponseDto } from "../types";
 
 export interface UseNotificationsOptions {
   /** When false the hook is dormant and returns an empty state. */
@@ -61,16 +61,66 @@ export const useNotifications = (
   useEffect(() => {
     if (!enabled) return;
 
-    const onPushReceived = () => {
-      // 1. Optimistic feedback: update cached unread count immediately
+    interface PushReceivedEventData {
+      title?: string;
+      body?: string;
+      icon?: string;
+      data?: {
+        url?: string;
+        type?: string;
+        postId?: string;
+        actorId?: string;
+        reactorId?: string;
+        actorUsername?: string;
+        actorFullName?: string;
+        actorAvatarUrl?: string;
+        [key: string]: unknown;
+      };
+    }
+
+    const onPushReceived = (payload?: PushReceivedEventData) => {
+      // 1. Optimistic feedback: update cached unread count and prepend notification if payload is present
       queryClient.setQueryData<NotificationListResponseDto>(queryKey, (old) => {
         if (!old) return old;
+        const newUnreadCount = old.unreadCount + 1;
+        if (!payload || !payload.title) {
+          return {
+            ...old,
+            unreadCount: newUnreadCount,
+          };
+        }
+
+        const syntheticNotif: NotificationDto = {
+          id: `push_${Date.now()}`,
+          type: (payload.data?.type as NotificationDto["type"]) || "POST_LIKE",
+          title: payload.title,
+          body: payload.body || "",
+          deepLink: payload.data?.url || "/",
+          targetResourceId: (payload.data?.postId as string) || undefined,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actor: {
+            id:
+              (payload.data?.actorId as string) ||
+              (payload.data?.reactorId as string) ||
+              "usr_push",
+            username: (payload.data?.actorUsername as string) || "user",
+            fullName: (payload.data?.actorFullName as string) || payload.title,
+            avatarUrl: (payload.data?.actorAvatarUrl as string) || payload.icon,
+          },
+        };
+
         return {
           ...old,
-          unreadCount: old.unreadCount + 1,
+          notifications: [
+            syntheticNotif,
+            ...old.notifications.filter((n) => n.id !== syntheticNotif.id),
+          ],
+          unreadCount: newUnreadCount,
+          totalElements: old.totalElements + 1,
         };
       });
-      // 2. Invalidate query to fetch fresh notification payload from server
+      // 2. Refetch in background to sync authoritative state from server
       void queryClient.invalidateQueries({ queryKey });
     };
 
@@ -81,7 +131,7 @@ export const useNotifications = (
         broadcastChannel = new BroadcastChannel("wyrdly-notifications");
         broadcastChannel.onmessage = (event: MessageEvent) => {
           if (event.data?.type === "wyrdly:push-received") {
-            onPushReceived();
+            onPushReceived(event.data.payload);
           }
         };
       } catch {
@@ -92,7 +142,7 @@ export const useNotifications = (
     // 2. Observer: Listen to navigator.serviceWorker message events
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === "wyrdly:push-received") {
-        onPushReceived();
+        onPushReceived(event.data.payload);
       }
     };
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {

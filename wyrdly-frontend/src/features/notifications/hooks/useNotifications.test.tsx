@@ -286,4 +286,92 @@ describe("useNotifications", () => {
       });
     }
   });
+
+  it("optimistically injects the notification into the list immediately upon push payload", async () => {
+    mockedGet
+      .mockResolvedValueOnce({ data: baseResponse })
+      .mockResolvedValueOnce({
+        data: {
+          ...baseResponse,
+          unreadCount: 2,
+          notifications: [
+            {
+              id: "push_1",
+              type: "POST_LOVE",
+              title: "Nueva reacción",
+              body: "Dave le dio Love a tu post",
+              deepLink: "/posts/pst_99",
+              targetResourceId: "pst_99",
+              isRead: false,
+              createdAt: "2026-01-15T11:00:00Z",
+              actor: {
+                id: "usr_dave",
+                username: "dave",
+                fullName: "Dave Grohl",
+              },
+            },
+            ...baseResponse.notifications,
+          ],
+        },
+      });
+
+    let channelListener: ((event: MessageEvent) => void) | null = null;
+    class MockBroadcastChannel {
+      readonly name: string;
+      constructor(name: string) {
+        this.name = name;
+      }
+      set onmessage(fn: (event: MessageEvent) => void) {
+        channelListener = fn;
+      }
+      close = vi.fn();
+    }
+    const origBroadcastChannel = globalThis.BroadcastChannel;
+    (globalThis as unknown as { BroadcastChannel: unknown }).BroadcastChannel =
+      MockBroadcastChannel;
+
+    try {
+      const { result } = renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => {
+        expect(result.current.notifications).toHaveLength(2);
+      });
+
+      // Receive push payload with notification details
+      await act(async () => {
+        channelListener?.({
+          data: {
+            type: "wyrdly:push-received",
+            payload: {
+              title: "Nueva reacción",
+              body: "Dave le dio Love a tu post",
+              data: {
+                type: "POST_LOVE",
+                postId: "pst_99",
+                reactorId: "usr_dave",
+                actorFullName: "Dave Grohl",
+              },
+            },
+          },
+        } as MessageEvent);
+      });
+
+      await waitFor(() => {
+        expect(result.current.unreadCount).toBe(2);
+        expect(result.current.notifications).toHaveLength(3);
+        expect(result.current.notifications[0]?.title).toBe("Nueva reacción");
+        expect(result.current.notifications[0]?.body).toBe(
+          "Dave le dio Love a tu post",
+        );
+        expect(result.current.notifications[0]?.actor.fullName).toBe(
+          "Dave Grohl",
+        );
+      });
+    } finally {
+      (
+        globalThis as unknown as { BroadcastChannel: unknown }
+      ).BroadcastChannel = origBroadcastChannel;
+    }
+  });
 });
