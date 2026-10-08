@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../../api/axios";
 import type { NotificationListResponseDto } from "../types";
@@ -27,16 +27,16 @@ export const notificationsQueryKey = (pageSize: number) => [
 
 /**
  * Manages the in-app notification feed using TanStack Query:
- * fetches the user's notifications on mount, observes incoming Web Push
- * events via BroadcastChannel/ServiceWorker with cache invalidation, and provides
- * optimistic mark-read mutations.
+ * fetches the user's notifications on mount, invalidates the query on incoming
+ * Web Push events or tab refocus, and provides optimistic mark-read mutations.
  */
 export const useNotifications = (
   options: UseNotificationsOptions = {},
 ): UseNotificationsResult => {
   const { enabled = true, pageSize = 20 } = options;
   const queryClient = useQueryClient();
-  const queryKey = notificationsQueryKey(pageSize);
+  // Stabilise queryKey so push-listener useEffect doesn't tear down on every render
+  const queryKey = useMemo(() => notificationsQueryKey(pageSize), [pageSize]);
 
   const {
     data,
@@ -62,15 +62,7 @@ export const useNotifications = (
     if (!enabled) return;
 
     const onPushReceived = () => {
-      // 1. Optimistic feedback: update cached unread count immediately
-      queryClient.setQueryData<NotificationListResponseDto>(queryKey, (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          unreadCount: old.unreadCount + 1,
-        };
-      });
-      // 2. Invalidate query to fetch fresh notification payload from server
+      // Invalidate queries so TanStack Query fetches authoritative state from backend
       void queryClient.invalidateQueries({ queryKey });
     };
 
@@ -99,6 +91,19 @@ export const useNotifications = (
       navigator.serviceWorker.addEventListener("message", handleSwMessage);
     }
 
+    // 3. Reconcile on tab visibility change
+    const handleVisibilityChange = () => {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "visible"
+      ) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
     return () => {
       if (broadcastChannel) {
         broadcastChannel.close();
@@ -106,8 +111,34 @@ export const useNotifications = (
       if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
         navigator.serviceWorker.removeEventListener("message", handleSwMessage);
       }
+      if (typeof document !== "undefined") {
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
+      }
     };
   }, [enabled, queryClient, queryKey]);
+
+  // Sync the OS-level app badge with unreadCount
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    const nav = navigator as Navigator & {
+      setAppBadge?: (count?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    if (typeof nav.setAppBadge !== "function") return;
+    if (!enabled) {
+      void nav.clearAppBadge?.().catch(() => undefined);
+      return;
+    }
+    if (isLoading) return;
+    if (unreadCount > 0) {
+      void nav.setAppBadge(unreadCount).catch(() => undefined);
+    } else {
+      void nav.clearAppBadge?.().catch(() => undefined);
+    }
+  }, [enabled, unreadCount, isLoading]);
 
   const markReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
