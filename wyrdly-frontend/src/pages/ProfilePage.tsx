@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type FC } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Share2, Edit3, AlertCircle } from "lucide-react";
-import type { Post, PostApiResponse, ReactionType } from "../types/feed";
+import type { Post, ReactionType } from "../types/feed";
 import { mapPostApiResponseToPost } from "../types/feed";
 import type { UpdateProfilePayload } from "../api/users";
 import { useAuth } from "../features/auth";
