@@ -1,6 +1,7 @@
 package com.wyrdly.auth.interfaces.rest;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -72,6 +73,109 @@ class AuthResourceTest {
         .statusCode(409)
         .body("error", equalTo("Conflict"))
         .body("message", equalTo("Username already registered: existinguser"));
+  }
+
+  // Raw JSON on purpose: serializing a RegisterRequest always sends every field, which hides
+  // how real clients omit the optional ones.
+
+  @Test
+  void register_Returns201WhenOptionalFieldsAreOmitted() {
+    UserDto userDto =
+        new UserDto("usr_123", "newuser", "newuser@wyrdly.social", "New User", "", "");
+    AuthResponse response = new AuthResponse("token_123", "refresh_123", 900, userDto);
+
+    when(registerUserUseCase.register(any(RegisterRequest.class))).thenReturn(response);
+
+    given()
+        .contentType(ContentType.JSON)
+        .body(
+            """
+            {"username":"newuser","email":"newuser@wyrdly.social",
+             "password":"Password123!","fullName":"New User"}
+            """)
+        .when()
+        .post("/api/auth/register")
+        .then()
+        .statusCode(201)
+        .body("user.username", equalTo("newuser"));
+  }
+
+  @Test
+  void register_Returns400WhenRequiredFieldIsMissing() {
+    given()
+        .contentType(ContentType.JSON)
+        .body(
+            """
+            {"username":"newuser","email":"newuser@wyrdly.social","password":"Password123!"}
+            """)
+        .when()
+        .post("/api/auth/register")
+        .then()
+        .statusCode(400)
+        .body(containsString("Full name is required"));
+  }
+
+  @Test
+  void register_Returns400WithMessageOnUnknownField() {
+    given()
+        .contentType(ContentType.JSON)
+        .body(
+            """
+            {"username":"newuser","email":"newuser@wyrdly.social",
+             "password":"Password123!","fullName":"New User","age":25}
+            """)
+        .when()
+        .post("/api/auth/register")
+        .then()
+        .statusCode(400)
+        .body("error", equalTo("Bad Request"))
+        .body("message", equalTo("Unknown field 'age'"));
+  }
+
+  @Test
+  void register_Returns400WithMessageOnWrongType() {
+    given()
+        .contentType(ContentType.JSON)
+        .body(
+            """
+            {"username":{"nested":true},"email":"newuser@wyrdly.social",
+             "password":"Password123!","fullName":"New User"}
+            """)
+        .when()
+        .post("/api/auth/register")
+        .then()
+        .statusCode(400)
+        .body("error", equalTo("Bad Request"))
+        .body("message", equalTo("Invalid value for field 'username'"));
+  }
+
+  @Test
+  void register_Returns400WithMessageOnMalformedJson() {
+    given()
+        .contentType(ContentType.JSON)
+        .body("{\"username\":\"newuser\",")
+        .when()
+        .post("/api/auth/register")
+        .then()
+        .statusCode(400)
+        .body("error", equalTo("Bad Request"))
+        .body("message", equalTo("Malformed JSON request body"));
+  }
+
+  @Test
+  void register_Returns415OnUnsupportedMediaType() {
+    given()
+        .contentType(ContentType.TEXT)
+        .body("not json")
+        .when()
+        .post("/api/auth/register")
+        .then()
+        .statusCode(415);
+  }
+
+  @Test
+  void register_Returns405OnWrongMethod() {
+    given().when().get("/api/auth/register").then().statusCode(405);
   }
 
   @Test

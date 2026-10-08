@@ -17,11 +17,12 @@ public class StrictObjectMapperCustomizer implements ObjectMapperCustomizer {
   @Override
   public void customize(ObjectMapper objectMapper) {
     objectMapper
-        // Strict deserialization: reject unknown fields, missing record fields, null for
-        // primitives (instead of coercing to 0/false) and numeric or unknown enum values
+        // Strict deserialization: reject unknown fields, null for primitives (instead of
+        // coercing to 0/false) and numeric or unknown enum values. Absent fields deserialize as
+        // null on purpose: which fields are required is declared with Bean Validation on each DTO,
+        // so optional fields can be omitted and new ones can be added without breaking clients.
         .enable(
             DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-            DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES,
             DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES,
             DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS)
         .disable(DeserializationFeature.READ_ENUMS_USING_TO_STRING)

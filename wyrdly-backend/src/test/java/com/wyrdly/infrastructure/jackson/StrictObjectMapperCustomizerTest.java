@@ -65,9 +65,10 @@ class StrictObjectMapperCustomizerTest {
   }
 
   @Test
-  void deserialize_RejectsMissingRecordProperty() {
-    assertThrows(
-        MismatchedInputException.class, () -> mapper.readValue("{\"name\":\"a\"}", Named.class));
+  void deserialize_MissingRecordPropertyDefaultsToNull() throws Exception {
+    Named named = mapper.readValue("{\"name\":\"a\"}", Named.class);
+
+    assertEquals(new Named("a", null), named);
   }
 
   @Test
