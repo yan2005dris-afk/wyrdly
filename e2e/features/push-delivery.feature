@@ -27,7 +27,7 @@ Feature: Web Push delivery
 
   Background:
     Given dos usuarios registrados: "alice" y "bob"
-    And "alice" sigue a "bob"
+    And "bob" sigue a "alice"
     And "bob" tiene permiso de notificaciones y un SW suscrito
 
   Scenario: bob recibe push cuando alice publica

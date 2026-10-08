@@ -91,7 +91,7 @@ Given(
           const loginRes = await fetch(`${this.baseUrl}/api/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
+            body: JSON.stringify({ usernameOrEmail: username, password }),
           });
           if (loginRes.ok) {
             const body = (await loginRes.json()) as any;
