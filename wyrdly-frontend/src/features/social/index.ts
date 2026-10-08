@@ -25,3 +25,8 @@ export type {
   UseReactionReturn,
   UseReactionCallbacks,
 } from "./hooks/useReaction";
+export { useOptimisticReaction } from "./hooks/useOptimisticReaction";
+export type {
+  UseOptimisticReactionOptions,
+  UseOptimisticReactionReturn,
+} from "./hooks/useOptimisticReaction";
