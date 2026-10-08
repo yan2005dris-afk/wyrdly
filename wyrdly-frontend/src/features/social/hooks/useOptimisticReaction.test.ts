@@ -48,9 +48,7 @@ function renderWithStore(initial: readonly Post[]) {
     );
     const updatePost = useCallback(
       (postId: string, updater: (post: Post) => Post) => {
-        setPosts((prev) =>
-          prev.map((p) => (p.id === postId ? updater(p) : p)),
-        );
+        setPosts((prev) => prev.map((p) => (p.id === postId ? updater(p) : p)));
       },
       [],
     );
