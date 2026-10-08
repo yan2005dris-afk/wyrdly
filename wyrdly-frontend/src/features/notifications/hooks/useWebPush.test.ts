@@ -142,6 +142,7 @@ const buildState = (overrides: Partial<MockState> = {}): MockState => {
   };
 
   const fetchFn = vi.fn().mockResolvedValue({
+    ok: true,
     text: () => Promise.resolve(VAPID_BASE64URL),
   });
 
@@ -320,6 +321,31 @@ describe("useWebPush", () => {
 
     expect(success).toBe(true);
     expect(mockedDelete).not.toHaveBeenCalled();
+  });
+
+  it("silently auto-resubscribes on mount when permission is granted but no subscription exists", async () => {
+    state = buildState({
+      notificationPermission: "granted",
+    });
+    state.pushManager.getSubscription = vi.fn().mockResolvedValue(null);
+    installBrowserShims();
+
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(state.fetch).toHaveBeenCalledWith(
+      "/api/notifications/vapid-public-key",
+    );
+    expect(state.pushManager.subscribe).toHaveBeenCalledTimes(1);
+    expect(mockedPost).toHaveBeenCalledWith(
+      "/api/notifications/subscribe",
+      expect.objectContaining({
+        endpoint: "https://push.example.com/endpoint/abc",
+      }),
+    );
+    expect(result.current.isSubscribed).toBe(true);
   });
 });
 

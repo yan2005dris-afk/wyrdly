@@ -111,13 +111,39 @@ export const useWebPush = (
         }
         const ready = (await nav.serviceWorker
           .ready) as ServiceWorkerRegistration;
+        void reg;
         registrationRef.current = ready;
         const existing = await ready.pushManager.getSubscription();
         if (!cancelled) {
           setIsSubscribed(Boolean(existing));
         }
-        // Touch `reg` so TS does not flag it as unused across refactorings.
-        void reg;
+
+        // Silent auto-resubscription (analogous to token refresh):
+        // If the browser already granted permission (or had it previously), but no active
+        // subscription is registered or the SW was refreshed, sync it with the backend automatically.
+        if (!cancelled && !existing && readCurrentPermission() === "granted") {
+          try {
+            const response = await fetch(VAPID_PUBLIC_KEY_URL);
+            if (response.ok) {
+              const vapidKey = (await response.text()).trim();
+              if (vapidKey) {
+                const applicationServerKey = base64UrlToUint8Array(
+                  vapidKey,
+                ) as BufferSource;
+                const newSub = await ready.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey,
+                });
+                await apiClient.post(SUBSCRIBE_URL, newSub.toJSON());
+                if (!cancelled) {
+                  setIsSubscribed(true);
+                }
+              }
+            }
+          } catch {
+            // Non-blocking background sync failure; user can still manually re-enable
+          }
+        }
       } catch (caught) {
         if (!cancelled) {
           setError(
