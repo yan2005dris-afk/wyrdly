@@ -1,0 +1,6 @@
+.section {
+  border-top: 1px solid #e2e8f0;
+  background-color: rgba(248, 250, 252, 0.5);
+  border-bottom-left-radius: 1rem;
+  border-bottom-right-radius: 1rem;
+}

@@ -16,6 +16,7 @@ public record FeedPost(
     long likeCount,
     long loveCount,
     long celebrateCount,
+    long commentsCount,
     String userReaction) {
 
   public FeedPost {
@@ -27,8 +28,8 @@ public record FeedPost(
     }
     Objects.requireNonNull(createdAt, "createdAt must not be null");
     Objects.requireNonNull(author, "author must not be null");
-    if (likeCount < 0 || loveCount < 0 || celebrateCount < 0) {
-      throw new IllegalArgumentException("reaction counts must not be negative");
+    if (likeCount < 0 || loveCount < 0 || celebrateCount < 0 || commentsCount < 0) {
+      throw new IllegalArgumentException("counts must not be negative");
     }
     // userReaction can be null (user has not reacted) or one of: LIKE, LOVE, CELEBRATE
   }

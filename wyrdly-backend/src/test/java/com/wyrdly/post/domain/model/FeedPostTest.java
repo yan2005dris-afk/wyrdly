@@ -17,7 +17,7 @@ class FeedPostTest {
   void create_Success_WithAllFields() {
     FeedPost feedPost =
         new FeedPost(
-            "pst_1", "Hello feed", "https://example.com/pic.webp", NOW, AUTHOR, 5, 3, 1, "LIKE");
+            "pst_1", "Hello feed", "https://example.com/pic.webp", NOW, AUTHOR, 5, 3, 1, 4, "LIKE");
 
     assertEquals("pst_1", feedPost.id());
     assertEquals("Hello feed", feedPost.content());
@@ -27,16 +27,18 @@ class FeedPostTest {
     assertEquals(5, feedPost.likeCount());
     assertEquals(3, feedPost.loveCount());
     assertEquals(1, feedPost.celebrateCount());
+    assertEquals(4L, feedPost.commentsCount());
     assertEquals("LIKE", feedPost.userReaction());
   }
 
   @Test
   void create_Success_WithoutMediaUrl() {
-    FeedPost feedPost = new FeedPost("pst_1", "Text only", null, NOW, AUTHOR, 0, 0, 0, null);
+    FeedPost feedPost = new FeedPost("pst_1", "Text only", null, NOW, AUTHOR, 0, 0, 0, 0L, null);
 
     assertEquals("pst_1", feedPost.id());
     assertNull(feedPost.mediaUrl());
     assertEquals(0, feedPost.likeCount());
+    assertEquals(0L, feedPost.commentsCount());
     assertNull(feedPost.userReaction());
   }
 
@@ -44,40 +46,47 @@ class FeedPostTest {
   void create_ThrowsException_WhenIdBlank() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> new FeedPost("", "Content", null, NOW, AUTHOR, 0, 0, 0, null));
+        () -> new FeedPost("", "Content", null, NOW, AUTHOR, 0, 0, 0, 0L, null));
   }
 
   @Test
   void create_ThrowsException_WhenContentBlank() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> new FeedPost("pst_1", "   ", null, NOW, AUTHOR, 0, 0, 0, null));
+        () -> new FeedPost("pst_1", "   ", null, NOW, AUTHOR, 0, 0, 0, 0L, null));
   }
 
   @Test
   void create_ThrowsException_WhenCreatedAtNull() {
     assertThrows(
         NullPointerException.class,
-        () -> new FeedPost("pst_1", "Content", null, null, AUTHOR, 0, 0, 0, null));
+        () -> new FeedPost("pst_1", "Content", null, null, AUTHOR, 0, 0, 0, 0L, null));
   }
 
   @Test
   void create_ThrowsException_WhenAuthorNull() {
     assertThrows(
         NullPointerException.class,
-        () -> new FeedPost("pst_1", "Content", null, NOW, null, 0, 0, 0, null));
+        () -> new FeedPost("pst_1", "Content", null, NOW, null, 0, 0, 0, 0L, null));
   }
 
   @Test
   void create_ThrowsException_WhenReactionCountsNegative() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, -1, 0, 0, null));
+        () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, -1, 0, 0, 0L, null));
     assertThrows(
         IllegalArgumentException.class,
-        () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, -1, 0, null));
+        () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, -1, 0, 0L, null));
     assertThrows(
         IllegalArgumentException.class,
-        () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, 0, -1, null));
+        () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, 0, -1, 0L, null));
+  }
+
+  @Test
+  void create_ThrowsException_WhenCommentsCountNegative() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, 0, 0, -1L, null));
   }
 }
