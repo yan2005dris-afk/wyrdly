@@ -12,6 +12,7 @@ export interface UseFeedReturn {
   readonly nextCursor: string | null;
   readonly addPost: (post: Post) => void;
   readonly replacePost: (post: Post) => void;
+  readonly updatePost: (postId: string, updater: (post: Post) => Post) => void;
   readonly refetch: (page?: number) => Promise<void>;
   readonly loadMore: () => Promise<void>;
 }
@@ -130,6 +131,26 @@ export function useFeed(): UseFeedReturn {
     setPosts((prev) => prev.map((p) => (p.id === post.id ? post : p)));
   }, []);
 
+  // Functional variant of replacePost: the updater receives the latest post
+  // so concurrent changes (refetch, loadMore) are never overwritten by a
+  // snapshot captured earlier. Keeps the previous array when the updater
+  // returns the same reference, avoiding a needless re-render.
+  const updatePost = useCallback(
+    (postId: string, updater: (post: Post) => Post) => {
+      setPosts((prev) => {
+        let changed = false;
+        const next = prev.map((p) => {
+          if (p.id !== postId) return p;
+          const updated = updater(p);
+          if (updated !== p) changed = true;
+          return updated;
+        });
+        return changed ? next : prev;
+      });
+    },
+    [],
+  );
+
   return {
     posts,
     isLoading,
@@ -139,6 +160,7 @@ export function useFeed(): UseFeedReturn {
     nextCursor,
     addPost,
     replacePost,
+    updatePost,
     refetch,
     loadMore,
   };
