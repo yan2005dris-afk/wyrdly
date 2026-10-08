@@ -57,11 +57,29 @@ El nombre **Wyrd** viene del inglés antiguo y significa "el tejido del destino"
 
 Toda la especificación técnica y de negocio se encuentra en el directorio [`docs/`](./docs):
 
+- **[Guía de Despliegue Local](./docs/deployment/LOCAL_DEPLOYMENT.md):** Manual paso a paso para levantar el entorno distribuido local con Docker Compose o en modo desarrollo híbrido.
 - **[PRD (Product Requirements Document)](./docs/prd/PRD.md) | [PRD.docx](./docs/prd/PRD.docx):** Matriz de requerimientos, alcance y desglose de Historias de Usuario (HU01 - HU11) con criterios de aceptación Gherkin.
 - **[TRD (Technical Requirements Document)](./docs/trd/TRD.md) | [TRD.docx](./docs/trd/TRD.docx):** Decisiones de arquitectura, topología de servicios Docker y justificaciones técnicas.
 - **[Contratos de API](./docs/api-contracts/API_CONTRACT.md) | [API_CONTRACT.docx](./docs/api-contracts/API_CONTRACT.docx):** Especificación completa de endpoints REST, payloads JSON con envoltorio `data`/`meta`, frames WebSocket y eventos Web Push.
 - **[Esquema de Grafo Neo4j](./docs/database/NEO4J_SCHEMA.md) | [NEO4J_SCHEMA.docx](./docs/database/NEO4J_SCHEMA.docx):** Modelo formal de nodos, relaciones, índices, restricciones y consultas Cypher optimizadas.
 - **[Mockups Interactivos (HTML)](./docs/MOCKUPS/html/index.html):** Prototipos visuales de autenticación, feed, perfil, chat y notificaciones.
+
+---
+
+## ⚡ Despliegue Local Rápido (Docker Compose)
+
+Para levantar todos los servicios en local con una sola orden:
+
+```bash
+# 1. Configurar variables de entorno y claves JWT
+cp .env.example .env
+./scripts/generate-jwt-keys.sh ./jwt
+
+# 2. Iniciar contenedores en segundo plano
+docker compose up -d --build
+```
+
+> Consulta la **[Guía de Despliegue Local](./docs/deployment/LOCAL_DEPLOYMENT.md)** para detalles completos, credenciales pre-cargadas (seed data), modo desarrollo híbrido (Quarkus Dev + Vite HMR) y resolución de problemas.
 
 ---
 
