@@ -21,6 +21,7 @@ import {
   UserListRow,
   UserListRowSkeleton,
   useGraphSuggestions,
+  useFollow,
 } from "../features/social";
 import { Button } from "../components/ui/Button";
 
@@ -53,7 +54,11 @@ export const ProfilePage: FC = () => {
   } = useProfileUsers(profileUsername, "following");
   const { suggestions: apiSuggestions } = useGraphSuggestions();
 
-  const isCurrentUser = !!authUser && profile?.username === authUser.username;
+  const isCurrentUser =
+    !!authUser &&
+    (profile?.username === authUser.username || profile?.id === authUser.id);
+  const { follow, unfollow } = useFollow();
+  const [followMessage, setFollowMessage] = useState<string | null>(null);
 
   const handleAfterToggle = useCallback(() => {
     // Re-fetch the profile header (followers / following / postsCount)
@@ -63,6 +68,26 @@ export const ProfilePage: FC = () => {
     refetchFollowers();
     refetchFollowing();
   }, [refetch, refetchFollowers, refetchFollowing]);
+
+  const handleFollowToggle = useCallback(async () => {
+    if (!profile?.id) return;
+    const isCurrentlyFollowing = profile.isFollowing ?? false;
+    try {
+      if (isCurrentlyFollowing) {
+        await unfollow(profile.id);
+        setFollowMessage(`Dejaste de seguir a @${profile.username}`);
+      } else {
+        await follow(profile.id);
+        setFollowMessage(`Siguiendo a @${profile.username}`);
+      }
+      refetch();
+      refetchFollowers();
+      refetchFollowing();
+      setTimeout(() => setFollowMessage(null), 3000);
+    } catch (err) {
+      console.error("Failed to toggle follow", err);
+    }
+  }, [profile, follow, unfollow, refetch, refetchFollowers, refetchFollowing]);
 
   const handleSaveProfile = async (payload: UpdateProfilePayload) => {
     setIsSaving(true);
@@ -90,7 +115,9 @@ export const ProfilePage: FC = () => {
     }
   }, [navigate, profile]);
 
-  if (isLoading) {
+  // Full-page skeleton only on first load. Background refetches
+  // (e.g. after follow/unfollow) keep the current content visible.
+  if (isLoading && !profile) {
     return (
       <div className="w-full flex flex-col gap-6" data-testid="profile-loading">
         <ProfileHeaderSkeleton />
@@ -157,6 +184,24 @@ export const ProfilePage: FC = () => {
             </div>
           </div>
 
+          {followMessage && (
+            <div
+              className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg text-sm flex items-center justify-between"
+              role="status"
+              data-testid="profile-follow-feedback-banner"
+            >
+              <span>{followMessage}</span>
+              <button
+                type="button"
+                onClick={() => setFollowMessage(null)}
+                className="text-emerald-600 hover:text-emerald-800 font-bold ml-2 text-base leading-none"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           {saveSuccessMessage && (
             <div
               className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg text-sm flex items-center justify-between"
@@ -183,21 +228,21 @@ export const ProfilePage: FC = () => {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onMessageClick={handleMessageClick}
-            onSubscribeToggle={() => {
-              /* delegated to a future follow-action button; the
-                 ProfileHeaderCard receives isSubscribed for display only */
-            }}
+            onSubscribeToggle={handleFollowToggle}
             onEditProfileClick={() => setIsEditOpen(true)}
           />
 
           {activeTab === "posts" && (
-            <PostsTab posts={posts} isLoading={postsLoading} />
+            <PostsTab
+              posts={posts}
+              isLoading={postsLoading && posts.length === 0}
+            />
           )}
 
           {activeTab === "followers" && (
             <FollowersOrFollowingTab
               users={followers}
-              isLoading={followersLoading}
+              isLoading={followersLoading && followers.length === 0}
               emptyMessage={`@${profile.username} has no followers yet`}
               testId="profile-followers-list"
               onAfterToggle={handleAfterToggle}
@@ -207,7 +252,7 @@ export const ProfilePage: FC = () => {
           {activeTab === "following" && (
             <FollowersOrFollowingTab
               users={following}
-              isLoading={followingLoading}
+              isLoading={followingLoading && following.length === 0}
               emptyMessage={`@${profile.username} isn't following anyone yet`}
               testId="profile-following-list"
               onAfterToggle={handleAfterToggle}

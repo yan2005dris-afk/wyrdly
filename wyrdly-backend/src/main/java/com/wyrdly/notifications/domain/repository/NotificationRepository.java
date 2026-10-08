@@ -28,6 +28,12 @@ public interface NotificationRepository {
   long countUnread(String recipientUserId);
 
   /**
+   * Returns the total number of notifications for {@code recipientUserId} (read and unread). Drives
+   * pagination total.
+   */
+  long countTotal(String recipientUserId);
+
+  /**
    * Marks a single notification as read. No-op if the id does not exist or is not owned by {@code
    * userId}.
    */

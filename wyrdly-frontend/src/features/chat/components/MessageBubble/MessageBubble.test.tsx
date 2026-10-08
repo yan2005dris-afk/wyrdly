@@ -49,4 +49,15 @@ describe("MessageBubble Component", () => {
     expect(screen.getByText("10:26 AM")).toBeInTheDocument();
     expect(screen.getByTestId("status-read")).toBeInTheDocument();
   });
+
+  it("renders a failure indicator for messages that failed to send", () => {
+    render(
+      <MessageBubble
+        message={{ ...OUTGOING_MSG, deliveryStatus: "FAILED" }}
+        isOutgoing={true}
+      />,
+    );
+
+    expect(screen.getByTestId("status-failed")).toBeInTheDocument();
+  });
 });
