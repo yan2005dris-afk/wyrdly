@@ -9,6 +9,13 @@ import { ChatPage } from "./pages/ChatPage";
 import { ExplorePage } from "./pages/ExplorePage";
 import { RootRedirect } from "./components/RootRedirect";
 import { MainLayout } from "./components/layout";
+import { useUnreadMessagesStore } from "./features/chat";
+
+/** MainLayout fed with the live sidebar unread badge from the chat store. */
+function MainLayoutRoute() {
+  const totalUnread = useUnreadMessagesStore((s) => s.totalUnread);
+  return <MainLayout unreadMessagesCount={totalUnread} />;
+}
 
 function App() {
   return (
@@ -21,7 +28,7 @@ function App() {
             <Route path="/" element={<RootRedirect />} />
 
             <Route element={<ProtectedRoute />}>
-              <Route element={<MainLayout />}>
+              <Route element={<MainLayoutRoute />}>
                 <Route path="/feed" element={<FeedPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/profile/:username" element={<ProfilePage />} />

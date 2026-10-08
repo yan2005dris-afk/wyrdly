@@ -1,10 +1,17 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChatPage } from "./ChatPage";
 import { AuthContext } from "../features/auth";
 import { usersApi } from "../api/users";
-import { chatApi } from "../features/chat";
+import { chatApi, useUnreadMessagesStore } from "../features/chat";
+import { useChatWebSocket } from "../features/chat/hooks/useChatWebSocket";
 import type { User } from "../features/auth";
 
 vi.mock("../features/chat/hooks/useChatWebSocket", () => ({
@@ -208,5 +215,137 @@ describe("ChatPage Component", () => {
         1,
       );
     });
+  });
+
+  it("shows the error banner and marks every in-flight message as failed", async () => {
+    vi.mocked(useChatWebSocket).mockReturnValue({
+      sendMessage: vi.fn().mockReturnValue(true),
+      sendTyping: vi.fn(),
+      isConnected: true,
+      error: null,
+    });
+    vi.spyOn(usersApi, "getUserFollowing").mockResolvedValue(MOCK_FOLLOWING);
+    vi.spyOn(chatApi, "getChatHistory").mockResolvedValue({
+      data: [],
+      page: 1,
+      pageSize: 50,
+      total: 0,
+    });
+
+    renderChatPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-messages-empty")).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText("Message Alice...");
+    fireEvent.change(input, { target: { value: "First" } });
+    fireEvent.click(screen.getByTestId("chat-send-btn"));
+    fireEvent.change(input, { target: { value: "Second" } });
+    fireEvent.click(screen.getByTestId("chat-send-btn"));
+
+    const calls = vi.mocked(useChatWebSocket).mock.calls;
+    const hookOptions = calls[calls.length - 1][0];
+
+    act(() => {
+      hookOptions.onError?.("WebSocket connection error");
+    });
+
+    expect(screen.getByTestId("chat-error-banner")).toHaveTextContent(
+      "WebSocket connection error",
+    );
+    expect(screen.getAllByTestId("status-failed")).toHaveLength(2);
+  });
+
+  it("auto-dismisses the error banner after five seconds", async () => {
+    vi.mocked(useChatWebSocket).mockReturnValue({
+      sendMessage: vi.fn().mockReturnValue(true),
+      sendTyping: vi.fn(),
+      isConnected: true,
+      error: null,
+    });
+    vi.spyOn(usersApi, "getUserFollowing").mockResolvedValue(MOCK_FOLLOWING);
+    vi.spyOn(chatApi, "getChatHistory").mockResolvedValue({
+      data: [],
+      page: 1,
+      pageSize: 50,
+      total: 0,
+    });
+
+    renderChatPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-messages-empty")).toBeInTheDocument();
+    });
+
+    vi.useFakeTimers();
+    try {
+      const calls = vi.mocked(useChatWebSocket).mock.calls;
+      const hookOptions = calls[calls.length - 1][0];
+
+      act(() => {
+        hookOptions.onError?.("WebSocket connection error");
+      });
+      expect(screen.getByTestId("chat-error-banner")).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.queryByTestId("chat-error-banner")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("registers sidebar unread count for background conversations", async () => {
+    useUnreadMessagesStore.getState().resetAll();
+    vi.mocked(useChatWebSocket).mockReturnValue({
+      sendMessage: vi.fn().mockReturnValue(true),
+      sendTyping: vi.fn(),
+      isConnected: true,
+      error: null,
+    });
+    vi.spyOn(usersApi, "getUserFollowing").mockResolvedValue(MOCK_FOLLOWING);
+    vi.spyOn(chatApi, "getChatHistory").mockResolvedValue({
+      data: [],
+      page: 1,
+      pageSize: 50,
+      total: 0,
+    });
+
+    renderChatPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-messages-empty")).toBeInTheDocument();
+    });
+
+    // Alice's conversation is active, Jonas' runs in the background.
+    const calls = vi.mocked(useChatWebSocket).mock.calls;
+    const hookOptions = calls[calls.length - 1][0];
+
+    act(() => {
+      hookOptions.onMessageReceived?.({
+        id: "m-bg",
+        senderId: "user-jonas",
+        recipientId: "user-current",
+        content: "Hey from background",
+        sentAt: "2026-10-02T10:00:00Z",
+      });
+    });
+
+    expect(useUnreadMessagesStore.getState().totalUnread).toBe(1);
+
+    act(() => {
+      hookOptions.onMessageReceived?.({
+        id: "m-active",
+        senderId: "user-alice",
+        recipientId: "user-current",
+        content: "Hey from active chat",
+        sentAt: "2026-10-02T10:01:00Z",
+      });
+    });
+
+    expect(useUnreadMessagesStore.getState().totalUnread).toBe(1);
+    useUnreadMessagesStore.getState().resetAll();
   });
 });

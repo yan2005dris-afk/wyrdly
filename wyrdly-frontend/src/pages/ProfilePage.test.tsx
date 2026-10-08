@@ -71,7 +71,7 @@ describe("ProfilePage Component", () => {
     vi.mocked(usersApi.getUserFollowing).mockResolvedValue([]);
   });
 
-  it("renders profile header, RustFS cover notice and post grid items", async () => {
+  it("renders profile header and post grid items without debug badges", async () => {
     renderProfilePage();
 
     await waitFor(() => {
@@ -79,7 +79,9 @@ describe("ProfilePage Component", () => {
       expect(
         screen.getAllByText("Maya Krishnan").length,
       ).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText("Cover stored on RustFS")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("cover-rustfs-badge"),
+      ).not.toBeInTheDocument();
       expect(screen.getByTestId("profile-posts-grid")).toBeInTheDocument();
       expect(
         screen.getByText("Night deploys hit different..."),
