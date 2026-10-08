@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { Check, CheckCheck } from "lucide-react";
+import { AlertCircle, Check, CheckCheck } from "lucide-react";
 import type { MessageBubbleProps } from "./MessageBubble.types";
 import { Avatar } from "../../../../components/ui/Avatar";
 import styles from "./MessageBubble.module.css";
@@ -30,6 +30,14 @@ export const MessageBubble: FC<MessageBubbleProps> = ({
       case "SENT":
         return (
           <Check className={styles.statusIcon} data-testid="status-sent" />
+        );
+      case "FAILED":
+        return (
+          <AlertCircle
+            className={`${styles.statusIcon} text-rose-500`}
+            data-testid="status-failed"
+            aria-label="Failed to send"
+          />
         );
       case "SENDING":
       default:

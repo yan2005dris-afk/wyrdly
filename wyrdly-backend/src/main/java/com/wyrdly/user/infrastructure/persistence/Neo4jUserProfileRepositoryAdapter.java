@@ -40,8 +40,12 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
 
   @Override
   public Optional<UserProfile> findProfileByUsername(String username, String viewerId) {
+    // A username can never equal another user's id (the 'usr_' prefix is
+    // reserved at registration), but id matches still win deterministically
+    // so a lookup can never resolve to the wrong profile by traversal order.
     String cypher =
-        "MATCH (u:Usuario {username: $username}) "
+        "MATCH (u:Usuario) WHERE u.username = $username OR u.id = $username "
+            + "WITH u, $viewerId AS viewerId ORDER BY (u.id = $username) DESC LIMIT 1 "
             + "RETURN "
             + PROFILE_COUNTS_RETURN
             + ", "
