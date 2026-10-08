@@ -34,9 +34,7 @@ export const ChatWindow: FC<ChatWindowProps> = ({
         isOnline={conversation.isOnline}
         statusText={
           conversation.typingStatus ||
-          (conversation.isOnline
-            ? "Online • Connected via WebSocket"
-            : "Offline")
+          (conversation.isOnline ? "Online" : "Offline")
         }
         onCallClick={onCallClick}
         onVideoClick={onVideoClick}
