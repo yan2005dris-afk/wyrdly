@@ -100,7 +100,7 @@ export const NotificationsPage: FC = () => {
       className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full"
       data-testid="notifications-page"
     >
-      {/* Main Alerts Column (8 columns) */}
+      {/* Main Notifications Column (8 columns) */}
       <section className="lg:col-span-8 flex flex-col gap-4">
         {/* Header and Controls Card */}
         <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-xs flex flex-col gap-4">

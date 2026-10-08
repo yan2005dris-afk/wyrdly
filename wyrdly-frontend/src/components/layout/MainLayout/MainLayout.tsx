@@ -114,7 +114,7 @@ export const MainLayout: FC<MainLayoutProps> = ({
     },
   };
 
-  const unreadAlertsCount = unreadCount;
+  const unreadNotificationsCount = unreadCount;
 
   const handleSearchSubmit = (query: string) => {
     const trimmed = query.trim();
@@ -149,7 +149,7 @@ export const MainLayout: FC<MainLayoutProps> = ({
         onSearchSubmit={handleSearchSubmit}
         statusVariant="federated"
         statusText="Federated • Live"
-        unreadNotificationsCount={unreadAlertsCount}
+        unreadNotificationsCount={unreadNotificationsCount}
         isNotificationsOpen={isNotificationsOpen}
         onNotificationsClick={() =>
           setIsNotificationsOpen(!isNotificationsOpen)
@@ -175,7 +175,7 @@ export const MainLayout: FC<MainLayoutProps> = ({
           <UserSummaryCard user={currentUserSummary} />
           <SidebarNav
             unreadMessagesCount={unreadMessagesCount}
-            unreadAlertsCount={unreadAlertsCount}
+            unreadNotificationsCount={unreadNotificationsCount}
             onLogout={logout}
             onNewPostClick={() => {
               navigate("/feed");
