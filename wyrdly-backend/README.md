@@ -75,4 +75,9 @@ WebSocket communication channel starter code
 
 [Related guide section...](https://quarkus.io/guides/websockets)
 
+## Operations and Runbooks
+
+- [Web Push Runbook (VAPID, Troubleshooting 410, Rotation)](../docs/operations/WEB_PUSH.md)
+- [Observability Guide (Prometheus, Micrometer, Dashboards)](../docs/observability/OBSERVABILITY.md)
+
 

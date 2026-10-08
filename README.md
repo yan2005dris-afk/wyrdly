@@ -62,6 +62,8 @@ Toda la especificación técnica y de negocio se encuentra en el directorio [`do
 - **[Contratos de API](./docs/api-contracts/API_CONTRACT.md) | [API_CONTRACT.docx](./docs/api-contracts/API_CONTRACT.docx):** Especificación completa de endpoints REST, payloads JSON con envoltorio `data`/`meta`, frames WebSocket y eventos Web Push.
 - **[Esquema de Grafo Neo4j](./docs/database/NEO4J_SCHEMA.md) | [NEO4J_SCHEMA.docx](./docs/database/NEO4J_SCHEMA.docx):** Modelo formal de nodos, relaciones, índices, restricciones y consultas Cypher optimizadas.
 - **[Mockups Interactivos (HTML)](./docs/MOCKUPS/html/index.html):** Prototipos visuales de autenticación, feed, perfil, chat y notificaciones.
+- **[Runbook Operativo: Web Push (VAPID)](./docs/operations/WEB_PUSH.md):** Guía de operaciones para rotación de claves VAPID, troubleshooting 410, pruebas locales y mitigación de caídas.
+- **[Guía de Observabilidad y Métricas](./docs/observability/OBSERVABILITY.md):** Catálogo de métricas Prometheus/Micrometer y dashboards recomendados de Grafana.
 
 ---
 
