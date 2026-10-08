@@ -41,7 +41,7 @@ public class Neo4jUserProfileRepositoryAdapter implements UserProfileRepository 
   @Override
   public Optional<UserProfile> findProfileByUsername(String username, String viewerId) {
     String cypher =
-        "MATCH (u:Usuario {username: $username}) "
+        "MATCH (u:Usuario) WHERE u.username = $username OR u.id = $username "
             + "RETURN "
             + PROFILE_COUNTS_RETURN
             + ", "
