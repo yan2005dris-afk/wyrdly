@@ -10,8 +10,9 @@ import com.wyrdly.notifications.domain.model.PushSubscription;
 import com.wyrdly.notifications.infrastructure.crypto.MessageEncryptor;
 import com.wyrdly.notifications.infrastructure.crypto.VapidJwtSigner;
 import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
-import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -21,9 +22,11 @@ import java.security.interfaces.ECPrivateKey;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -37,12 +40,13 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  *   <li>404 / 410 → subscription cleaned up (counter: {@code result=gone}).
  *   <li>4xx → counter {@code result=http_4xx} (likely a payload / header bug).
  *   <li>5xx → counter {@code result=http_5xx} after retries with exponential backoff.
+ *   <li>Network error → counter {@code result=network_error}.
  *   <li>No subscription stored → counter {@code result=skipped_no_subscription}.
+ *   <li>Rate limited → counter {@code result=rate_limited}.
  * </ul>
  *
  * <p>All HTTP I/O runs on a dedicated {@link ExecutorService} so {@link #dispatch} returns to the
- * caller immediately. Health and metrics endpoints stay responsive even when the Push Service is
- * slow.
+ * caller immediately. Rate limiting and Micrometer telemetry are built-in.
  */
 @ApplicationScoped
 public class PushDispatcherImpl implements PushDispatcherPort {
@@ -62,12 +66,10 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   private final Duration initialBackoff;
   private final ExecutorService executor;
 
-  private Counter okCounter;
-  private Counter goneCounter;
-  private Counter clientErrorCounter;
-  private Counter serverErrorCounter;
-  private Counter skippedCounter;
-  private Counter failedCounter;
+  private final long recipientRateIntervalMs;
+  private final TokenBucket globalTokenBucket;
+  private final ConcurrentHashMap<String, AtomicLong> lastPushTimeByRecipient =
+      new ConcurrentHashMap<>();
 
   @Inject
   public PushDispatcherImpl(
@@ -80,7 +82,13 @@ public class PushDispatcherImpl implements PushDispatcherPort {
           String subject,
       @ConfigProperty(name = "wyrdly.push.dispatch.max-retries", defaultValue = "3") int maxRetries,
       @ConfigProperty(name = "wyrdly.push.dispatch.initial-backoff-ms", defaultValue = "200")
-          long initialBackoffMs) {
+          long initialBackoffMs,
+      @ConfigProperty(name = "wyrdly.push.dispatch.global-rate-per-second", defaultValue = "1000")
+          long globalRatePerSecond,
+      @ConfigProperty(
+              name = "wyrdly.push.dispatch.recipient-rate-interval-ms",
+              defaultValue = "1000")
+          long recipientRateIntervalMs) {
     this.vapidKeyProvider = vapidKeyProvider;
     this.subscriptionRepository = subscriptionRepository;
     this.gatewayClient = gatewayClient;
@@ -89,6 +97,9 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     this.subject = subject;
     this.maxRetries = maxRetries;
     this.initialBackoff = Duration.ofMillis(initialBackoffMs);
+    this.recipientRateIntervalMs = recipientRateIntervalMs;
+    this.globalTokenBucket =
+        globalRatePerSecond > 0 ? new TokenBucket(globalRatePerSecond, globalRatePerSecond) : null;
     this.executor =
         Executors.newFixedThreadPool(
             4,
@@ -101,13 +112,10 @@ public class PushDispatcherImpl implements PushDispatcherPort {
 
   @PostConstruct
   void registerMetrics() {
-    this.okCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "ok");
-    this.goneCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "gone");
-    this.clientErrorCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "http_4xx");
-    this.serverErrorCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "http_5xx");
-    this.skippedCounter =
-        meterRegistry.counter("wyrdly.push.dispatch", "result", "skipped_no_subscription");
-    this.failedCounter = meterRegistry.counter("wyrdly.push.dispatch", "result", "failed");
+    meterRegistry.gauge(
+        "wyrdly.push.subscriptions",
+        subscriptionRepository,
+        PushSubscriptionRepositoryPort::countActive);
   }
 
   @PreDestroy
@@ -132,13 +140,55 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   }
 
   public void dispatch(PushEvent event) {
+    if (event == null) {
+      return;
+    }
+    String eventType = event.type() != null ? event.type() : "unknown";
+    if (isGlobalRateLimited()) {
+      recordDispatch(eventType, "rate_limited");
+      LOG.log(Level.WARNING, "Global push dispatch rate limit exceeded");
+      return;
+    }
+    if (isRecipientRateLimited(event.recipientUserId())) {
+      recordDispatch(eventType, "rate_limited");
+      LOG.log(Level.FINE, "Push rate limit exceeded for recipient {0}", event.recipientUserId());
+      return;
+    }
     executor.submit(() -> doDispatch(event));
   }
 
+  private boolean isGlobalRateLimited() {
+    return globalTokenBucket != null && !globalTokenBucket.tryConsume();
+  }
+
+  private boolean isRecipientRateLimited(String recipientUserId) {
+    if (recipientRateIntervalMs <= 0 || recipientUserId == null) {
+      return false;
+    }
+    long now = System.nanoTime();
+    long intervalNanos = TimeUnit.MILLISECONDS.toNanos(recipientRateIntervalMs);
+    AtomicLong lastAllowedTime =
+        lastPushTimeByRecipient.computeIfAbsent(recipientUserId, k -> new AtomicLong(0));
+    while (true) {
+      long last = lastAllowedTime.get();
+      if (last > 0 && (now - last) < intervalNanos) {
+        return true;
+      }
+      if (lastAllowedTime.compareAndSet(last, now)) {
+        if (lastPushTimeByRecipient.size() > 10_000) {
+          long cutoff = now - TimeUnit.MINUTES.toNanos(1);
+          lastPushTimeByRecipient.entrySet().removeIf(e -> e.getValue().get() < cutoff);
+        }
+        return false;
+      }
+    }
+  }
+
   private void doDispatch(PushEvent event) {
+    String eventType = event.type() != null ? event.type() : "unknown";
     PushSubscription subscription = subscriptionRepository.findByUserId(event.recipientUserId());
     if (subscription == null) {
-      skippedCounter.increment();
+      recordDispatch(eventType, "skipped_no_subscription");
       LOG.log(Level.FINE, "no subscription for user {0}", event.recipientUserId());
       return;
     }
@@ -147,6 +197,7 @@ public class PushDispatcherImpl implements PushDispatcherPort {
       byte[] plaintext = encodePayload(event);
       byte[] ciphertext =
           MessageEncryptor.encrypt(plaintext, subscription.p256dh(), subscription.auth());
+      recordBytes(eventType, ciphertext.length);
 
       String audience = extractOrigin(subscription.endpoint());
       ECPrivateKey signingKey =
@@ -165,22 +216,37 @@ public class PushDispatcherImpl implements PushDispatcherPort {
       headers.put("Content-Type", "application/octet-stream");
       headers.put("Authorization", "vapid t=" + jwt + ",k=" + vapidKeyProvider.getPublicKey());
 
-      int status = dispatchWithRetries(subscription.endpoint(), ciphertext, headers);
+      long startNanos = System.nanoTime();
+      int status;
+      try {
+        status = dispatchWithRetries(subscription.endpoint(), ciphertext, headers);
+      } catch (Exception ex) {
+        long durationNanos = System.nanoTime() - startNanos;
+        recordDuration(eventType, "network_error", durationNanos);
+        recordDispatch(eventType, "network_error");
+        LOG.log(
+            Level.WARNING, "push gateway network error for user " + event.recipientUserId(), ex);
+        return;
+      }
+      long durationNanos = System.nanoTime() - startNanos;
 
       switch (status / 100) {
         case 2:
-          okCounter.increment();
+          recordDuration(eventType, "ok", durationNanos);
+          recordDispatch(eventType, "ok");
           return;
         case 4:
           if (status == 404 || status == 410) {
-            goneCounter.increment();
+            recordDuration(eventType, "gone", durationNanos);
+            recordDispatch(eventType, "gone");
             subscriptionRepository.deleteByUserId(event.recipientUserId());
             LOG.log(
                 Level.INFO,
                 "subscription gone for user {0} (HTTP {1}); cleaned up",
                 new Object[] {event.recipientUserId(), status});
           } else {
-            clientErrorCounter.increment();
+            recordDuration(eventType, "http_4xx", durationNanos);
+            recordDispatch(eventType, "http_4xx");
             LOG.log(
                 Level.WARNING,
                 "push gateway rejected payload for user {0} (HTTP {1})",
@@ -188,15 +254,37 @@ public class PushDispatcherImpl implements PushDispatcherPort {
           }
           return;
         case 5:
-          serverErrorCounter.increment();
+          recordDuration(eventType, "http_5xx", durationNanos);
+          recordDispatch(eventType, "http_5xx");
           return;
         default:
-          failedCounter.increment();
+          recordDuration(eventType, "failed", durationNanos);
+          recordDispatch(eventType, "failed");
       }
     } catch (Exception ex) {
-      failedCounter.increment();
+      recordDispatch(eventType, "failed");
       LOG.log(Level.WARNING, "push dispatch failed for user " + event.recipientUserId(), ex);
     }
+  }
+
+  private void recordDispatch(String type, String result) {
+    meterRegistry.counter("wyrdly.push.dispatch", "type", type, "result", result).increment();
+  }
+
+  private void recordDuration(String type, String result, long durationNanos) {
+    Timer.builder("wyrdly.push.dispatch.duration")
+        .tag("type", type)
+        .tag("result", result)
+        .register(meterRegistry)
+        .record(Duration.ofNanos(durationNanos));
+  }
+
+  private void recordBytes(String type, int byteCount) {
+    DistributionSummary.builder("wyrdly.push.dispatch.bytes")
+        .tag("type", type)
+        .baseUnit("bytes")
+        .register(meterRegistry)
+        .record(byteCount);
   }
 
   /** Returns the highest HTTP status seen (last attempt if all 5xx, else first 4xx). */
@@ -248,5 +336,31 @@ public class PushDispatcherImpl implements PushDispatcherPort {
       origin += ":" + uri.getPort();
     }
     return origin;
+  }
+
+  static class TokenBucket {
+    private final long capacity;
+    private final double tokensPerNano;
+    private double availableTokens;
+    private long lastRefillNanos;
+
+    TokenBucket(long capacity, long ratePerSecond) {
+      this.capacity = capacity;
+      this.tokensPerNano = (double) ratePerSecond / 1_000_000_000.0;
+      this.availableTokens = capacity;
+      this.lastRefillNanos = System.nanoTime();
+    }
+
+    synchronized boolean tryConsume() {
+      long now = System.nanoTime();
+      long elapsed = Math.max(0, now - lastRefillNanos);
+      lastRefillNanos = now;
+      availableTokens = Math.min(capacity, availableTokens + elapsed * tokensPerNano);
+      if (availableTokens >= 1.0) {
+        availableTokens -= 1.0;
+        return true;
+      }
+      return false;
+    }
   }
 }
