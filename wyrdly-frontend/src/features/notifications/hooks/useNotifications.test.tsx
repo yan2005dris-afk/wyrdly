@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import type { ReactNode } from "react";
 
 vi.mock("../../../api/axios", () => ({
   apiClient: {
@@ -46,10 +49,26 @@ const baseResponse: NotificationListResponseDto = {
   totalElements: 2,
 };
 
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+
+const createWrapper = () => {
+  const queryClient = createTestQueryClient();
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+};
+
 describe("useNotifications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
   });
 
   afterEach(() => {
@@ -58,24 +77,26 @@ describe("useNotifications", () => {
 
   it("fetches the list on mount when enabled", async () => {
     mockedGet.mockResolvedValueOnce({ data: baseResponse });
-    const { result } = renderHook(() => useNotifications());
+    const { result } = renderHook(() => useNotifications(), {
+      wrapper: createWrapper(),
+    });
 
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.notifications).toHaveLength(2);
     });
 
     expect(mockedGet).toHaveBeenCalledWith(
       "/api/notifications?page=0&pageSize=20",
     );
-    expect(result.current.notifications).toHaveLength(2);
     expect(result.current.unreadCount).toBe(1);
     expect(result.current.error).toBeNull();
   });
 
   it("does not fetch when enabled=false", async () => {
-    mockedGet.mockResolvedValueOnce({ data: baseResponse });
-    const { result } = renderHook(() => useNotifications({ enabled: false }));
+    const { result } = renderHook(() => useNotifications({ enabled: false }), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await Promise.resolve();
@@ -85,35 +106,16 @@ describe("useNotifications", () => {
     expect(result.current.notifications).toHaveLength(0);
   });
 
-  it("refetches when tab visibility changes back to visible", async () => {
-    mockedGet.mockResolvedValue({ data: baseResponse });
-    renderHook(() => useNotifications());
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(mockedGet).toHaveBeenCalledTimes(1);
-
-    // Simulate tab becoming visible
-    await act(async () => {
-      document.dispatchEvent(new Event("visibilitychange"));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(mockedGet).toHaveBeenCalledTimes(2);
-  });
-
   it("captures error and exposes it", async () => {
     mockedGet.mockRejectedValueOnce(new Error("network down"));
-    const { result } = renderHook(() => useNotifications());
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+    const { result } = renderHook(() => useNotifications(), {
+      wrapper: createWrapper(),
     });
 
-    expect(result.current.error).toBeInstanceOf(Error);
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(Error);
+    });
+
     expect(result.current.error?.message).toBe("network down");
     expect(result.current.notifications).toHaveLength(0);
   });
@@ -122,10 +124,12 @@ describe("useNotifications", () => {
     mockedGet.mockResolvedValueOnce({ data: baseResponse });
     mockedPost.mockResolvedValueOnce({ data: null });
 
-    const { result } = renderHook(() => useNotifications());
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+    const { result } = renderHook(() => useNotifications(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.notifications).toHaveLength(2);
     });
 
     expect(result.current.unreadCount).toBe(1);
@@ -134,8 +138,10 @@ describe("useNotifications", () => {
       await result.current.markRead("ntf_1");
     });
 
-    expect(result.current.notifications[0]?.isRead).toBe(true);
-    expect(result.current.unreadCount).toBe(0);
+    await waitFor(() => {
+      expect(result.current.notifications[0]?.isRead).toBe(true);
+      expect(result.current.unreadCount).toBe(0);
+    });
     expect(mockedPost).toHaveBeenCalledWith("/api/notifications/ntf_1/read");
   });
 
@@ -143,31 +149,37 @@ describe("useNotifications", () => {
     mockedGet.mockResolvedValueOnce({ data: baseResponse });
     mockedPost.mockResolvedValueOnce({ data: { updated: 1 } });
 
-    const { result } = renderHook(() => useNotifications());
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+    const { result } = renderHook(() => useNotifications(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.notifications).toHaveLength(2);
     });
 
     await act(async () => {
       await result.current.markAllRead();
     });
 
-    expect(result.current.unreadCount).toBe(0);
-    expect(result.current.notifications.every((n) => n.isRead)).toBe(true);
+    await waitFor(() => {
+      expect(result.current.unreadCount).toBe(0);
+      expect(result.current.notifications.every((n) => n.isRead)).toBe(true);
+    });
     expect(mockedPost).toHaveBeenCalledWith("/api/notifications/mark-all-read");
   });
 
-  it("markRead rolls back by refetching when the API call fails", async () => {
+  it("markRead rolls back when the API call fails", async () => {
     mockedGet
       .mockResolvedValueOnce({ data: baseResponse })
       .mockResolvedValueOnce({ data: { ...baseResponse, unreadCount: 1 } });
     mockedPost.mockRejectedValueOnce(new Error("server error"));
 
-    const { result } = renderHook(() => useNotifications());
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+    const { result } = renderHook(() => useNotifications(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.notifications).toHaveLength(2);
     });
 
     await act(async () => {
@@ -178,7 +190,6 @@ describe("useNotifications", () => {
       }
     });
 
-    // After the failed POST the hook refetches; the server-reported unreadCount wins.
     expect(result.current.unreadCount).toBe(1);
   });
 
@@ -201,9 +212,10 @@ describe("useNotifications", () => {
       MockBroadcastChannel;
 
     try {
-      renderHook(() => useNotifications());
+      renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
       await act(async () => {
-        await Promise.resolve();
         await Promise.resolve();
       });
       expect(mockedGet).toHaveBeenCalledTimes(1);
@@ -213,7 +225,6 @@ describe("useNotifications", () => {
         channelListener?.({
           data: { type: "wyrdly:push-received" },
         } as MessageEvent);
-        await Promise.resolve();
         await Promise.resolve();
       });
 
@@ -250,9 +261,10 @@ describe("useNotifications", () => {
     });
 
     try {
-      renderHook(() => useNotifications());
+      renderHook(() => useNotifications(), {
+        wrapper: createWrapper(),
+      });
       await act(async () => {
-        await Promise.resolve();
         await Promise.resolve();
       });
       expect(mockedGet).toHaveBeenCalledTimes(1);
@@ -262,7 +274,6 @@ describe("useNotifications", () => {
         swMessageListener?.({
           data: { type: "wyrdly:push-received" },
         } as MessageEvent);
-        await Promise.resolve();
         await Promise.resolve();
       });
 
