@@ -381,8 +381,13 @@ describe("ChatPage Component", () => {
     renderChatPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("chat-conversations-panel")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("chat-conversations-panel"),
+      ).toBeInTheDocument();
       expect(screen.getByTestId("chat-window-panel")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("conversation-item-conv-user-alice"),
+      ).toBeInTheDocument();
     });
 
     // When clicking a conversation in the list
@@ -399,6 +404,8 @@ describe("ChatPage Component", () => {
 
     // Clicking back toggles isMobileViewingChat back to false
     fireEvent.click(backBtn);
-    expect(screen.getByTestId("chat-conversations-panel")).not.toHaveClass("hidden");
+    expect(screen.getByTestId("chat-conversations-panel")).not.toHaveClass(
+      "hidden",
+    );
   });
 });

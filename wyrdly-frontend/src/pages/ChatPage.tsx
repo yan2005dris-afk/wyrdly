@@ -314,9 +314,11 @@ export const ChatPage: FC = () => {
     );
   };
 
-  const [isMobileViewingChat, setIsMobileViewingChat] = useState<boolean>(() => {
-    return Boolean(queryUserId);
-  });
+  const [isMobileViewingChat, setIsMobileViewingChat] = useState<boolean>(
+    () => {
+      return Boolean(queryUserId);
+    },
+  );
 
   const handleSelectConversation = (convId: string) => {
     setSelectedConvId(convId);

@@ -84,7 +84,9 @@
   border: none;
   box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
   cursor: pointer;
-  transition: transform 0.15s ease-in-out, background-color 0.15s ease-in-out;
+  transition:
+    transform 0.15s ease-in-out,
+    background-color 0.15s ease-in-out;
 }
 
 .newPostButton:hover {
