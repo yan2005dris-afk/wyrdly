@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiClient } from "../../../api/axios";
+import { notificationsApi } from "../../../api/notifications";
 import type { PushPermissionStatus } from "../types";
 
-const VAPID_PUBLIC_KEY_URL = "/api/notifications/vapid-public-key";
-const SUBSCRIBE_URL = "/api/notifications/subscribe";
+/**
+ * Message type posted by `public/sw.js` when it could not re-subscribe on
+ * `pushsubscriptionchange` (the SW has no access token). Must stay in sync
+ * with `PUSH_CHANGE_FAILED` in the service worker.
+ */
+export const PUSH_SUBSCRIPTION_CHANGE_FAILED =
+  "push-subscription-change-failed";
 
 export interface UseWebPushOptions {
   readonly enabled?: boolean;
@@ -70,6 +75,21 @@ const readCurrentPermission = (): PushPermissionStatus => {
 };
 
 /**
+ * Creates a browser push subscription bound to the server's VAPID key and
+ * registers it with the backend. Assumes notification permission is granted.
+ */
+const createPushSubscription = async (
+  registration: ServiceWorkerRegistration,
+): Promise<void> => {
+  const vapidKey = await notificationsApi.getVapidPublicKey();
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: base64UrlToUint8Array(vapidKey) as BufferSource,
+  });
+  await notificationsApi.subscribe(subscription.toJSON());
+};
+
+/**
  * Manages the Web Push subscription lifecycle for the current browser.
  *
  * Responsibilities:
@@ -78,6 +98,9 @@ const readCurrentPermission = (): PushPermissionStatus => {
  *    `PushManager.subscribe`, and POSTs the resulting subscription to the
  *    backend.
  *  - Tears down the subscription on demand (DELETE backend + `unsubscribe`).
+ *  - Recovers from `pushsubscriptionchange`: when the SW reports it could not
+ *    re-subscribe, silently re-subscribes from the page (which holds the
+ *    access token) if permission is still granted.
  *
  * Designed to be mounted once inside the authenticated layout; safe to mount
  * multiple times (SW registration is idempotent).
@@ -129,8 +152,47 @@ export const useWebPush = (
 
     void init();
 
+    const nav = navigator as Navigator & {
+      serviceWorker: ServiceWorkerContainer;
+    };
+
+    const handleServiceWorkerMessage = (event: MessageEvent): void => {
+      const data = event.data as { type?: unknown } | null;
+      if (data?.type !== PUSH_SUBSCRIPTION_CHANGE_FAILED) {
+        return;
+      }
+      if (readCurrentPermission() !== "granted") {
+        return;
+      }
+      const resubscribe = async (): Promise<void> => {
+        try {
+          const reg =
+            registrationRef.current ??
+            ((await nav.serviceWorker.ready) as ServiceWorkerRegistration);
+          await createPushSubscription(reg);
+          if (!cancelled) {
+            setIsSubscribed(true);
+          }
+        } catch (caught) {
+          if (!cancelled) {
+            setIsSubscribed(false);
+            setError(
+              caught instanceof Error ? caught : new Error(String(caught)),
+            );
+          }
+        }
+      };
+      void resubscribe();
+    };
+
+    nav.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+
     return () => {
       cancelled = true;
+      nav.serviceWorker.removeEventListener(
+        "message",
+        handleServiceWorkerMessage,
+      );
     };
   }, [enabled, isSupported]);
 
@@ -170,19 +232,7 @@ export const useWebPush = (
       if (!reg) {
         throw new Error("Service worker registration unavailable");
       }
-      const response = await fetch(VAPID_PUBLIC_KEY_URL);
-      const vapidKey = (await response.text()).trim();
-      if (!vapidKey) {
-        throw new Error("VAPID public key was empty");
-      }
-      const applicationServerKey = base64UrlToUint8Array(
-        vapidKey,
-      ) as BufferSource;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey,
-      });
-      await apiClient.post(SUBSCRIBE_URL, sub.toJSON());
+      await createPushSubscription(reg);
       setIsSubscribed(true);
       return true;
     } catch (caught) {
@@ -215,7 +265,7 @@ export const useWebPush = (
         // No active subscription: idempotent success, do not call backend.
         return true;
       }
-      await apiClient.delete(SUBSCRIBE_URL);
+      await notificationsApi.unsubscribe();
       // The standard browser API is `subscription.unsubscribe()`. We delegate to the
       // registration's pushManager here to satisfy the test contract that mocks
       // `pushManager.unsubscribe`; in production both paths end up clearing the

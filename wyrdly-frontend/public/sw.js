@@ -12,9 +12,10 @@
  *    otherwise open a new window on `data.url`. Falls back to `/` if the
  *    payload had no URL.
  *  - `pushsubscriptionchange` — re-subscribe silently using the current VAPID
- *    key, then POST the new subscription to the backend. If re-subscription
- *    fails, postMessage every open client so the React app can retry when the
- *    network is back.
+ *    key, then POST the new subscription to the backend. If any step fails
+ *    (including a non-2xx response such as 401, since the SW holds no access
+ *    token), postMessage every open client so `useWebPush` re-subscribes with
+ *    the page's credentials.
  *
  * The handler bodies are exposed as pure functions on `globalThis.__wyrdlySW`
  * so the Vitest suite can exercise them against a mocked `self` without
@@ -104,17 +105,29 @@ async function handleSubscriptionChange(event) {
         `VAPID public key fetch failed: ${response.status} ${response.statusText}`,
       );
     }
-    const vapidKey = (await response.text()).trim();
+    const { publicKey } = await response.json();
+    const vapidKey = String(publicKey || "").trim();
+    if (!vapidKey) {
+      throw new Error("VAPID public key was empty");
+    }
     const newSub = await self.registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey),
     });
-    await fetch(SUBSCRIBE_URL, {
+    // The SW has no access token, so this call usually ends in 401. A non-2xx
+    // response must reach the catch below so open pages re-subscribe instead
+    // of the subscription silently going stale.
+    const subscribeResponse = await fetch(SUBSCRIBE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newSub.toJSON ? newSub.toJSON() : newSub),
       credentials: "include",
     });
+    if (!subscribeResponse.ok) {
+      throw new Error(
+        `Subscription sync failed: ${subscribeResponse.status} ${subscribeResponse.statusText}`,
+      );
+    }
   } catch (err) {
     const clients = await self.clients.matchAll({
       type: "window",
