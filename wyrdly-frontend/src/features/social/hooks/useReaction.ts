@@ -84,10 +84,11 @@ export function useReaction(): UseReactionReturn {
 
       try {
         const response = await postsApi.react(postId, type, controller.signal);
-        callbacks.onServerResult?.(response);
-        // Only mutate state if we are still the active controller for this
-        // postId. A newer react() call will manage its own lifecycle.
+        // Only reconcile and mutate state if we are still the active
+        // controller for this postId. A newer react() call will manage its
+        // own lifecycle, so a stale response must not overwrite it.
         if (inFlight.get(postId) === controller) {
+          callbacks.onServerResult?.(response);
           setState((s) => ({
             ...s,
             [postId]: { isPending: false, error: null },
