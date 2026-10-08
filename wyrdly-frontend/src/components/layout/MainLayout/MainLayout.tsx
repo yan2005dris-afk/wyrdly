@@ -114,7 +114,7 @@ export const MainLayout: FC<MainLayoutProps> = ({
     },
   };
 
-  const unreadAlertsCount = unreadCount;
+  const unreadNotificationsCount = unreadCount;
 
   const handleSearchSubmit = (query: string) => {
     const trimmed = query.trim();
@@ -129,9 +129,12 @@ export const MainLayout: FC<MainLayoutProps> = ({
     void markAllReadApi();
   }, [markAllReadApi]);
 
-  // Allow the popover to mark a single item read; currently the popover only
-  // exposes "mark all", but the hook API is here for future item-level clicks.
-  void markReadApi;
+  const handleNotificationClick = useCallback(
+    (id: string) => {
+      void markReadApi(id);
+    },
+    [markReadApi],
+  );
 
   return (
     <div
@@ -146,7 +149,7 @@ export const MainLayout: FC<MainLayoutProps> = ({
         onSearchSubmit={handleSearchSubmit}
         statusVariant="federated"
         statusText="Federated • Live"
-        unreadNotificationsCount={unreadAlertsCount}
+        unreadNotificationsCount={unreadNotificationsCount}
         isNotificationsOpen={isNotificationsOpen}
         onNotificationsClick={() =>
           setIsNotificationsOpen(!isNotificationsOpen)
@@ -155,6 +158,11 @@ export const MainLayout: FC<MainLayoutProps> = ({
           <NotificationPopover
             notifications={notifications}
             onMarkAllAsRead={handleMarkAllRead}
+            onNotificationClick={handleNotificationClick}
+            onViewAllActivity={() => {
+              setIsNotificationsOpen(false);
+              navigate("/notifications");
+            }}
           />
         }
         onLogout={logout}
@@ -167,7 +175,7 @@ export const MainLayout: FC<MainLayoutProps> = ({
           <UserSummaryCard user={currentUserSummary} />
           <SidebarNav
             unreadMessagesCount={unreadMessagesCount}
-            unreadAlertsCount={unreadAlertsCount}
+            unreadNotificationsCount={unreadNotificationsCount}
             onLogout={logout}
             onNewPostClick={() => {
               navigate("/feed");

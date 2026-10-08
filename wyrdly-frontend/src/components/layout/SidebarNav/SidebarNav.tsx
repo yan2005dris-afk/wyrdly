@@ -7,11 +7,15 @@ import styles from "./SidebarNav.module.css";
 
 export const SidebarNav: FC<SidebarNavProps> = ({
   unreadMessagesCount = 0,
+  unreadNotificationsCount,
   unreadAlertsCount = 0,
   onNewPostClick,
   onLogout,
   className = "",
 }) => {
+  const effectiveNotificationsCount =
+    unreadNotificationsCount ?? unreadAlertsCount;
+
   const navItems: NavItemConfig[] = [
     {
       id: "feed",
@@ -33,11 +37,11 @@ export const SidebarNav: FC<SidebarNavProps> = ({
       count: unreadMessagesCount,
     },
     {
-      id: "alerts",
-      label: "Alerts",
+      id: "notifications",
+      label: "Notifications",
       path: "/notifications",
       icon: <Bell className="w-4 h-4" />,
-      count: unreadAlertsCount,
+      count: effectiveNotificationsCount,
     },
   ];
 
@@ -65,7 +69,9 @@ export const SidebarNav: FC<SidebarNavProps> = ({
             {item.count !== undefined && item.count > 0 && (
               <span
                 className={`${styles.linkBadge} ${
-                  item.id === "alerts" ? styles.badgeRose : styles.badgeIndigo
+                  item.id === "notifications" || item.id === "alerts"
+                    ? styles.badgeRose
+                    : styles.badgeIndigo
                 }`}
                 data-testid={`nav-badge-${item.id}`}
               >

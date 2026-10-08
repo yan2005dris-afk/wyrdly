@@ -7,6 +7,7 @@ import { FeedPage } from "./pages/FeedPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
 import { ExplorePage } from "./pages/ExplorePage";
+import { NotificationsPage } from "./pages/NotificationsPage";
 import { RootRedirect } from "./components/RootRedirect";
 import { MainLayout } from "./components/layout";
 import { useUnreadMessagesStore } from "./features/chat";
@@ -34,7 +35,7 @@ function App() {
                 <Route path="/profile/:username" element={<ProfilePage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/explore" element={<ExplorePage />} />
-                <Route path="/notifications" element={<FeedPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
               </Route>
             </Route>
 
