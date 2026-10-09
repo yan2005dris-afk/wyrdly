@@ -3,6 +3,7 @@ package com.wyrdly.post.application.service;
 import com.wyrdly.post.application.dto.CreatePostRequest;
 import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.post.application.dto.PostResponse.AuthorDto;
+import com.wyrdly.post.application.mapper.PostResponseMapper;
 import com.wyrdly.post.application.usecase.CreatePostUseCase;
 import com.wyrdly.post.application.usecase.GetPostUseCase;
 import com.wyrdly.post.domain.event.PostPublishedEvent;
@@ -84,21 +85,6 @@ public class PostService implements CreatePostUseCase, GetPostUseCase {
         postRepository
             .findFeedPostById(postId, userId)
             .orElseThrow(() -> new PostNotFoundException("Post not found: " + postId));
-    return new PostResponse(
-        feedPost.id(),
-        feedPost.content(),
-        feedPost.mediaUrl(),
-        feedPost.createdAt(),
-        new AuthorDto(
-            feedPost.author().id(),
-            feedPost.author().username(),
-            feedPost.author().fullName(),
-            feedPost.author().avatarUrl()),
-        new PostResponse.ReactionCounts(
-            feedPost.likeCount(), feedPost.loveCount(), feedPost.celebrateCount()),
-        feedPost.commentsCount(),
-        feedPost.repostsCount(),
-        feedPost.userReaction(),
-        feedPost.userHasReposted());
+    return PostResponseMapper.toResponse(feedPost);
   }
 }

@@ -333,3 +333,51 @@ describe("PostCard Component", () => {
     expect(stub).toHaveAttribute("data-post-author-id", "user-1");
   });
 });
+
+describe("PostCard — repost context (HU #150)", () => {
+  const REPOSTED_POST: Post = {
+    ...MOCK_POST,
+    repostContext: {
+      reposterId: "user-2",
+      reposterUsername: "ana",
+      reposterName: "Ana Lopez",
+      repostedAt: "2026-10-03T08:00:00Z",
+    },
+  };
+
+  it("does not render the repost banner for original publications", () => {
+    renderCard();
+
+    expect(screen.queryByTestId("repost-banner")).not.toBeInTheDocument();
+  });
+
+  it("renders the banner naming the reposter, linking to their profile", () => {
+    renderCard({ post: REPOSTED_POST });
+
+    const banner = screen.getByTestId("repost-banner");
+    expect(banner).toHaveTextContent("Ana Lopez");
+    expect(banner).toHaveTextContent("reposted");
+    expect(screen.getByTestId("repost-banner-link")).toHaveAttribute(
+      "href",
+      "/profile/ana",
+    );
+    expect(banner.querySelector("time")).toHaveAttribute(
+      "dateTime",
+      "2026-10-03T08:00:00Z",
+    );
+  });
+
+  it("keeps the original author in the post header", () => {
+    renderCard({ post: REPOSTED_POST });
+
+    expect(screen.getByText("Jonas Weber")).toBeInTheDocument();
+    expect(screen.getByText(/@jonas/)).toBeInTheDocument();
+  });
+
+  it("hides the decorative repost icon from assistive technology", () => {
+    renderCard({ post: REPOSTED_POST });
+
+    const icon = screen.getByTestId("repost-banner").querySelector("svg");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+  });
+});

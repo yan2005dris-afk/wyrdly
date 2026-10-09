@@ -22,13 +22,20 @@ public interface PostRepository {
 
   long countFeedByUserId(String userId);
 
-  List<FeedPost> findByAuthor(String authorId, String viewerId, int page, int pageSize);
-
-  default List<FeedPost> findByAuthor(String authorId, int page, int pageSize) {
-    return findByAuthor(authorId, null, page, pageSize);
-  }
-
   long countByAuthor(String authorId);
+
+  /**
+   * Profile timeline of {@code ownerId} (HU #150): posts the owner published ({@code :PUBLICA})
+   * merged with posts the owner shared ({@code :COMPARTE}), ordered by the date of the owner's
+   * action (publication or repost) descending, with a stable tie-break so pagination never
+   * duplicates nor skips entries. Shared entries carry a {@link
+   * com.wyrdly.post.domain.model.RepostContext}; a post the owner both published and shared appears
+   * once, as a publication.
+   *
+   * @param viewerId optional; drives {@code userReaction} / {@code userHasReposted}
+   * @param page 1-based page (values below 1 are treated as the first page)
+   */
+  List<FeedPost> findProfileTimeline(String ownerId, String viewerId, int page, int pageSize);
 
   /**
    * Toggles a user's reaction on a post. The {@code (:Usuario)-[:REACCIONA]->(:Post)} relationship

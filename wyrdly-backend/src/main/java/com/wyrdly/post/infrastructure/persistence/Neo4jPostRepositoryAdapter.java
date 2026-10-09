@@ -8,6 +8,7 @@ import com.wyrdly.post.domain.model.Post;
 import com.wyrdly.post.domain.model.ReactionResult;
 import com.wyrdly.post.domain.model.ReactionStatus;
 import com.wyrdly.post.domain.model.ReactionType;
+import com.wyrdly.post.domain.model.RepostContext;
 import com.wyrdly.post.domain.repository.PostRepository;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -291,7 +292,28 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         commentsCount,
         repostsCount,
         userReactionType,
-        userHasReposted);
+        userHasReposted,
+        mapRepostContext(record));
+  }
+
+  /**
+   * Reads the optional {@code reposter*} / {@code repostedAt} columns returned by {@link
+   * #PROFILE_TIMELINE_QUERY}. Queries that do not project them (feed, post detail) yield {@code
+   * null}, i.e. an original publication.
+   */
+  private static RepostContext mapRepostContext(Record record) {
+    if (!record.containsKey("repostedAt") || record.get("repostedAt").isNull()) {
+      return null;
+    }
+    Author reposter =
+        new Author(
+            record.get("reposterId").asString(),
+            record.get("reposterUsername").asString(),
+            record.get("reposterFullName").asString(),
+            record.get("reposterAvatarUrl").isNull()
+                ? null
+                : record.get("reposterAvatarUrl").asString());
+    return new RepostContext(reposter, parseInstant(record.get("repostedAt")));
   }
 
   private static final String FIND_POST_BY_ID_QUERY =
@@ -331,55 +353,74 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     }
   }
 
-  private static final String FIND_BY_AUTHOR_QUERY =
-      "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
-          + "OPTIONAL MATCH (p)<-[rlike:REACCIONA {tipo: 'LIKE'}]-() "
-          + "OPTIONAL MATCH (p)<-[rlove:REACCIONA {tipo: 'LOVE'}]-() "
-          + "OPTIONAL MATCH (p)<-[rceleb:REACCIONA {tipo: 'CELEBRATE'}]-() "
-          + "OPTIONAL MATCH (viewer:Usuario {id: $viewerId})-[ur:REACCIONA]->(p) "
-          + "WITH DISTINCT p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
-          + "              p.createdAt AS createdAt, author.id AS authorId, "
-          + "              author.username AS authorUsername, author.fullName AS authorFullName, "
-          + "              author.avatarUrl AS authorAvatarUrl, "
-          + "              count(DISTINCT rlike) AS likeCount, "
-          + "              count(DISTINCT rlove) AS loveCount, "
-          + "              count(DISTINCT rceleb) AS celebrateCount, "
-          + "              ur.tipo AS userReactionType, "
-          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount, "
-          + "              COUNT { (p)<-[:COMPARTE]-() } AS repostsCount, "
-          + "              ($viewerId IS NOT NULL AND EXISTS { (:Usuario {id: $viewerId})-[:COMPARTE]->(p) }) AS userHasReposted "
-          + "ORDER BY createdAt DESC "
-          + "SKIP $skip LIMIT $limit "
-          + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
-          + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
-          + "       celebrateCount, commentsCount, repostsCount, userReactionType, userHasReposted";
-
   /**
-   * Finds all posts published by a specific author, with pagination, reactions, and comments count.
+   * Profile timeline (HU #150): publications ({@code :PUBLICA}) and shares ({@code :COMPARTE}) of
+   * {@code $ownerId} merged with {@code UNION ALL}, ordered by the date of the owner's action.
+   *
+   * <ul>
+   *   <li>Self-reposts are excluded from the share branch ({@code author <> owner}) so each post
+   *       appears at most once per timeline.
+   *   <li>{@code p.id} is the tie-break so equal timestamps paginate deterministically.
+   *   <li>The page is cut ({@code SKIP/LIMIT}) <em>before</em> enrichment and counters use {@code
+   *       COUNT {}} subqueries, so the cost scales with {@code pageSize}, not with the total number
+   *       of posts in the timeline.
+   * </ul>
    */
+  private static final String PROFILE_TIMELINE_QUERY =
+      "MATCH (owner:Usuario {id: $ownerId}) "
+          + "CALL { "
+          + "  WITH owner "
+          + "  MATCH (owner)-[:PUBLICA]->(p:Post) "
+          + "  RETURN p, owner AS author, p.createdAt AS eventDate, null AS repostedAt "
+          + "  UNION ALL "
+          + "  WITH owner "
+          + "  MATCH (owner)-[r:COMPARTE]->(p:Post)<-[:PUBLICA]-(author:Usuario) "
+          + "  WHERE author <> owner "
+          + "  RETURN p, author, coalesce(r.createdAt, p.createdAt) AS eventDate, "
+          + "         coalesce(r.createdAt, p.createdAt) AS repostedAt "
+          + "} "
+          + "WITH owner, p, author, eventDate, repostedAt "
+          + "ORDER BY eventDate DESC, p.id ASC "
+          + "SKIP $skip LIMIT $limit "
+          + "OPTIONAL MATCH (:Usuario {id: $viewerId})-[ur:REACCIONA]->(p) "
+          + "RETURN p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
+          + "       p.createdAt AS createdAt, author.id AS authorId, "
+          + "       author.username AS authorUsername, author.fullName AS authorFullName, "
+          + "       author.avatarUrl AS authorAvatarUrl, "
+          + "       COUNT { (p)<-[:REACCIONA {tipo: 'LIKE'}]-() } AS likeCount, "
+          + "       COUNT { (p)<-[:REACCIONA {tipo: 'LOVE'}]-() } AS loveCount, "
+          + "       COUNT { (p)<-[:REACCIONA {tipo: 'CELEBRATE'}]-() } AS celebrateCount, "
+          + "       COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount, "
+          + "       COUNT { (p)<-[:COMPARTE]-() } AS repostsCount, "
+          + "       ur.tipo AS userReactionType, "
+          + "       ($viewerId IS NOT NULL AND EXISTS { (:Usuario {id: $viewerId})-[:COMPARTE]->(p) }) AS userHasReposted, "
+          + "       CASE WHEN repostedAt IS NULL THEN null ELSE owner.id END AS reposterId, "
+          + "       CASE WHEN repostedAt IS NULL THEN null ELSE owner.username END AS reposterUsername, "
+          + "       CASE WHEN repostedAt IS NULL THEN null ELSE owner.fullName END AS reposterFullName, "
+          + "       CASE WHEN repostedAt IS NULL THEN null ELSE owner.avatarUrl END AS reposterAvatarUrl, "
+          + "       repostedAt, eventDate "
+          + "ORDER BY eventDate DESC, id ASC";
+
   @Override
-  public List<FeedPost> findByAuthor(String authorId, String viewerId, int page, int pageSize) {
+  public List<FeedPost> findProfileTimeline(
+      String ownerId, String viewerId, int page, int pageSize) {
     int skip = Math.max(0, (page <= 0 ? 0 : page - 1) * pageSize);
     try (Session session = driver.session()) {
       return session.executeRead(
           tx ->
               tx.run(
-                      FIND_BY_AUTHOR_QUERY,
+                      PROFILE_TIMELINE_QUERY,
                       Values.parameters(
-                          "authorId", authorId,
+                          "ownerId", ownerId,
                           "viewerId", viewerId,
                           "skip", skip,
                           "limit", pageSize))
                   .list(this::mapRecordToFeedPost));
     } catch (Exception e) {
-      Log.errorf(e, "Failed to query posts by author: %s", authorId);
-      throw new PostPersistenceException("Failed to query posts for authorId=" + authorId, e);
+      Log.errorf(e, "Failed to query profile timeline for ownerId: %s", ownerId);
+      throw new PostPersistenceException(
+          "Failed to query profile timeline for ownerId=" + ownerId, e);
     }
-  }
-
-  @Override
-  public List<FeedPost> findByAuthor(String authorId, int page, int pageSize) {
-    return findByAuthor(authorId, null, page, pageSize);
   }
 
   /** Counts total posts published by a specific author. */

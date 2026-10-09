@@ -105,4 +105,26 @@ class FeedPostTest {
         IllegalArgumentException.class,
         () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, 0, 0, 0L, -1L, null, false));
   }
+
+  @Test
+  void isRepost_False_WhenNoRepostContext() {
+    FeedPost feedPost =
+        new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, 0, 0, 0L, 0L, null, false);
+
+    assertNull(feedPost.repostContext());
+    assertEquals(false, feedPost.isRepost());
+  }
+
+  @Test
+  void isRepost_True_WhenRepostContextPresent() {
+    Author reposter = new Author("usr_2", "janedoe", "Jane Doe", null);
+    RepostContext context = new RepostContext(reposter, NOW);
+
+    FeedPost feedPost =
+        new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, 0, 0, 0L, 1L, null, false, context);
+
+    assertEquals(true, feedPost.isRepost());
+    assertEquals(context, feedPost.repostContext());
+    assertEquals(AUTHOR, feedPost.author());
+  }
 }

@@ -48,3 +48,38 @@ describe("mapPostApiResponseToPost", () => {
     expect(post.isReposted).toBe(true);
   });
 });
+
+describe("mapPostApiResponseToPost — repostContext (HU #150)", () => {
+  const base = buildResponse({ likeCount: 0, loveCount: 0, celebrateCount: 0 });
+
+  it("leaves repostContext undefined when the backend omits it", () => {
+    expect(mapPostApiResponseToPost(base).repostContext).toBeUndefined();
+  });
+
+  it("leaves repostContext undefined when the backend sends null", () => {
+    const post = mapPostApiResponseToPost({ ...base, repostContext: null });
+    expect(post.repostContext).toBeUndefined();
+  });
+
+  it("maps the repost context and keeps the original author", () => {
+    const post = mapPostApiResponseToPost({
+      ...base,
+      repostContext: {
+        reposterId: "user-2",
+        reposterUsername: "bob",
+        reposterName: "Bob Smith",
+        reposterAvatarUrl: null,
+        repostedAt: "2026-01-16T09:00:00Z",
+      },
+    });
+
+    expect(post.author.username).toBe("alice");
+    expect(post.repostContext).toEqual({
+      reposterId: "user-2",
+      reposterUsername: "bob",
+      reposterName: "Bob Smith",
+      reposterAvatarUrl: undefined,
+      repostedAt: "2026-01-16T09:00:00Z",
+    });
+  });
+});

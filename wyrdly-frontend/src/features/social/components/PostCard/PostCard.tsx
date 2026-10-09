@@ -16,6 +16,7 @@ import { Avatar } from "../../../../components/ui/Avatar";
 import { AuthImage } from "../../../../components/ui/AuthImage";
 import { Skeleton } from "../../../../components/ui/Skeleton";
 import { CommentSection } from "../CommentSection";
+import { RepostBanner } from "./RepostBanner";
 import styles from "./PostCard.module.css";
 
 export const PostCardSkeleton: FC<{ className?: string }> = ({
@@ -121,6 +122,8 @@ export const PostCard: FC<PostCardProps> = ({
       className={`${styles.card} ${className}`}
       data-testid={`post-card-${post.id}`}
     >
+      {post.repostContext && <RepostBanner context={post.repostContext} />}
+
       {/* Post Header */}
       <div className={styles.header}>
         <div className={styles.authorRow}>

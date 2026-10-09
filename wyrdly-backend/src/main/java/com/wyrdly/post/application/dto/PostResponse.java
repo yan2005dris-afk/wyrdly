@@ -12,6 +12,9 @@ import java.time.Instant;
  *
  * <p>A 7-argument overload is provided for backward compatibility with call sites that pre-date
  * HU10; it delegates to the canonical 8-argument constructor with {@code commentsCount = 0L}.
+ *
+ * <p>{@code repostContext} (HU #150) is non-null only when the post appears in a profile timeline
+ * because that user shared it; {@code author} is always the original author.
  */
 public record PostResponse(
     String id,
@@ -23,7 +26,37 @@ public record PostResponse(
     long commentsCount,
     long repostsCount,
     String userReaction,
-    boolean userHasReposted) {
+    boolean userHasReposted,
+    RepostContextDto repostContext) {
+
+  /**
+   * Backward-compatible 10-argument constructor for callers that pre-date HU #150. Delegates to the
+   * canonical constructor with {@code repostContext = null} (an original publication).
+   */
+  public PostResponse(
+      String id,
+      String content,
+      String mediaUrl,
+      Instant createdAt,
+      AuthorDto author,
+      ReactionCounts reactionCounts,
+      long commentsCount,
+      long repostsCount,
+      String userReaction,
+      boolean userHasReposted) {
+    this(
+        id,
+        content,
+        mediaUrl,
+        createdAt,
+        author,
+        reactionCounts,
+        commentsCount,
+        repostsCount,
+        userReaction,
+        userHasReposted,
+        null);
+  }
 
   /**
    * Backward-compatible 8-argument constructor for callers that pre-date HU #144. Delegates to the
@@ -70,4 +103,12 @@ public record PostResponse(
   public record AuthorDto(String id, String username, String fullName, String avatarUrl) {}
 
   public record ReactionCounts(long likeCount, long loveCount, long celebrateCount) {}
+
+  /** Who shared the post and when (HU #150). */
+  public record RepostContextDto(
+      String reposterId,
+      String reposterUsername,
+      String reposterName,
+      String reposterAvatarUrl,
+      Instant repostedAt) {}
 }
