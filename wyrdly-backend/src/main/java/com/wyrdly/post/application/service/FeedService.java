@@ -3,7 +3,7 @@ package com.wyrdly.post.application.service;
 import com.wyrdly.post.application.dto.FeedResponseDto;
 import com.wyrdly.post.application.dto.FeedResponseDto.PaginationMeta;
 import com.wyrdly.post.application.dto.PostResponse;
-import com.wyrdly.post.application.dto.PostResponse.AuthorDto;
+import com.wyrdly.post.application.mapper.PostResponseMapper;
 import com.wyrdly.post.application.usecase.GetFeedUseCase;
 import com.wyrdly.post.domain.model.FeedPost;
 import com.wyrdly.post.domain.repository.PostRepository;
@@ -45,36 +45,11 @@ public class FeedService implements GetFeedUseCase {
     boolean hasNext = (long) effectivePage * effectivePageSize < totalElements;
 
     List<PostResponse> postResponses =
-        feedPosts.stream().map(this::toPostResponse).collect(Collectors.toList());
+        feedPosts.stream().map(PostResponseMapper::toResponse).collect(Collectors.toList());
 
     PaginationMeta meta =
         new PaginationMeta(effectivePage, effectivePageSize, totalElements, totalPages, hasNext);
 
     return new FeedResponseDto(postResponses, meta);
-  }
-
-  private PostResponse toPostResponse(FeedPost feedPost) {
-    AuthorDto authorDto =
-        new AuthorDto(
-            feedPost.author().id(),
-            feedPost.author().username(),
-            feedPost.author().fullName(),
-            feedPost.author().avatarUrl());
-
-    PostResponse.ReactionCounts reactionCounts =
-        new PostResponse.ReactionCounts(
-            feedPost.likeCount(), feedPost.loveCount(), feedPost.celebrateCount());
-
-    return new PostResponse(
-        feedPost.id(),
-        feedPost.content(),
-        feedPost.mediaUrl(),
-        feedPost.createdAt(),
-        authorDto,
-        reactionCounts,
-        feedPost.commentsCount(),
-        feedPost.repostsCount(),
-        feedPost.userReaction(),
-        feedPost.userHasReposted());
   }
 }
