@@ -1,6 +1,8 @@
 // Components
 export { PostCard, PostCardSkeleton } from "./components/PostCard";
 export type { PostCardProps } from "./components/PostCard";
+export { RepostBanner } from "./components/PostCard";
+export type { RepostBannerProps } from "./components/PostCard";
 export { CreatePostCard } from "./components/CreatePostCard";
 export type { CreatePostCardProps } from "./components/CreatePostCard";
 export { GraphSuggestionsCard } from "./components/GraphSuggestionsCard";
@@ -39,3 +41,4 @@ export type {
 // Utils
 export { withRepost } from "./utils/repostState";
 export type { RepostState } from "./utils/repostState";
+export { getTimelineItemKey } from "./utils/timelineKey";
