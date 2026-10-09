@@ -20,6 +20,18 @@ export interface PostReactions {
   readonly CELEBRATE: number;
 }
 
+/**
+ * Why a post shows up in a timeline it was not published in: someone shared
+ * (boosted) it. `author` on the Post stays the ORIGINAL author (HU #150).
+ */
+export interface RepostContext {
+  readonly reposterId: NodeId;
+  readonly reposterUsername: string;
+  readonly reposterName: string;
+  readonly reposterAvatarUrl?: string;
+  readonly repostedAt: ISO8601Timestamp;
+}
+
 export interface Post {
   readonly id: NodeId;
   readonly author: UserProfileSummary;
@@ -32,6 +44,8 @@ export interface Post {
   readonly repostsCount: number;
   readonly isReposted: boolean;
   readonly visibility: PostVisibility;
+  /** Present only when the post appears as a share in a profile timeline. */
+  readonly repostContext?: RepostContext;
 }
 
 export interface CreatePostPayload {
@@ -62,6 +76,30 @@ export interface PostApiResponse {
   readonly commentsCount?: number;
   readonly repostsCount?: number;
   readonly userHasReposted?: boolean;
+  readonly repostContext?: RepostContextApiResponse | null;
+}
+
+/** Backend `PostResponse.RepostContextDto` (HU #150). */
+export interface RepostContextApiResponse {
+  readonly reposterId: NodeId;
+  readonly reposterUsername: string;
+  readonly reposterName: string;
+  readonly reposterAvatarUrl: string | null;
+  readonly repostedAt: string; // ISO 8601 from backend Instant
+}
+
+/** Map the optional backend repost context; `null` / absent → `undefined`. */
+export function mapRepostContext(
+  context: RepostContextApiResponse | null | undefined,
+): RepostContext | undefined {
+  if (!context) return undefined;
+  return {
+    reposterId: context.reposterId,
+    reposterUsername: context.reposterUsername,
+    reposterName: context.reposterName,
+    reposterAvatarUrl: context.reposterAvatarUrl ?? undefined,
+    repostedAt: context.repostedAt,
+  };
 }
 
 /** Payload sent to POST /api/posts. Mirrors CreatePostRequest record. */
@@ -123,5 +161,6 @@ export function mapPostApiResponseToPost(
     repostsCount: response.repostsCount ?? 0,
     isReposted: response.userHasReposted ?? false,
     visibility,
+    repostContext: mapRepostContext(response.repostContext),
   };
 }
