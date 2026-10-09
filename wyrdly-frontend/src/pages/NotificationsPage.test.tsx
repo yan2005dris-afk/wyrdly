@@ -16,6 +16,18 @@ vi.mock("../api/posts", () => ({
   },
 }));
 
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    );
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 vi.mock("../features/notifications", async () => {
   const actual = await vi.importActual<
     typeof import("../features/notifications")
@@ -371,5 +383,46 @@ describe("NotificationsPage Component", () => {
       expect(screen.getByTestId("post-detail-modal")).toBeInTheDocument();
       expect(screen.getByText("Double click post")).toBeInTheDocument();
     });
+  });
+
+  it("navigates to /chat when interacting with a CHAT_MESSAGE notification and does not open PostDetailModal", () => {
+    const chatNotification: SocialNotification = {
+      id: "notif-chat-1",
+      type: "CHAT_MESSAGE",
+      actor: {
+        id: "usr_bob",
+        username: "bob",
+        fullName: "Bob Smith",
+        avatarUrl: null,
+        isVerified: false,
+        instanceUrl: "wyrdly.social",
+        stats: { followersCount: 0, followingCount: 0, postsCount: 0 },
+      },
+      message: "sent you a message",
+      targetResourceId: "msg_123",
+      createdAt: "5m ago",
+      isRead: false,
+    };
+
+    vi.mocked(useNotifications).mockReturnValue({
+      notifications: [chatNotification],
+      unreadCount: 1,
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+      markRead: mockMarkRead,
+      markAllRead: mockMarkAllRead,
+    });
+
+    renderPage();
+
+    const notifItem = screen.getByTestId("notification-item-notif-chat-1");
+    fireEvent.click(notifItem);
+
+    expect(mockMarkRead).toHaveBeenCalledWith("notif-chat-1");
+    expect(mockNavigate).toHaveBeenCalledWith(
+      "/chat?userId=usr_bob&username=bob",
+    );
+    expect(screen.queryByTestId("post-detail-modal")).not.toBeInTheDocument();
   });
 });

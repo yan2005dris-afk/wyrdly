@@ -1,4 +1,5 @@
 import { useState, useMemo, type FC } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell, BellOff, CheckCheck, AlertCircle } from "lucide-react";
 import {
   useNotifications,
@@ -52,6 +53,7 @@ function normalizeNotification(
 }
 
 export const NotificationsPage: FC = () => {
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>("all");
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
@@ -70,7 +72,17 @@ export const NotificationsPage: FC = () => {
     if (!notification.isRead) {
       void markRead(notification.id);
     }
-    if (notification.targetResourceId) {
+
+    if (notification.type === "CHAT_MESSAGE" && notification.actor) {
+      const params = new URLSearchParams({
+        userId: notification.actor.id,
+        username: notification.actor.username,
+      });
+      navigate(`/chat?${params.toString()}`);
+      return;
+    }
+
+    if (notification.type !== "CHAT_MESSAGE" && notification.targetResourceId) {
       setSelectedPostId(notification.targetResourceId);
       setIsPostModalOpen(true);
     }
