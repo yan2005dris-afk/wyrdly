@@ -2,12 +2,14 @@ package com.wyrdly.user.interfaces.rest;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.wyrdly.post.application.dto.PostResponse;
 import com.wyrdly.user.application.dto.FollowActionResponse;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
@@ -25,6 +27,7 @@ import io.quarkus.test.security.jwt.Claim;
 import io.quarkus.test.security.jwt.JwtSecurity;
 import io.restassured.http.ContentType;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
@@ -299,5 +302,62 @@ class UserResourceTest {
         .then()
         .statusCode(404)
         .body("error", equalTo("Not Found"));
+  }
+
+  @Test
+  void getUserPosts_ReturnsUnifiedTimeline_WithRepostContextOnSharedPosts() {
+    PostResponse shared =
+        new PostResponse(
+            "pst_alice",
+            "Post de Alice",
+            null,
+            Instant.parse("2026-10-01T08:00:00Z"),
+            new PostResponse.AuthorDto("usr_alice", "alice", "Alice Doe", null),
+            new PostResponse.ReactionCounts(1L, 0L, 0L),
+            2L,
+            1L,
+            null,
+            false,
+            new PostResponse.RepostContextDto(
+                "usr_123", "juanperez", "Juan Perez", null, Instant.parse("2026-10-03T08:00:00Z")));
+    PostResponse own =
+        new PostResponse(
+            "pst_own",
+            "Post propio",
+            null,
+            Instant.parse("2026-10-02T08:00:00Z"),
+            new PostResponse.AuthorDto("usr_123", "juanperez", "Juan Perez", null),
+            new PostResponse.ReactionCounts(0L, 0L, 0L),
+            0L,
+            0L,
+            null,
+            false);
+    when(userProfileService.getUserPosts(eq("juanperez"), isNull(), eq(1), eq(20)))
+        .thenReturn(List.of(shared, own));
+
+    given()
+        .queryParam("page", 1)
+        .queryParam("pageSize", 20)
+        .when()
+        .get("/api/users/juanperez/posts")
+        .then()
+        .statusCode(200)
+        .body("size()", equalTo(2))
+        .body("[0].id", equalTo("pst_alice"))
+        .body("[0].author.username", equalTo("alice"))
+        .body("[0].repostContext.reposterId", equalTo("usr_123"))
+        .body("[0].repostContext.reposterUsername", equalTo("juanperez"))
+        .body("[0].repostContext.reposterName", equalTo("Juan Perez"))
+        .body("[0].repostContext.repostedAt", equalTo("2026-10-03T08:00:00Z"))
+        .body("[1].id", equalTo("pst_own"))
+        .body("[1].repostContext", nullValue());
+  }
+
+  @Test
+  void getUserPosts_Returns404_WhenUserDoesNotExist() {
+    when(userProfileService.getUserPosts(eq("ghost"), isNull(), eq(0), eq(20)))
+        .thenThrow(new UserProfileNotFoundException("El usuario 'ghost' no existe."));
+
+    given().when().get("/api/users/ghost/posts").then().statusCode(404);
   }
 }

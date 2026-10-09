@@ -1,7 +1,7 @@
 package com.wyrdly.user.application.service;
 
 import com.wyrdly.post.application.dto.PostResponse;
-import com.wyrdly.post.domain.repository.PostRepository;
+import com.wyrdly.post.application.usecase.GetProfileTimelineUseCase;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
 import com.wyrdly.user.application.dto.UserSearchResultDto;
@@ -20,14 +20,17 @@ import java.util.Objects;
 public class UserProfileService implements GetUserProfileUseCase, UpdateUserProfileUseCase {
 
   private final UserProfileRepository userProfileRepository;
-  private final PostRepository postRepository;
+  private final GetProfileTimelineUseCase getProfileTimelineUseCase;
 
   @Inject
   public UserProfileService(
-      @ResilientNeo4j UserProfileRepository userProfileRepository, PostRepository postRepository) {
+      @ResilientNeo4j UserProfileRepository userProfileRepository,
+      GetProfileTimelineUseCase getProfileTimelineUseCase) {
     this.userProfileRepository =
         Objects.requireNonNull(userProfileRepository, "userProfileRepository must not be null");
-    this.postRepository = Objects.requireNonNull(postRepository, "postRepository must not be null");
+    this.getProfileTimelineUseCase =
+        Objects.requireNonNull(
+            getProfileTimelineUseCase, "getProfileTimelineUseCase must not be null");
   }
 
   @Override
@@ -51,9 +54,10 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
   }
 
   /**
-   * Resolve {@code username} to the underlying user id and list the posts that user has published,
-   * most recent first. Throws {@link UserProfileNotFoundException} when the username does not exist
-   * so the resource layer can return a clean 404.
+   * Resolve {@code username} to the underlying user id and return that user's profile timeline:
+   * posts they published plus posts they shared, ordered by the date of their action (HU #150).
+   * Throws {@link UserProfileNotFoundException} when the username does not exist so the resource
+   * layer can return a clean 404.
    */
   public List<PostResponse> getUserPosts(String username, String viewerId, int page, int pageSize) {
     UserProfile profile =
@@ -62,23 +66,7 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
             .orElseThrow(
                 () -> new UserProfileNotFoundException("El usuario '" + username + "' no existe."));
 
-    return postRepository.findByAuthor(profile.id(), viewerId, page, pageSize).stream()
-        .map(
-            post ->
-                new PostResponse(
-                    post.id(),
-                    post.content(),
-                    post.mediaUrl(),
-                    post.createdAt(),
-                    new PostResponse.AuthorDto(
-                        profile.id(), profile.username(), profile.fullName(), profile.avatarUrl()),
-                    new PostResponse.ReactionCounts(
-                        post.likeCount(), post.loveCount(), post.celebrateCount()),
-                    post.commentsCount(),
-                    post.repostsCount(),
-                    post.userReaction(),
-                    post.userHasReposted()))
-        .toList();
+    return getProfileTimelineUseCase.getProfileTimeline(profile.id(), viewerId, page, pageSize);
   }
 
   public List<PostResponse> getUserPosts(String username, int page, int pageSize) {

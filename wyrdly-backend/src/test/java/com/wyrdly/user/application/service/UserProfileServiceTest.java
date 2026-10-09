@@ -4,12 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.wyrdly.post.application.dto.PostResponse;
-import com.wyrdly.post.domain.model.Author;
-import com.wyrdly.post.domain.model.FeedPost;
-import com.wyrdly.post.domain.repository.PostRepository;
+import com.wyrdly.post.application.usecase.GetProfileTimelineUseCase;
 import com.wyrdly.user.application.dto.UpdateProfileRequest;
 import com.wyrdly.user.application.dto.UserProfileResponse;
 import com.wyrdly.user.domain.exception.UserProfileNotFoundException;
@@ -24,14 +23,14 @@ import org.junit.jupiter.api.Test;
 class UserProfileServiceTest {
 
   private UserProfileRepository userProfileRepository;
-  private PostRepository postRepository;
+  private GetProfileTimelineUseCase getProfileTimelineUseCase;
   private UserProfileService userProfileService;
 
   @BeforeEach
   void setUp() {
     userProfileRepository = mock(UserProfileRepository.class);
-    postRepository = mock(PostRepository.class);
-    userProfileService = new UserProfileService(userProfileRepository, postRepository);
+    getProfileTimelineUseCase = mock(GetProfileTimelineUseCase.class);
+    userProfileService = new UserProfileService(userProfileRepository, getProfileTimelineUseCase);
   }
 
   @Test
@@ -113,93 +112,81 @@ class UserProfileServiceTest {
   }
 
   @Test
-  void getUserPosts_ReturnsPostsWithCommentsCountAndReactions() {
-    UserProfile profile =
-        new UserProfile(
-            "usr_123",
-            "juanperez",
-            "Juan Perez",
-            "Bio",
-            "http://avatar",
-            42L,
-            18L,
-            5L,
-            true,
-            Instant.parse("2026-09-24T18:30:00Z"));
-
-    when(userProfileRepository.findProfileByUsername("juanperez", null))
-        .thenReturn(Optional.of(profile));
-
-    FeedPost feedPost =
-        new FeedPost(
-            "post_1",
-            "Hola mundo",
-            null,
-            Instant.parse("2026-09-24T19:00:00Z"),
-            new Author("usr_123", "juanperez", "Juan Perez", "http://avatar"),
-            5L,
-            2L,
-            1L,
-            7L,
-            null);
-
-    when(postRepository.findByAuthor("usr_123", null, 1, 20)).thenReturn(List.of(feedPost));
-
-    List<PostResponse> posts = userProfileService.getUserPosts("juanperez", 1, 20);
-
-    assertEquals(1, posts.size());
-    PostResponse post = posts.get(0);
-    assertEquals("post_1", post.id());
-    assertEquals(7L, post.commentsCount());
-    assertEquals(0L, post.repostsCount());
-    assertEquals(false, post.userHasReposted());
-    assertEquals(5L, post.reactionCounts().likeCount());
-    assertEquals(2L, post.reactionCounts().loveCount());
-    assertEquals(1L, post.reactionCounts().celebrateCount());
-  }
-
-  @Test
-  void getUserPosts_WithViewer_ReturnsPostsWithViewerReactionsAndReposts() {
-    UserProfile profile =
-        new UserProfile(
-            "usr_123",
-            "juanperez",
-            "Juan Perez",
-            "Bio",
-            "http://avatar",
-            42L,
-            18L,
-            5L,
-            true,
-            Instant.parse("2026-09-24T18:30:00Z"));
-
+  void getUserPosts_DelegatesToProfileTimelineUseCase_WithResolvedOwnerId() {
     when(userProfileRepository.findProfileByUsername("juanperez", "usr_viewer"))
-        .thenReturn(Optional.of(profile));
-
-    FeedPost feedPost =
-        new FeedPost(
+        .thenReturn(Optional.of(profile()));
+    PostResponse post =
+        new PostResponse(
             "post_1",
             "Hola mundo",
             null,
             Instant.parse("2026-09-24T19:00:00Z"),
-            new Author("usr_123", "juanperez", "Juan Perez", "http://avatar"),
-            5L,
-            2L,
-            1L,
+            new PostResponse.AuthorDto("usr_123", "juanperez", "Juan Perez", "http://avatar"),
+            new PostResponse.ReactionCounts(5L, 2L, 1L),
             7L,
             3L,
             "LOVE",
             true);
-
-    when(postRepository.findByAuthor("usr_123", "usr_viewer", 1, 20)).thenReturn(List.of(feedPost));
+    when(getProfileTimelineUseCase.getProfileTimeline("usr_123", "usr_viewer", 1, 20))
+        .thenReturn(List.of(post));
 
     List<PostResponse> posts = userProfileService.getUserPosts("juanperez", "usr_viewer", 1, 20);
 
+    assertEquals(List.of(post), posts);
+    verify(getProfileTimelineUseCase).getProfileTimeline("usr_123", "usr_viewer", 1, 20);
+  }
+
+  @Test
+  void getUserPosts_ReturnsRepostsWithOriginalAuthorAndRepostContext() {
+    when(userProfileRepository.findProfileByUsername("juanperez", null))
+        .thenReturn(Optional.of(profile()));
+    Instant repostedAt = Instant.parse("2026-09-25T10:00:00Z");
+    PostResponse repost =
+        new PostResponse(
+            "post_alice",
+            "Post de Alice",
+            null,
+            Instant.parse("2026-09-20T10:00:00Z"),
+            new PostResponse.AuthorDto("usr_alice", "alice", "Alice Doe", null),
+            new PostResponse.ReactionCounts(0L, 0L, 0L),
+            0L,
+            1L,
+            null,
+            false,
+            new PostResponse.RepostContextDto(
+                "usr_123", "juanperez", "Juan Perez", "http://avatar", repostedAt));
+    when(getProfileTimelineUseCase.getProfileTimeline("usr_123", null, 1, 20))
+        .thenReturn(List.of(repost));
+
+    List<PostResponse> posts = userProfileService.getUserPosts("juanperez", 1, 20);
+
     assertEquals(1, posts.size());
-    PostResponse post = posts.get(0);
-    assertEquals("post_1", post.id());
-    assertEquals(3L, post.repostsCount());
-    assertEquals(true, post.userHasReposted());
-    assertEquals("LOVE", post.userReaction());
+    assertEquals("usr_alice", posts.get(0).author().id());
+    assertEquals("juanperez", posts.get(0).repostContext().reposterUsername());
+    assertEquals(repostedAt, posts.get(0).repostContext().repostedAt());
+  }
+
+  @Test
+  void getUserPosts_ThrowsNotFound_AndSkipsTimeline_WhenUserDoesNotExist() {
+    when(userProfileRepository.findProfileByUsername("ghost", null)).thenReturn(Optional.empty());
+
+    assertThrows(
+        UserProfileNotFoundException.class,
+        () -> userProfileService.getUserPosts("ghost", null, 1, 20));
+    verifyNoInteractions(getProfileTimelineUseCase);
+  }
+
+  private static UserProfile profile() {
+    return new UserProfile(
+        "usr_123",
+        "juanperez",
+        "Juan Perez",
+        "Bio",
+        "http://avatar",
+        42L,
+        18L,
+        5L,
+        true,
+        Instant.parse("2026-09-24T18:30:00Z"));
   }
 }
