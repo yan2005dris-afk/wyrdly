@@ -1,13 +1,17 @@
 package com.wyrdly.post.infrastructure.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.wyrdly.post.domain.model.FeedPost;
 import com.wyrdly.post.domain.model.Post;
 import com.wyrdly.testsupport.Neo4jTestContainer;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.neo4j.driver.Driver;
@@ -286,5 +290,146 @@ class Neo4jPostRepositoryAdapterIT {
 
     assertEquals(1, page2.size());
     assertEquals("pst_1", page2.get(0).id());
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Profile timeline (HU #150): :PUBLICA + :COMPARTE
+  // ---------------------------------------------------------------------------------------------
+
+  private void share(String userId, String postId, Instant at) {
+    try (Session session = driver.session()) {
+      session.run(
+          "MATCH (u:Usuario {id: $userId}), (p:Post {id: $postId}) "
+              + "MERGE (u)-[r:COMPARTE]->(p) ON CREATE SET r.createdAt = datetime($at)",
+          Map.of("userId", userId, "postId", postId, "at", at.toString()));
+    }
+  }
+
+  private void react(String userId, String postId, String tipo) {
+    try (Session session = driver.session()) {
+      session.run(
+          "MATCH (u:Usuario {id: $userId}), (p:Post {id: $postId}) "
+              + "CREATE (u)-[:REACCIONA {tipo: $tipo, createdAt: datetime()}]->(p)",
+          Map.of("userId", userId, "postId", postId, "tipo", tipo));
+    }
+  }
+
+  @Test
+  void findProfileTimeline_MergesPublishedAndSharedPosts_OrderedByActionDate() {
+    seedUser("usr_owner", "owner");
+    seedUser("usr_alice", "alice");
+
+    // Alice's post is OLDER than the owner's, but the owner shared it LATER: it must come first.
+    adapter.save(
+        new Post("pst_alice", "usr_alice", "Alice", null, Instant.parse("2026-10-01T08:00:00Z")));
+    adapter.save(
+        new Post("pst_own", "usr_owner", "Own", null, Instant.parse("2026-10-02T08:00:00Z")));
+    Instant repostedAt = Instant.parse("2026-10-03T08:00:00Z");
+    share("usr_owner", "pst_alice", repostedAt);
+
+    var timeline = adapter.findProfileTimeline("usr_owner", null, 1, 10);
+
+    assertEquals(2, timeline.size());
+
+    var shared = timeline.get(0);
+    assertEquals("pst_alice", shared.id());
+    assertEquals("usr_alice", shared.author().id(), "original authorship must be preserved");
+    assertTrue(shared.isRepost());
+    assertEquals("usr_owner", shared.repostContext().reposter().id());
+    assertEquals("owner", shared.repostContext().reposter().username());
+    assertEquals(repostedAt, shared.repostContext().repostedAt());
+    assertEquals(1L, shared.repostsCount());
+
+    var own = timeline.get(1);
+    assertEquals("pst_own", own.id());
+    assertEquals("usr_owner", own.author().id());
+    assertNull(own.repostContext());
+  }
+
+  @Test
+  void findProfileTimeline_PreservesCountersAndViewerState_OnSharedPosts() {
+    seedUser("usr_owner", "owner");
+    seedUser("usr_alice", "alice");
+    seedUser("usr_viewer", "viewer");
+    adapter.save(
+        new Post("pst_alice", "usr_alice", "Alice", null, Instant.parse("2026-10-01T08:00:00Z")));
+    share("usr_owner", "pst_alice", Instant.parse("2026-10-02T08:00:00Z"));
+    share("usr_viewer", "pst_alice", Instant.parse("2026-10-02T09:00:00Z"));
+    react("usr_viewer", "pst_alice", "LOVE");
+    react("usr_alice", "pst_alice", "LIKE");
+
+    var timeline = adapter.findProfileTimeline("usr_owner", "usr_viewer", 1, 10);
+
+    assertEquals(1, timeline.size());
+    var post = timeline.get(0);
+    assertEquals(1L, post.likeCount());
+    assertEquals(1L, post.loveCount());
+    assertEquals(0L, post.celebrateCount());
+    assertEquals(2L, post.repostsCount());
+    assertEquals("LOVE", post.userReaction());
+    assertTrue(post.userHasReposted());
+  }
+
+  @Test
+  void findProfileTimeline_SelfRepost_AppearsOnceAsPublication() {
+    seedUser("usr_owner", "owner");
+    adapter.save(
+        new Post("pst_own", "usr_owner", "Own", null, Instant.parse("2026-10-01T08:00:00Z")));
+    share("usr_owner", "pst_own", Instant.parse("2026-10-05T08:00:00Z"));
+
+    var timeline = adapter.findProfileTimeline("usr_owner", null, 1, 10);
+
+    assertEquals(1, timeline.size());
+    assertEquals("pst_own", timeline.get(0).id());
+    assertNull(timeline.get(0).repostContext());
+  }
+
+  @Test
+  void findProfileTimeline_PaginatesWithoutDuplicatesOrGaps_EvenWithEqualTimestamps() {
+    seedUser("usr_owner", "owner");
+    seedUser("usr_alice", "alice");
+    Instant sameInstant = Instant.parse("2026-10-01T08:00:00Z");
+    adapter.save(new Post("pst_a", "usr_owner", "A", null, sameInstant));
+    adapter.save(new Post("pst_b", "usr_owner", "B", null, sameInstant));
+    adapter.save(new Post("pst_c", "usr_alice", "C", null, Instant.parse("2026-09-01T08:00:00Z")));
+    share("usr_owner", "pst_c", sameInstant);
+    adapter.save(new Post("pst_d", "usr_owner", "D", null, Instant.parse("2026-10-02T08:00:00Z")));
+    adapter.save(new Post("pst_e", "usr_alice", "E", null, Instant.parse("2026-09-02T08:00:00Z")));
+    share("usr_owner", "pst_e", Instant.parse("2026-09-30T08:00:00Z"));
+
+    var page1 = adapter.findProfileTimeline("usr_owner", null, 1, 2);
+    var page2 = adapter.findProfileTimeline("usr_owner", null, 2, 2);
+    var page3 = adapter.findProfileTimeline("usr_owner", null, 3, 2);
+
+    List<String> ids =
+        Stream.of(page1, page2, page3).flatMap(List::stream).map(FeedPost::id).toList();
+    // D (10-02) > {A, B, C} tied at 10-01 ordered by id > E (shared 09-30)
+    assertEquals(List.of("pst_d", "pst_a", "pst_b", "pst_c", "pst_e"), ids);
+  }
+
+  @Test
+  void findProfileTimeline_UndoRepost_RemovesSharedPost() {
+    seedUser("usr_owner", "owner");
+    seedUser("usr_alice", "alice");
+    adapter.save(
+        new Post("pst_alice", "usr_alice", "Alice", null, Instant.parse("2026-10-01T08:00:00Z")));
+    share("usr_owner", "pst_alice", Instant.parse("2026-10-02T08:00:00Z"));
+    assertEquals(1, adapter.findProfileTimeline("usr_owner", null, 1, 10).size());
+
+    new Neo4jRepostRepositoryAdapter(driver).unrepost("usr_owner", "pst_alice");
+
+    assertTrue(adapter.findProfileTimeline("usr_owner", null, 1, 10).isEmpty());
+  }
+
+  @Test
+  void findProfileTimeline_DoesNotIncludeOtherUsersShares() {
+    seedUser("usr_owner", "owner");
+    seedUser("usr_alice", "alice");
+    seedUser("usr_bob", "bob");
+    adapter.save(
+        new Post("pst_alice", "usr_alice", "Alice", null, Instant.parse("2026-10-01T08:00:00Z")));
+    share("usr_bob", "pst_alice", Instant.parse("2026-10-02T08:00:00Z"));
+
+    assertTrue(adapter.findProfileTimeline("usr_owner", null, 1, 10).isEmpty());
   }
 }
