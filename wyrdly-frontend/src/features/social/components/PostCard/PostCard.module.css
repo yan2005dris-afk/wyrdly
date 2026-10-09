@@ -50,6 +50,25 @@
   color: #94a3b8;
 }
 
+.repostBanner {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  color: #64748b;
+}
+
+.repostBannerLink {
+  font-weight: 600;
+  color: #475569;
+  text-decoration: none;
+}
+
+.repostBannerLink:hover {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+
 .authorHandle {
   font-size: 0.6875rem;
   color: #94a3b8;
