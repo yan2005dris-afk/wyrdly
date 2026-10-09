@@ -30,9 +30,11 @@ function buildPost(overrides: Partial<Post> = {}): Post {
     content: "hello",
     createdAt: "2026-01-15T10:00:00Z",
     attachments: [],
-    reactions: { LIKE: 0, LOVE: 0, CELEBRATE: 0, RETWEET: 0 },
+    reactions: { LIKE: 0, LOVE: 0, CELEBRATE: 0 },
     userReaction: undefined,
     commentsCount: 0,
+    repostsCount: 0,
+    isReposted: false,
     visibility: "PUBLIC",
     ...overrides,
   };
@@ -77,7 +79,7 @@ describe("useOptimisticReaction", () => {
     mockedReact.mockReturnValueOnce(pending.promise);
     const { result } = renderWithStore([
       buildPost({
-        reactions: { LIKE: 0, LOVE: 1, CELEBRATE: 0, RETWEET: 0 },
+        reactions: { LIKE: 0, LOVE: 1, CELEBRATE: 0 },
         userReaction: "LOVE",
       }),
     ]);
@@ -128,7 +130,6 @@ describe("useOptimisticReaction", () => {
       LIKE: 0,
       LOVE: 0,
       CELEBRATE: 0,
-      RETWEET: 0,
     });
   });
 
@@ -140,7 +141,7 @@ describe("useOptimisticReaction", () => {
     });
     const { result } = renderWithStore([
       buildPost({
-        reactions: { LIKE: 1, LOVE: 0, CELEBRATE: 0, RETWEET: 0 },
+        reactions: { LIKE: 1, LOVE: 0, CELEBRATE: 0 },
         userReaction: "LIKE",
       }),
     ]);
@@ -157,13 +158,13 @@ describe("useOptimisticReaction", () => {
     mockedReact.mockRejectedValueOnce(new Error("Bad Request"));
     const { result } = renderWithStore([
       buildPost({
-        reactions: { LIKE: 0, LOVE: 1, CELEBRATE: 0, RETWEET: 0 },
+        reactions: { LIKE: 0, LOVE: 1, CELEBRATE: 0 },
         userReaction: "LOVE",
       }),
     ]);
 
     await act(async () => {
-      result.current.toggle("post-1", "RETWEET");
+      result.current.toggle("post-1", "LIKE");
     });
 
     expect(result.current.posts[0].userReaction).toBe("LOVE");
@@ -171,7 +172,6 @@ describe("useOptimisticReaction", () => {
       LIKE: 0,
       LOVE: 1,
       CELEBRATE: 0,
-      RETWEET: 0,
     });
   });
 

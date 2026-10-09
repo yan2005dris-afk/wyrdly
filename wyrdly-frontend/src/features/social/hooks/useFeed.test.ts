@@ -27,9 +27,11 @@ function buildPost(id: string, content: string): Post {
     content,
     createdAt: "2026-01-15T10:00:00Z",
     attachments: [],
-    reactions: { LIKE: 5, LOVE: 2, CELEBRATE: 1, RETWEET: 0 },
+    reactions: { LIKE: 5, LOVE: 2, CELEBRATE: 1 },
     userReaction: undefined,
     commentsCount: 0,
+    repostsCount: 0,
+    isReposted: false,
     visibility: "PUBLIC",
   };
 }
@@ -86,7 +88,6 @@ describe("useFeed", () => {
       LIKE: 5,
       LOVE: 2,
       CELEBRATE: 1,
-      RETWEET: 0,
     });
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();

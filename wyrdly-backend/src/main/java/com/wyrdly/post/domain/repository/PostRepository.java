@@ -22,7 +22,11 @@ public interface PostRepository {
 
   long countFeedByUserId(String userId);
 
-  List<FeedPost> findByAuthor(String authorId, int page, int pageSize);
+  List<FeedPost> findByAuthor(String authorId, String viewerId, int page, int pageSize);
+
+  default List<FeedPost> findByAuthor(String authorId, int page, int pageSize) {
+    return findByAuthor(authorId, null, page, pageSize);
+  }
 
   long countByAuthor(String authorId);
 

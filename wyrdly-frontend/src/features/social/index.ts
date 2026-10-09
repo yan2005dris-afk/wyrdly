@@ -28,3 +28,14 @@ export type {
   UseOptimisticReactionOptions,
   UseOptimisticReactionReturn,
 } from "./hooks/useOptimisticReaction";
+export { useRepost } from "./hooks/useRepost";
+export type { UseRepostReturn, UseRepostCallbacks } from "./hooks/useRepost";
+export { useOptimisticRepost } from "./hooks/useOptimisticRepost";
+export type {
+  UseOptimisticRepostOptions,
+  UseOptimisticRepostReturn,
+} from "./hooks/useOptimisticRepost";
+
+// Utils
+export { withRepost } from "./utils/repostState";
+export type { RepostState } from "./utils/repostState";

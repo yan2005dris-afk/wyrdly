@@ -1,6 +1,6 @@
 import type { NodeId, ISO8601Timestamp, UserProfileSummary } from "./domain";
 
-export type ReactionType = "LIKE" | "LOVE" | "CELEBRATE" | "RETWEET";
+export type ReactionType = "LIKE" | "LOVE" | "CELEBRATE";
 
 export type PostVisibility = "PUBLIC" | "FEDERATED" | "FOLLOWERS";
 
@@ -18,7 +18,6 @@ export interface PostReactions {
   readonly LIKE: number;
   readonly LOVE: number;
   readonly CELEBRATE: number;
-  readonly RETWEET: number;
 }
 
 export interface Post {
@@ -30,6 +29,8 @@ export interface Post {
   readonly reactions: Readonly<PostReactions>;
   readonly userReaction?: ReactionType;
   readonly commentsCount: number;
+  readonly repostsCount: number;
+  readonly isReposted: boolean;
   readonly visibility: PostVisibility;
 }
 
@@ -59,6 +60,8 @@ export interface PostApiResponse {
   };
   readonly userReaction: ReactionType | null;
   readonly commentsCount?: number;
+  readonly repostsCount?: number;
+  readonly userHasReposted?: boolean;
 }
 
 /** Payload sent to POST /api/posts. Mirrors CreatePostRequest record. */
@@ -114,10 +117,11 @@ export function mapPostApiResponseToPost(
       LIKE: response.reactionCounts?.likeCount ?? 0,
       LOVE: response.reactionCounts?.loveCount ?? 0,
       CELEBRATE: response.reactionCounts?.celebrateCount ?? 0,
-      RETWEET: 0,
     },
     userReaction: response.userReaction ?? undefined,
     commentsCount: response.commentsCount ?? 0,
+    repostsCount: response.repostsCount ?? 0,
+    isReposted: response.userHasReposted ?? false,
     visibility,
   };
 }

@@ -24,6 +24,7 @@ import {
   useGraphSuggestions,
   useFollow,
   useOptimisticReaction,
+  useOptimisticRepost,
 } from "../features/social";
 import { Button } from "../components/ui/Button";
 
@@ -44,12 +45,14 @@ export const ProfilePage: FC = () => {
   );
 
   const { posts, isLoading: postsLoading } = useUserPosts(profileUsername);
-  const [reactionOverrides, setReactionOverrides] = useState<
+  const [postOverrides, setPostOverrides] = useState<
     Record<
       string,
       {
         userReaction?: Post["userReaction"];
         reactions: Post["reactions"];
+        repostsCount?: number;
+        isReposted?: boolean;
       }
     >
   >({});
@@ -57,15 +60,17 @@ export const ProfilePage: FC = () => {
   const displayPosts: readonly Post[] = useMemo(() => {
     return posts.map((post) => {
       const mapped = mapPostApiResponseToPost(post);
-      const override = reactionOverrides[post.id];
+      const override = postOverrides[post.id];
       if (!override) return mapped;
       return {
         ...mapped,
         userReaction: override.userReaction,
         reactions: override.reactions,
+        repostsCount: override.repostsCount ?? mapped.repostsCount,
+        isReposted: override.isReposted ?? mapped.isReposted,
       };
     });
-  }, [posts, reactionOverrides]);
+  }, [posts, postOverrides]);
 
   const findPost = useCallback(
     (postId: string) => displayPosts.find((p) => p.id === postId),
@@ -74,7 +79,7 @@ export const ProfilePage: FC = () => {
 
   const updatePost = useCallback(
     (postId: string, updater: (post: Post) => Post) => {
-      setReactionOverrides((prev) => {
+      setPostOverrides((prev) => {
         const currentPost = displayPosts.find((p) => p.id === postId);
         if (!currentPost) return prev;
         const updated = updater(currentPost);
@@ -83,6 +88,8 @@ export const ProfilePage: FC = () => {
           [postId]: {
             userReaction: updated.userReaction,
             reactions: updated.reactions,
+            repostsCount: updated.repostsCount,
+            isReposted: updated.isReposted,
           },
         };
       });
@@ -92,6 +99,8 @@ export const ProfilePage: FC = () => {
 
   const { toggle: handleReaction, isPending: isReactionPending } =
     useOptimisticReaction({ findPost, updatePost });
+  const { toggle: handleBoost, isPending: isBoostPending } =
+    useOptimisticRepost({ findPost, updatePost });
   const {
     users: followers,
     isLoading: followersLoading,
@@ -287,7 +296,9 @@ export const ProfilePage: FC = () => {
               posts={displayPosts}
               isLoading={postsLoading && displayPosts.length === 0}
               onReaction={handleReaction}
+              onBoost={handleBoost}
               isReactionPending={isReactionPending}
+              isBoostPending={isBoostPending}
             />
           )}
 
@@ -345,14 +356,18 @@ interface PostsTabProps {
   readonly posts: readonly Post[];
   readonly isLoading: boolean;
   readonly onReaction?: (postId: string, reaction: ReactionType) => void;
+  readonly onBoost?: (postId: string) => void;
   readonly isReactionPending?: (postId: string) => boolean;
+  readonly isBoostPending?: (postId: string) => boolean;
 }
 
 const PostsTab: FC<PostsTabProps> = ({
   posts,
   isLoading,
   onReaction,
+  onBoost,
   isReactionPending,
+  isBoostPending,
 }) => {
   if (isLoading) {
     return (
@@ -382,7 +397,9 @@ const PostsTab: FC<PostsTabProps> = ({
           key={post.id}
           post={post}
           onReaction={onReaction}
+          onBoost={onBoost}
           isReactionPending={isReactionPending?.(post.id)}
+          isBoostPending={isBoostPending?.(post.id)}
         />
       ))}
     </div>
