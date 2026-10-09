@@ -353,57 +353,6 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
     }
   }
 
-  private static final String FIND_BY_AUTHOR_QUERY =
-      "MATCH (author:Usuario {id: $authorId})-[:PUBLICA]->(p:Post) "
-          + "OPTIONAL MATCH (p)<-[rlike:REACCIONA {tipo: 'LIKE'}]-() "
-          + "OPTIONAL MATCH (p)<-[rlove:REACCIONA {tipo: 'LOVE'}]-() "
-          + "OPTIONAL MATCH (p)<-[rceleb:REACCIONA {tipo: 'CELEBRATE'}]-() "
-          + "OPTIONAL MATCH (viewer:Usuario {id: $viewerId})-[ur:REACCIONA]->(p) "
-          + "WITH DISTINCT p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
-          + "              p.createdAt AS createdAt, author.id AS authorId, "
-          + "              author.username AS authorUsername, author.fullName AS authorFullName, "
-          + "              author.avatarUrl AS authorAvatarUrl, "
-          + "              count(DISTINCT rlike) AS likeCount, "
-          + "              count(DISTINCT rlove) AS loveCount, "
-          + "              count(DISTINCT rceleb) AS celebrateCount, "
-          + "              ur.tipo AS userReactionType, "
-          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount, "
-          + "              COUNT { (p)<-[:COMPARTE]-() } AS repostsCount, "
-          + "              ($viewerId IS NOT NULL AND EXISTS { (:Usuario {id: $viewerId})-[:COMPARTE]->(p) }) AS userHasReposted "
-          + "ORDER BY createdAt DESC "
-          + "SKIP $skip LIMIT $limit "
-          + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
-          + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
-          + "       celebrateCount, commentsCount, repostsCount, userReactionType, userHasReposted";
-
-  /**
-   * Finds all posts published by a specific author, with pagination, reactions, and comments count.
-   */
-  @Override
-  public List<FeedPost> findByAuthor(String authorId, String viewerId, int page, int pageSize) {
-    int skip = Math.max(0, (page <= 0 ? 0 : page - 1) * pageSize);
-    try (Session session = driver.session()) {
-      return session.executeRead(
-          tx ->
-              tx.run(
-                      FIND_BY_AUTHOR_QUERY,
-                      Values.parameters(
-                          "authorId", authorId,
-                          "viewerId", viewerId,
-                          "skip", skip,
-                          "limit", pageSize))
-                  .list(this::mapRecordToFeedPost));
-    } catch (Exception e) {
-      Log.errorf(e, "Failed to query posts by author: %s", authorId);
-      throw new PostPersistenceException("Failed to query posts for authorId=" + authorId, e);
-    }
-  }
-
-  @Override
-  public List<FeedPost> findByAuthor(String authorId, int page, int pageSize) {
-    return findByAuthor(authorId, null, page, pageSize);
-  }
-
   /**
    * Profile timeline (HU #150): publications ({@code :PUBLICA}) and shares ({@code :COMPARTE}) of
    * {@code $ownerId} merged with {@code UNION ALL}, ordered by the date of the owner's action.
