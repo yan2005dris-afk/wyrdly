@@ -274,3 +274,171 @@ describe("ProfilePage Component", () => {
     });
   });
 });
+
+describe("ProfilePage — unified timeline with reposts (HU #150)", () => {
+  const sharedPost = {
+    id: "post-alice-1",
+    content: "Alice wrote this",
+    mediaUrl: null,
+    createdAt: "2026-01-01T09:00:00Z",
+    author: {
+      id: "user-alice",
+      username: "alice",
+      fullName: "Alice Chen",
+      avatarUrl: null,
+    },
+    reactionCounts: { likeCount: 0, loveCount: 0, celebrateCount: 0 },
+    userReaction: null,
+    repostsCount: 1,
+    userHasReposted: true,
+    repostContext: {
+      reposterId: "user-maya",
+      reposterUsername: "maya",
+      reposterName: "Maya Krishnan",
+      reposterAvatarUrl: null,
+      repostedAt: "2026-01-12T08:00:00Z",
+    },
+  };
+
+  const ownPost = {
+    ...samplePost,
+    reactionCounts: { likeCount: 0, loveCount: 0, celebrateCount: 0 },
+    userReaction: null,
+  };
+
+  const setLoggedUser = (id: string, username: string) => {
+    localStorage.setItem(
+      "wyrdly_user",
+      JSON.stringify({
+        id,
+        username,
+        fullName: username,
+        email: `${username}@wyrdly.social`,
+      }),
+    );
+    localStorage.setItem("wyrdly_token", "fake-token");
+  };
+
+  const renderMayaProfile = () =>
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/profile/maya"]}>
+          <Routes>
+            <Route path="/profile/:username" element={<ProfilePage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+  const boostButtonOf = (postId: string) =>
+    screen
+      .getByTestId(`post-card-${postId}`)
+      .querySelector<HTMLButtonElement>('[data-testid="boost-btn"]')!;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setLoggedUser("user-maya", "maya");
+    vi.mocked(usersApi.getProfile).mockResolvedValue(mockProfile);
+    vi.mocked(usersApi.getUserPosts).mockResolvedValue([sharedPost, ownPost]);
+    vi.mocked(usersApi.getUserFollowers).mockResolvedValue([]);
+    vi.mocked(usersApi.getUserFollowing).mockResolvedValue([]);
+  });
+
+  it("renders own and shared posts in backend order, with the repost banner only on shares", async () => {
+    renderMayaProfile();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-card-post-alice-1")).toBeInTheDocument();
+    });
+
+    const cards = screen
+      .getByTestId("profile-posts-grid")
+      .querySelectorAll("article[data-testid^='post-card-']");
+    expect(Array.from(cards).map((c) => c.getAttribute("data-testid"))).toEqual(
+      ["post-card-post-alice-1", "post-card-post-maya-1"],
+    );
+
+    const sharedCard = screen.getByTestId("post-card-post-alice-1");
+    expect(sharedCard).toHaveTextContent("Alice Chen");
+    expect(
+      sharedCard.querySelector('[data-testid="repost-banner"]'),
+    ).toHaveTextContent("Maya Krishnan");
+
+    const ownCard = screen.getByTestId("post-card-post-maya-1");
+    expect(
+      ownCard.querySelector('[data-testid="repost-banner"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  it("removes the owner's share optimistically when they undo the repost", async () => {
+    vi.mocked(postsApi.setRepost).mockResolvedValue({
+      reposted: false,
+      repostsCount: 0,
+    });
+    renderMayaProfile();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-card-post-alice-1")).toBeInTheDocument();
+    });
+
+    fireEvent.click(boostButtonOf("post-alice-1"));
+
+    expect(postsApi.setRepost).toHaveBeenCalledWith(
+      "post-alice-1",
+      false,
+      expect.any(AbortSignal),
+    );
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("post-card-post-alice-1"),
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("post-card-post-maya-1")).toBeInTheDocument();
+  });
+
+  it("restores the share when undoing the repost fails on the server", async () => {
+    vi.mocked(postsApi.setRepost).mockRejectedValue(new Error("boom"));
+    renderMayaProfile();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-card-post-alice-1")).toBeInTheDocument();
+    });
+
+    fireEvent.click(boostButtonOf("post-alice-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-card-post-alice-1")).toBeInTheDocument();
+      expect(boostButtonOf("post-alice-1")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+    });
+  });
+
+  it("never hides the owner's shares for a visitor who has not reposted them", async () => {
+    setLoggedUser("user-visitor", "visitor");
+    vi.mocked(usersApi.getUserPosts).mockResolvedValue([
+      { ...sharedPost, userHasReposted: false },
+      ownPost,
+    ]);
+    vi.mocked(postsApi.setRepost).mockResolvedValue({
+      reposted: true,
+      repostsCount: 2,
+    });
+    renderMayaProfile();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-card-post-alice-1")).toBeInTheDocument();
+    });
+
+    fireEvent.click(boostButtonOf("post-alice-1"));
+
+    await waitFor(() => {
+      expect(boostButtonOf("post-alice-1")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+    });
+    expect(screen.getByTestId("post-card-post-alice-1")).toBeInTheDocument();
+  });
+});

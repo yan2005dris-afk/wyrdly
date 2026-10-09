@@ -12,6 +12,7 @@ import {
   useUserProfile,
   useUserPosts,
   useProfileUsers,
+  isHiddenFromOwnerTimeline,
   type ProfileTabId,
   type ProfileUserSummary,
 } from "../features/profile";
@@ -25,6 +26,7 @@ import {
   useFollow,
   useOptimisticReaction,
   useOptimisticRepost,
+  getTimelineItemKey,
 } from "../features/social";
 import { Button } from "../components/ui/Button";
 
@@ -57,7 +59,10 @@ export const ProfilePage: FC = () => {
     >
   >({});
 
-  const displayPosts: readonly Post[] = useMemo(() => {
+  // Full timeline state (with optimistic overrides). findPost/updatePost read
+  // from here — NOT from the rendered list — so a post hidden optimistically
+  // can still be rolled back if the server rejects the change.
+  const timelinePosts: readonly Post[] = useMemo(() => {
     return posts.map((post) => {
       const mapped = mapPostApiResponseToPost(post);
       const override = postOverrides[post.id];
@@ -72,15 +77,25 @@ export const ProfilePage: FC = () => {
     });
   }, [posts, postOverrides]);
 
+  // Undoing your own repost on your own profile removes it optimistically
+  // (HU #150); the backend no longer returns it on the next fetch.
+  const visiblePosts: readonly Post[] = useMemo(
+    () =>
+      timelinePosts.filter(
+        (post) => !isHiddenFromOwnerTimeline(post, profile?.id, authUser?.id),
+      ),
+    [timelinePosts, profile?.id, authUser?.id],
+  );
+
   const findPost = useCallback(
-    (postId: string) => displayPosts.find((p) => p.id === postId),
-    [displayPosts],
+    (postId: string) => timelinePosts.find((p) => p.id === postId),
+    [timelinePosts],
   );
 
   const updatePost = useCallback(
     (postId: string, updater: (post: Post) => Post) => {
       setPostOverrides((prev) => {
-        const currentPost = displayPosts.find((p) => p.id === postId);
+        const currentPost = timelinePosts.find((p) => p.id === postId);
         if (!currentPost) return prev;
         const updated = updater(currentPost);
         return {
@@ -94,7 +109,7 @@ export const ProfilePage: FC = () => {
         };
       });
     },
-    [displayPosts],
+    [timelinePosts],
   );
 
   const { toggle: handleReaction, isPending: isReactionPending } =
@@ -293,8 +308,8 @@ export const ProfilePage: FC = () => {
 
           {activeTab === "posts" && (
             <PostsTab
-              posts={displayPosts}
-              isLoading={postsLoading && displayPosts.length === 0}
+              posts={visiblePosts}
+              isLoading={postsLoading && timelinePosts.length === 0}
               onReaction={handleReaction}
               onBoost={handleBoost}
               isReactionPending={isReactionPending}
@@ -394,7 +409,7 @@ const PostsTab: FC<PostsTabProps> = ({
     <div className="flex flex-col gap-4" data-testid="profile-posts-grid">
       {posts.map((post) => (
         <PostCard
-          key={post.id}
+          key={getTimelineItemKey(post)}
           post={post}
           onReaction={onReaction}
           onBoost={onBoost}
