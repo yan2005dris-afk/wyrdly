@@ -15,6 +15,15 @@ vi.mock("../api/users", () => ({
   },
 }));
 
+vi.mock("../api/posts", () => ({
+  postsApi: {
+    react: vi.fn(),
+    setRepost: vi.fn(),
+  },
+}));
+
+import { postsApi } from "../api/posts";
+
 const mockProfile = {
   id: "user-maya",
   username: "maya",
@@ -177,6 +186,91 @@ describe("ProfilePage Component", () => {
 
     await waitFor(() => {
       expect(usersApi.getProfile).toHaveBeenCalledWith("usr_maya_id");
+    });
+  });
+
+  it("allows boosting and unboosting posts on the timeline", async () => {
+    vi.mocked(postsApi.setRepost)
+      .mockResolvedValueOnce({
+        reposted: true,
+        repostsCount: 1,
+      })
+      .mockResolvedValueOnce({
+        reposted: false,
+        repostsCount: 0,
+      });
+
+    renderProfilePage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-card-post-maya-1")).toBeInTheDocument();
+    });
+
+    const boostBtn = screen.getByTestId("boost-btn");
+    expect(boostBtn).toHaveAttribute("aria-pressed", "false");
+    expect(boostBtn).toHaveTextContent("0");
+
+    fireEvent.click(boostBtn);
+
+    expect(postsApi.setRepost).toHaveBeenCalledWith(
+      "post-maya-1",
+      true,
+      expect.any(AbortSignal),
+    );
+
+    await waitFor(() => {
+      expect(boostBtn).toHaveAttribute("aria-pressed", "true");
+      expect(boostBtn).toHaveTextContent("1");
+    });
+
+    fireEvent.click(boostBtn);
+
+    expect(postsApi.setRepost).toHaveBeenCalledWith(
+      "post-maya-1",
+      false,
+      expect.any(AbortSignal),
+    );
+
+    await waitFor(() => {
+      expect(boostBtn).toHaveAttribute("aria-pressed", "false");
+      expect(boostBtn).toHaveTextContent("0");
+    });
+  });
+
+  it("allows reacting and boosting independently on the profile timeline", async () => {
+    vi.mocked(postsApi.react).mockResolvedValue({
+      action: "added",
+      reaction: "LIKE",
+      reactions: { like: 1, love: 0, celebrate: 0 },
+    });
+    vi.mocked(postsApi.setRepost).mockResolvedValue({
+      reposted: true,
+      repostsCount: 3,
+    });
+
+    renderProfilePage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-card-post-maya-1")).toBeInTheDocument();
+    });
+
+    const boostBtn = screen.getByTestId("boost-btn");
+    const likeBtn = screen.getByTestId("like-btn");
+
+    fireEvent.click(boostBtn);
+    await waitFor(() => {
+      expect(boostBtn).toHaveAttribute("aria-pressed", "true");
+    });
+
+    fireEvent.click(likeBtn);
+    await waitFor(() => {
+      expect(postsApi.react).toHaveBeenCalledWith(
+        "post-maya-1",
+        "LIKE",
+        expect.any(AbortSignal),
+      );
+      expect(boostBtn).toHaveAttribute("aria-pressed", "true");
+      expect(likeBtn).toHaveAttribute("aria-pressed", "true");
     });
   });
 });

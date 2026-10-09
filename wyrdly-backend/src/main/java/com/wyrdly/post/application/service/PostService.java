@@ -97,6 +97,8 @@ public class PostService implements CreatePostUseCase, GetPostUseCase {
         new PostResponse.ReactionCounts(
             feedPost.likeCount(), feedPost.loveCount(), feedPost.celebrateCount()),
         feedPost.commentsCount(),
-        feedPost.userReaction());
+        feedPost.repostsCount(),
+        feedPost.userReaction(),
+        feedPost.userHasReposted());
   }
 }

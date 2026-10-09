@@ -108,9 +108,10 @@ export const PostCard: FC<PostCardProps> = ({
   onShareClick,
   className = "",
   isReactionPending = false,
+  isBoostPending = false,
   defaultCommentsOpen = false,
 }) => {
-  const isBoosted = post.userReaction === "RETWEET";
+  const isBoosted = Boolean(post.isReposted);
   const [isCommentsOpen, setIsCommentsOpen] = useState(defaultCommentsOpen);
 
   const authorProfileUrl = `/profile/${post.author.username}`;
@@ -209,14 +210,16 @@ export const PostCard: FC<PostCardProps> = ({
         <button
           type="button"
           onClick={() => onBoost?.(post.id)}
-          disabled={!onBoost || isReactionPending}
+          disabled={!onBoost || isBoostPending}
+          aria-pressed={isBoosted}
+          aria-busy={isBoostPending || undefined}
           title={onBoost ? undefined : "Boost coming soon"}
           className={`${styles.actionButton} ${isBoosted ? styles.actionButtonBoosted : ""}`}
           data-testid="boost-btn"
           aria-label="Boost"
         >
           <Repeat className="w-3.5 h-3.5" />
-          <span>{formatCount(post.reactions.RETWEET)}</span>
+          <span>{formatCount(post.repostsCount)}</span>
         </button>
 
         <button

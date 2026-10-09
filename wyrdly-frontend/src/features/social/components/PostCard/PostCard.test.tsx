@@ -45,10 +45,11 @@ const MOCK_POST: Post = {
     LIKE: 1240,
     LOVE: 50,
     CELEBRATE: 20,
-    RETWEET: 342,
   },
   userReaction: "LIKE",
   commentsCount: 89,
+  repostsCount: 342,
+  isReposted: false,
   visibility: "PUBLIC",
 };
 
@@ -219,7 +220,6 @@ describe("PostCard Component", () => {
         LIKE: 0,
         LOVE: 0,
         CELEBRATE: 0,
-        RETWEET: 0,
       } as Post["reactions"],
     };
     renderCard({ post: postMissingCounts });
@@ -227,6 +227,46 @@ describe("PostCard Component", () => {
     expect(screen.getByTestId("like-btn")).toHaveTextContent("0");
     expect(screen.getByTestId("love-btn")).toHaveTextContent("0");
     expect(screen.getByTestId("celebrate-btn")).toHaveTextContent("0");
+  });
+
+  it("renders boost button with count from repostsCount and handles clicks", () => {
+    const onBoost = vi.fn();
+    renderCard({ onBoost });
+
+    const boostBtn = screen.getByTestId("boost-btn");
+    expect(boostBtn).toBeEnabled();
+    expect(boostBtn).toHaveTextContent("342");
+    expect(boostBtn).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(boostBtn);
+    expect(onBoost).toHaveBeenCalledWith("post-1");
+  });
+
+  it("disables boost button when onBoost is omitted", () => {
+    renderCard();
+    expect(screen.getByTestId("boost-btn")).toBeDisabled();
+  });
+
+  it("renders active boost state when post.isReposted is true", () => {
+    const postWithRepost: Post = {
+      ...MOCK_POST,
+      isReposted: true,
+      repostsCount: 343,
+    };
+    renderCard({ post: postWithRepost, onBoost: vi.fn() });
+
+    const boostBtn = screen.getByTestId("boost-btn");
+    expect(boostBtn).toHaveAttribute("aria-pressed", "true");
+    expect(boostBtn).toHaveTextContent("343");
+  });
+
+  it("disables boost button when isBoostPending is true", () => {
+    renderCard({ onBoost: vi.fn(), isBoostPending: true });
+    expect(screen.getByTestId("boost-btn")).toBeDisabled();
+    expect(screen.getByTestId("boost-btn")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
   });
 
   // HU10 — Post Comments (#122)

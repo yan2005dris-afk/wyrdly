@@ -17,7 +17,9 @@ public record FeedPost(
     long loveCount,
     long celebrateCount,
     long commentsCount,
-    String userReaction) {
+    long repostsCount,
+    String userReaction,
+    boolean userHasReposted) {
 
   public FeedPost {
     if (id == null || id.isBlank()) {
@@ -28,9 +30,40 @@ public record FeedPost(
     }
     Objects.requireNonNull(createdAt, "createdAt must not be null");
     Objects.requireNonNull(author, "author must not be null");
-    if (likeCount < 0 || loveCount < 0 || celebrateCount < 0 || commentsCount < 0) {
+    if (likeCount < 0
+        || loveCount < 0
+        || celebrateCount < 0
+        || commentsCount < 0
+        || repostsCount < 0) {
       throw new IllegalArgumentException("counts must not be negative");
     }
     // userReaction can be null (user has not reacted) or one of: LIKE, LOVE, CELEBRATE
+  }
+
+  /** Backward-compatible 10-argument constructor for call sites that pre-date HU #144. */
+  public FeedPost(
+      String id,
+      String content,
+      String mediaUrl,
+      Instant createdAt,
+      Author author,
+      long likeCount,
+      long loveCount,
+      long celebrateCount,
+      long commentsCount,
+      String userReaction) {
+    this(
+        id,
+        content,
+        mediaUrl,
+        createdAt,
+        author,
+        likeCount,
+        loveCount,
+        celebrateCount,
+        commentsCount,
+        0L,
+        userReaction,
+        false);
   }
 }

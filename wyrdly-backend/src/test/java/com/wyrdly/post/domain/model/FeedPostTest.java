@@ -89,4 +89,20 @@ class FeedPostTest {
         IllegalArgumentException.class,
         () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, 0, 0, -1L, null));
   }
+
+  @Test
+  void create_Success_WithRepostsFields() {
+    FeedPost feedPost =
+        new FeedPost("pst_1", "Hello feed", null, NOW, AUTHOR, 5, 3, 1, 4L, 12L, "LIKE", true);
+
+    assertEquals(12L, feedPost.repostsCount());
+    assertEquals(true, feedPost.userHasReposted());
+  }
+
+  @Test
+  void create_ThrowsException_WhenRepostsCountNegative() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new FeedPost("pst_1", "Content", null, NOW, AUTHOR, 0, 0, 0, 0L, -1L, null, false));
+  }
 }

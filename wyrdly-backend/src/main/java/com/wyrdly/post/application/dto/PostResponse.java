@@ -21,11 +21,40 @@ public record PostResponse(
     AuthorDto author,
     ReactionCounts reactionCounts,
     long commentsCount,
-    String userReaction) {
+    long repostsCount,
+    String userReaction,
+    boolean userHasReposted) {
+
+  /**
+   * Backward-compatible 8-argument constructor for callers that pre-date HU #144. Delegates to the
+   * canonical constructor with {@code repostsCount = 0L} and {@code userHasReposted = false}.
+   */
+  public PostResponse(
+      String id,
+      String content,
+      String mediaUrl,
+      Instant createdAt,
+      AuthorDto author,
+      ReactionCounts reactionCounts,
+      long commentsCount,
+      String userReaction) {
+    this(
+        id,
+        content,
+        mediaUrl,
+        createdAt,
+        author,
+        reactionCounts,
+        commentsCount,
+        0L,
+        userReaction,
+        false);
+  }
 
   /**
    * Backward-compatible 7-argument constructor for callers that pre-date HU10. Delegates to the
-   * canonical constructor with {@code commentsCount = 0L}.
+   * canonical constructor with {@code commentsCount = 0L}, {@code repostsCount = 0L}, and {@code
+   * userHasReposted = false}.
    */
   public PostResponse(
       String id,
@@ -35,7 +64,7 @@ public record PostResponse(
       AuthorDto author,
       ReactionCounts reactionCounts,
       String userReaction) {
-    this(id, content, mediaUrl, createdAt, author, reactionCounts, 0L, userReaction);
+    this(id, content, mediaUrl, createdAt, author, reactionCounts, 0L, 0L, userReaction, false);
   }
 
   public record AuthorDto(String id, String username, String fullName, String avatarUrl) {}

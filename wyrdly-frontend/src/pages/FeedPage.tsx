@@ -12,6 +12,7 @@ import {
   useCreatePost,
   useFeed,
   useOptimisticReaction,
+  useOptimisticRepost,
 } from "../features/social";
 import { useMediaUpload } from "../hooks/useMediaUpload";
 
@@ -36,6 +37,8 @@ export const FeedPage: FC = () => {
   );
   const { toggle: handleReaction, isPending: isReactionPending } =
     useOptimisticReaction({ findPost, updatePost });
+  const { toggle: handleBoost, isPending: isBoostPending } =
+    useOptimisticRepost({ findPost, updatePost });
 
   const suggestions = apiSuggestions;
 
@@ -121,10 +124,9 @@ export const FeedPage: FC = () => {
                 key={post.id}
                 post={post}
                 onReaction={handleReaction}
-                // onBoost intentionally omitted: the backend does not support
-                // boosts yet (RETWEET is rejected by /react), so PostCard
-                // renders the button disabled until the repost API exists.
+                onBoost={handleBoost}
                 isReactionPending={isReactionPending(post.id)}
+                isBoostPending={isBoostPending(post.id)}
               />
             ))
           )}

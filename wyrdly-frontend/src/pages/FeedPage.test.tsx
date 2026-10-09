@@ -52,6 +52,7 @@ vi.mock("../api/posts", () => ({
     create: vi.fn(),
     getFeed: vi.fn(),
     react: vi.fn(),
+    setRepost: vi.fn(),
   },
 }));
 
@@ -523,6 +524,7 @@ describe("FeedPage Component", () => {
 
   describe("reactions (#123)", () => {
     const mockedReact = vi.mocked(postsApi.react);
+    const mockedSetRepost = vi.mocked(postsApi.setRepost);
 
     async function renderWithOnePost() {
       mockedGetFeed.mockResolvedValue({
@@ -553,6 +555,7 @@ describe("FeedPage Component", () => {
 
     beforeEach(() => {
       mockedReact.mockReset();
+      mockedSetRepost.mockReset();
     });
 
     it("LIKE → LIKE removes the reaction and decrements without reloading", async () => {
@@ -634,15 +637,55 @@ describe("FeedPage Component", () => {
       expectReaction("like-btn", "0", false);
     });
 
-    it("keeps boost disabled and never sends it as a reaction", async () => {
+    it("boosts and unboosts independently from reactions", async () => {
+      mockedSetRepost
+        .mockResolvedValueOnce({ reposted: true, repostsCount: 1 })
+        .mockResolvedValueOnce({ reposted: false, repostsCount: 0 });
       await renderWithOnePost();
 
       const boostBtn = screen.getByTestId("boost-btn");
-      expect(boostBtn).toBeDisabled();
+      expect(boostBtn).toBeEnabled();
+      expect(boostBtn).toHaveTextContent("0");
 
       await click("boost-btn");
-      expect(mockedReact).not.toHaveBeenCalled();
+      expect(mockedSetRepost).toHaveBeenCalledWith(
+        "post-1",
+        true,
+        expect.any(AbortSignal),
+      );
+      expect(boostBtn).toHaveTextContent("1");
+      expect(boostBtn).toHaveAttribute("aria-pressed", "true");
+
+      await click("boost-btn");
+      expect(mockedSetRepost).toHaveBeenCalledWith(
+        "post-1",
+        false,
+        expect.any(AbortSignal),
+      );
       expect(boostBtn).toHaveTextContent("0");
+      expect(boostBtn).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("allows reaction and boost to coexist on the same post without interference", async () => {
+      mockedReact.mockResolvedValueOnce({
+        status: "ADDED",
+        reactionType: "LOVE",
+        totalReactions: 1,
+      });
+      mockedSetRepost.mockResolvedValueOnce({
+        reposted: true,
+        repostsCount: 1,
+      });
+      await renderWithOnePost();
+
+      await click("love-btn");
+      expectReaction("love-btn", "1", true);
+
+      await click("boost-btn");
+      const boostBtn = screen.getByTestId("boost-btn");
+      expect(boostBtn).toHaveTextContent("1");
+      expect(boostBtn).toHaveAttribute("aria-pressed", "true");
+      expectReaction("love-btn", "1", true);
     });
   });
 

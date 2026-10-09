@@ -143,7 +143,7 @@ class UserProfileServiceTest {
             7L,
             null);
 
-    when(postRepository.findByAuthor("usr_123", 1, 20)).thenReturn(List.of(feedPost));
+    when(postRepository.findByAuthor("usr_123", null, 1, 20)).thenReturn(List.of(feedPost));
 
     List<PostResponse> posts = userProfileService.getUserPosts("juanperez", 1, 20);
 
@@ -151,8 +151,55 @@ class UserProfileServiceTest {
     PostResponse post = posts.get(0);
     assertEquals("post_1", post.id());
     assertEquals(7L, post.commentsCount());
+    assertEquals(0L, post.repostsCount());
+    assertEquals(false, post.userHasReposted());
     assertEquals(5L, post.reactionCounts().likeCount());
     assertEquals(2L, post.reactionCounts().loveCount());
     assertEquals(1L, post.reactionCounts().celebrateCount());
+  }
+
+  @Test
+  void getUserPosts_WithViewer_ReturnsPostsWithViewerReactionsAndReposts() {
+    UserProfile profile =
+        new UserProfile(
+            "usr_123",
+            "juanperez",
+            "Juan Perez",
+            "Bio",
+            "http://avatar",
+            42L,
+            18L,
+            5L,
+            true,
+            Instant.parse("2026-09-24T18:30:00Z"));
+
+    when(userProfileRepository.findProfileByUsername("juanperez", "usr_viewer"))
+        .thenReturn(Optional.of(profile));
+
+    FeedPost feedPost =
+        new FeedPost(
+            "post_1",
+            "Hola mundo",
+            null,
+            Instant.parse("2026-09-24T19:00:00Z"),
+            new Author("usr_123", "juanperez", "Juan Perez", "http://avatar"),
+            5L,
+            2L,
+            1L,
+            7L,
+            3L,
+            "LOVE",
+            true);
+
+    when(postRepository.findByAuthor("usr_123", "usr_viewer", 1, 20)).thenReturn(List.of(feedPost));
+
+    List<PostResponse> posts = userProfileService.getUserPosts("juanperez", "usr_viewer", 1, 20);
+
+    assertEquals(1, posts.size());
+    PostResponse post = posts.get(0);
+    assertEquals("post_1", post.id());
+    assertEquals(3L, post.repostsCount());
+    assertEquals(true, post.userHasReposted());
+    assertEquals("LOVE", post.userReaction());
   }
 }

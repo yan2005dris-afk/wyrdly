@@ -155,12 +155,14 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "              count(DISTINCT rlove) AS loveCount, "
           + "              count(DISTINCT rceleb) AS celebrateCount, "
           + "              ur.tipo AS userReactionType, "
-          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount "
+          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount, "
+          + "              COUNT { (p)<-[:COMPARTE]-() } AS repostsCount, "
+          + "              EXISTS { (me)-[:COMPARTE]->(p) } AS userHasReposted "
           + "ORDER BY createdAt DESC "
           + "SKIP $skip LIMIT $limit "
           + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
           + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
-          + "       celebrateCount, commentsCount, userReactionType";
+          + "       celebrateCount, commentsCount, repostsCount, userReactionType, userHasReposted";
 
   private static final String COUNT_FEED_QUERY =
       "MATCH (me:Usuario {id: $userId}) "
@@ -265,8 +267,16 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         record.containsKey("commentsCount") && !record.get("commentsCount").isNull()
             ? record.get("commentsCount").asLong()
             : 0L;
+    long repostsCount =
+        record.containsKey("repostsCount") && !record.get("repostsCount").isNull()
+            ? record.get("repostsCount").asLong()
+            : 0L;
     String userReactionType =
         record.get("userReactionType").isNull() ? null : record.get("userReactionType").asString();
+    boolean userHasReposted =
+        record.containsKey("userHasReposted")
+            && !record.get("userHasReposted").isNull()
+            && record.get("userHasReposted").asBoolean();
 
     Author author = new Author(authorId, authorUsername, authorFullName, authorAvatarUrl);
     return new FeedPost(
@@ -279,7 +289,9 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
         loveCount,
         celebrateCount,
         commentsCount,
-        userReactionType);
+        repostsCount,
+        userReactionType,
+        userHasReposted);
   }
 
   private static final String FIND_POST_BY_ID_QUERY =
@@ -296,10 +308,12 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "              count(DISTINCT rlove) AS loveCount, "
           + "              count(DISTINCT rceleb) AS celebrateCount, "
           + "              myR.tipo AS userReactionType, "
-          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount "
+          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount, "
+          + "              COUNT { (p)<-[:COMPARTE]-() } AS repostsCount, "
+          + "              ($userId IS NOT NULL AND EXISTS { (:Usuario {id: $userId})-[:COMPARTE]->(p) }) AS userHasReposted "
           + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
           + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
-          + "       celebrateCount, commentsCount, userReactionType";
+          + "       celebrateCount, commentsCount, repostsCount, userReactionType, userHasReposted";
 
   @Override
   public Optional<FeedPost> findFeedPostById(String postId, String userId) {
@@ -322,6 +336,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "OPTIONAL MATCH (p)<-[rlike:REACCIONA {tipo: 'LIKE'}]-() "
           + "OPTIONAL MATCH (p)<-[rlove:REACCIONA {tipo: 'LOVE'}]-() "
           + "OPTIONAL MATCH (p)<-[rceleb:REACCIONA {tipo: 'CELEBRATE'}]-() "
+          + "OPTIONAL MATCH (viewer:Usuario {id: $viewerId})-[ur:REACCIONA]->(p) "
           + "WITH DISTINCT p.id AS id, p.content AS content, p.mediaUrl AS mediaUrl, "
           + "              p.createdAt AS createdAt, author.id AS authorId, "
           + "              author.username AS authorUsername, author.fullName AS authorFullName, "
@@ -329,19 +344,21 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
           + "              count(DISTINCT rlike) AS likeCount, "
           + "              count(DISTINCT rlove) AS loveCount, "
           + "              count(DISTINCT rceleb) AS celebrateCount, "
-          + "              null AS userReactionType, "
-          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount "
+          + "              ur.tipo AS userReactionType, "
+          + "              COUNT { (p)<-[:EN_POST]-(:Comentario) } AS commentsCount, "
+          + "              COUNT { (p)<-[:COMPARTE]-() } AS repostsCount, "
+          + "              ($viewerId IS NOT NULL AND EXISTS { (:Usuario {id: $viewerId})-[:COMPARTE]->(p) }) AS userHasReposted "
           + "ORDER BY createdAt DESC "
           + "SKIP $skip LIMIT $limit "
           + "RETURN id, content, mediaUrl, createdAt, authorId, authorUsername, "
           + "       authorFullName, authorAvatarUrl, likeCount, loveCount, "
-          + "       celebrateCount, commentsCount, userReactionType";
+          + "       celebrateCount, commentsCount, repostsCount, userReactionType, userHasReposted";
 
   /**
    * Finds all posts published by a specific author, with pagination, reactions, and comments count.
    */
   @Override
-  public List<FeedPost> findByAuthor(String authorId, int page, int pageSize) {
+  public List<FeedPost> findByAuthor(String authorId, String viewerId, int page, int pageSize) {
     int skip = Math.max(0, (page <= 0 ? 0 : page - 1) * pageSize);
     try (Session session = driver.session()) {
       return session.executeRead(
@@ -350,6 +367,7 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
                       FIND_BY_AUTHOR_QUERY,
                       Values.parameters(
                           "authorId", authorId,
+                          "viewerId", viewerId,
                           "skip", skip,
                           "limit", pageSize))
                   .list(this::mapRecordToFeedPost));
@@ -357,6 +375,11 @@ public class Neo4jPostRepositoryAdapter implements PostRepository {
       Log.errorf(e, "Failed to query posts by author: %s", authorId);
       throw new PostPersistenceException("Failed to query posts for authorId=" + authorId, e);
     }
+  }
+
+  @Override
+  public List<FeedPost> findByAuthor(String authorId, int page, int pageSize) {
+    return findByAuthor(authorId, null, page, pageSize);
   }
 
   /** Counts total posts published by a specific author. */

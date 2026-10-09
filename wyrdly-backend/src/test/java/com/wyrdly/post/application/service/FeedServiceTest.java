@@ -59,6 +59,8 @@ class FeedServiceTest {
     assertEquals(2, response.data().get(0).reactionCounts().loveCount());
     assertEquals(0, response.data().get(0).reactionCounts().celebrateCount());
     assertEquals("LIKE", response.data().get(0).userReaction());
+    assertEquals(0L, response.data().get(0).repostsCount());
+    assertFalse(response.data().get(0).userHasReposted());
     assertEquals("pst_2", response.data().get(1).id());
     assertEquals(10, response.data().get(1).reactionCounts().likeCount());
     assertNull(response.data().get(1).userReaction());
@@ -67,6 +69,22 @@ class FeedServiceTest {
     assertEquals(2L, response.meta().totalElements());
     assertEquals(1, response.meta().totalPages());
     assertFalse(response.meta().hasNext());
+  }
+
+  @Test
+  void getFeed_MapsRepostFields() {
+    FeedPost post =
+        new FeedPost(
+            "pst_1", "Post with reposts", null, NOW, AUTHOR, 5, 2, 0, 2L, 15L, "LIKE", true);
+
+    when(postRepository.findFeedByUserId("usr_me", 1, 20)).thenReturn(List.of(post));
+    when(postRepository.countFeedByUserId("usr_me")).thenReturn(1L);
+
+    FeedResponseDto response = feedService.getFeed("usr_me", 1, 20);
+
+    assertEquals(1, response.data().size());
+    assertEquals(15L, response.data().get(0).repostsCount());
+    assertTrue(response.data().get(0).userHasReposted());
   }
 
   @Test

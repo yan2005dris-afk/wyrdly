@@ -21,7 +21,7 @@ function buildResponse(
 }
 
 describe("mapPostApiResponseToPost", () => {
-  it("maps per-type reaction counts and sets RETWEET to 0", () => {
+  it("maps per-type reaction counts", () => {
     const post = mapPostApiResponseToPost(
       buildResponse({ likeCount: 3, loveCount: 2, celebrateCount: 1 }),
     );
@@ -30,7 +30,21 @@ describe("mapPostApiResponseToPost", () => {
       LIKE: 3,
       LOVE: 2,
       CELEBRATE: 1,
-      RETWEET: 0,
     });
+    expect(post.repostsCount).toBe(0);
+    expect(post.isReposted).toBe(false);
+  });
+
+  it("maps repostsCount and userHasReposted when provided", () => {
+    const apiResponse: PostApiResponse = {
+      ...buildResponse({ likeCount: 0, loveCount: 0, celebrateCount: 0 }),
+      repostsCount: 12,
+      userHasReposted: true,
+    };
+
+    const post = mapPostApiResponseToPost(apiResponse);
+
+    expect(post.repostsCount).toBe(12);
+    expect(post.isReposted).toBe(true);
   });
 });

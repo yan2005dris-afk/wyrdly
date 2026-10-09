@@ -55,14 +55,14 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
    * most recent first. Throws {@link UserProfileNotFoundException} when the username does not exist
    * so the resource layer can return a clean 404.
    */
-  public List<PostResponse> getUserPosts(String username, int page, int pageSize) {
+  public List<PostResponse> getUserPosts(String username, String viewerId, int page, int pageSize) {
     UserProfile profile =
         userProfileRepository
-            .findProfileByUsername(username, null)
+            .findProfileByUsername(username, viewerId)
             .orElseThrow(
                 () -> new UserProfileNotFoundException("El usuario '" + username + "' no existe."));
 
-    return postRepository.findByAuthor(profile.id(), page, pageSize).stream()
+    return postRepository.findByAuthor(profile.id(), viewerId, page, pageSize).stream()
         .map(
             post ->
                 new PostResponse(
@@ -75,8 +75,14 @@ public class UserProfileService implements GetUserProfileUseCase, UpdateUserProf
                     new PostResponse.ReactionCounts(
                         post.likeCount(), post.loveCount(), post.celebrateCount()),
                     post.commentsCount(),
-                    post.userReaction()))
+                    post.repostsCount(),
+                    post.userReaction(),
+                    post.userHasReposted()))
         .toList();
+  }
+
+  public List<PostResponse> getUserPosts(String username, int page, int pageSize) {
+    return getUserPosts(username, null, page, pageSize);
   }
 
   /**

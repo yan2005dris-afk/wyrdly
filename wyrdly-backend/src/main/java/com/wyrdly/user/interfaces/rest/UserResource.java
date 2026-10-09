@@ -124,9 +124,11 @@ public class UserResource {
   @Path("/{username}/posts")
   public Response getUserPosts(
       @PathParam("username") String username,
+      @HeaderParam("Authorization") String authorizationHeader,
       @QueryParam("page") @DefaultValue("0") int page,
       @QueryParam("pageSize") @DefaultValue("20") int pageSize) {
-    List<PostResponse> posts = userProfileService.getUserPosts(username, page, pageSize);
+    String viewerId = optionalJwtSubjectExtractor.extractSubject(authorizationHeader);
+    List<PostResponse> posts = userProfileService.getUserPosts(username, viewerId, page, pageSize);
     return Response.ok(posts).build();
   }
 

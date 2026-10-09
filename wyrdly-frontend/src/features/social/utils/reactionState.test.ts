@@ -6,7 +6,7 @@ import {
 } from "./reactionState";
 
 const EMPTY: ReactionState = {
-  reactions: { LIKE: 0, LOVE: 0, CELEBRATE: 0, RETWEET: 0 },
+  reactions: { LIKE: 0, LOVE: 0, CELEBRATE: 0 },
   userReaction: undefined,
 };
 
@@ -19,7 +19,6 @@ describe("withUserReaction", () => {
       LIKE: 0,
       LOVE: 1,
       CELEBRATE: 0,
-      RETWEET: 0,
     });
   });
 
@@ -33,7 +32,7 @@ describe("withUserReaction", () => {
 
   it("decrements the previous type and increments the new one on type switch", () => {
     const loved: ReactionState = {
-      reactions: { LIKE: 3, LOVE: 2, CELEBRATE: 0, RETWEET: 0 },
+      reactions: { LIKE: 3, LOVE: 2, CELEBRATE: 0 },
       userReaction: "LOVE",
     };
     const next = withUserReaction(loved, "CELEBRATE");
@@ -43,7 +42,6 @@ describe("withUserReaction", () => {
       LIKE: 3,
       LOVE: 1,
       CELEBRATE: 1,
-      RETWEET: 0,
     });
   });
 
@@ -57,13 +55,12 @@ describe("withUserReaction", () => {
       LIKE: 1,
       LOVE: 0,
       CELEBRATE: 0,
-      RETWEET: 0,
     });
   });
 
   it("never produces negative counters on inconsistent input", () => {
     const corrupted: ReactionState = {
-      reactions: { LIKE: 0, LOVE: 0, CELEBRATE: 0, RETWEET: 0 },
+      reactions: { LIKE: 0, LOVE: 0, CELEBRATE: 0 },
       userReaction: "LIKE",
     };
     const next = withUserReaction(corrupted, undefined);
@@ -88,7 +85,7 @@ describe("withUserReaction", () => {
 
   it("does not mutate the input", () => {
     const input: ReactionState = {
-      reactions: { LIKE: 1, LOVE: 0, CELEBRATE: 0, RETWEET: 0 },
+      reactions: { LIKE: 1, LOVE: 0, CELEBRATE: 0 },
       userReaction: "LIKE",
     };
     withUserReaction(input, "LOVE");

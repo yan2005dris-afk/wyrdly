@@ -116,4 +116,35 @@ export const postsApi = {
     );
     return data;
   },
+
+  /**
+   * HU #144: repost (boost) or unrepost a post.
+   * - reposted = true  → PUT /api/posts/{postId}/repost
+   * - reposted = false → DELETE /api/posts/{postId}/repost
+   */
+  setRepost: async (
+    postId: string,
+    reposted: boolean,
+    signal?: AbortSignal,
+  ): Promise<RepostResponse> => {
+    if (reposted) {
+      const { data } = await apiClient.put<RepostResponse>(
+        `/api/posts/${postId}/repost`,
+        undefined,
+        { signal },
+      );
+      return data;
+    } else {
+      const { data } = await apiClient.delete<RepostResponse>(
+        `/api/posts/${postId}/repost`,
+        { signal },
+      );
+      return data;
+    }
+  },
 };
+
+export interface RepostResponse {
+  readonly reposted: boolean;
+  readonly repostsCount: number;
+}
