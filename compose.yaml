@@ -44,7 +44,11 @@ services:
     networks:
       - wyrdly-network
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u $WYRDBOX_NEO4J_USER -p $WYRDBOX_NEO4J_PASSWORD 'RETURN 1' || exit 1"]
+      # HTTP check on the Neo4j Browser connector — no auth required.
+      # A 200 response means Neo4j is up and serving HTTP. (cypher-shell
+      # would also work but requires password sync between NEO4J_AUTH and
+      # the volume-stored hash, which is brittle on existing volumes.)
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 > /dev/null || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 12
