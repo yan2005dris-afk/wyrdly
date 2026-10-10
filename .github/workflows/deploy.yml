@@ -135,4 +135,7 @@ jobs:
 
       - name: Clean up old images
         run: |
-          docker image prune -f
+          # Keep images younger than 168h (1 week) so rollback to a previous
+          # build still has the corresponding image available, without
+          # letting the daemon accumulate old builds indefinitely.
+          docker image prune -f --filter "until=168h"
