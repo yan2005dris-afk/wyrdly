@@ -79,9 +79,15 @@ jobs:
           echo "All required vars present."
 
       - name: Ensure external JWT keys exist
+        env:
+          ENV_FILE: ${{ steps.config.outputs.env_file }}
         run: |
           set -eu
-          jwt_dir=/etc/wyrdly/jwt
+          # Source the env file first so JWT_KEYS_DIR is honoured. Fall back to
+          # /etc/wyrdly/jwt to match the documented production layout.
+          # shellcheck disable=SC1090
+          set -a; . "$ENV_FILE"; set +a
+          jwt_dir="${JWT_KEYS_DIR:-/etc/wyrdly/jwt}"
           if ! mkdir -p "$jwt_dir"; then
             echo "ERROR: runner cannot create or access $jwt_dir."
             exit 1
