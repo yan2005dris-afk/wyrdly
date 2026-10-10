@@ -5,7 +5,7 @@ coverage
 .gitignore
 .env
 .env.*
-!.env.example
+!.env.dev
 *.log
 .DS_Store
 .vscode

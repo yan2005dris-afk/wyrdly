@@ -80,14 +80,14 @@ Para levantar todos los servicios en local con una sola orden:
 
 ```bash
 # 1. Configurar variables de entorno y claves JWT
-cp .env.example .env
+cp .env.dev .env
 ./scripts/generate-jwt-keys.sh ./jwt
 
 # 2. Iniciar contenedores en segundo plano
 docker compose up -d --build
 ```
 
-> Consulta la **[Guía de Despliegue Local](./docs/deployment/LOCAL_DEPLOYMENT.md)** para detalles completos, credenciales pre-cargadas (seed data), modo desarrollo híbrido (Quarkus Dev + Vite HMR) y resolución de problemas.
+> Consulta la **[Guía de Despliegue Local](./docs/deployment/LOCAL_DEPLOYMENT.md)** para detalles completos, credenciales pre-cargadas (seed data), modo desarrollo híbrido (Quarkus Dev + Vite HMR) y resolución de problemas. Para producción, mirá la **[Guía de Despliegue en Producción](./docs/deployment/PRODUCTION_DEPLOYMENT.md)** y usá [`.env.prod`](./.env.prod) como contrato.
 
 ---
 

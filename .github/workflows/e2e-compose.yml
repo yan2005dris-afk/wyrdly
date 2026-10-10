@@ -5,7 +5,7 @@ on:
     branches: [develop, main]
     paths:
       - 'compose.yaml'
-      - '.env.example'
+      - '.env.dev'
       - 'wyrdly-backend/**'
       - 'wyrdly-frontend/**'
       - '.github/workflows/e2e-compose.yml'
@@ -13,7 +13,7 @@ on:
     branches: [develop, main]
     paths:
       - 'compose.yaml'
-      - '.env.example'
+      - '.env.dev'
       - 'wyrdly-backend/**'
       - 'wyrdly-frontend/**'
       - '.github/workflows/e2e-compose.yml'
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create .env from template
-        run: cp .env.example .env
+        run: cp .env.dev .env
 
       - name: Generate JWT Keys
         run: |

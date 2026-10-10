@@ -1,39 +1,71 @@
+# Wyrdly — Production-ready Docker Compose
+#
+# Every variable below is injected from a .env file (see .env.dev or
+# .env.prod). Defaults shown here are SAFE FOR PROD; for
+# local dev override the marked values in your local .env.
+#
+# Quick contracts:
+#   - Local dev : copy .env.dev   -> .env, then `docker compose up -d --build`.
+#   - Production: copy .env.prod  -> /etc/wyrdly/.env, edit, then
+#                 `docker compose --env-file /etc/wyrdly/.env up -d --build`.
+#
 services:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Neo4j 5.x — Graph Database
+  # Expected in prod:
+  #   NEO4J_USERNAME=neo4j   (or a dedicated DB user)
+  #   NEO4J_PASSWORD=<strong 32+ chars>   REQUIRED
+  # ─────────────────────────────────────────────────────────────────────────
   wyrdly-neo4j:
     image: docker.io/library/neo4j:5.26-community
     container_name: wyrdly-neo4j
     restart: unless-stopped
     ports:
-      - "${NEO4J_HTTP_PORT:-7474}:7474" # HTTP Browser UI
-      - "${NEO4J_BOLT_PORT:-7687}:7687" # Bolt Binary Protocol
+      - "${NEO4J_HTTP_PORT:-7474}:7474" # HTTP Browser UI — restrict at firewall in prod
+      - "${NEO4J_BOLT_PORT:-7687}:7687" # Bolt Binary Protocol — backend only, never public
     environment:
-      - NEO4J_AUTH=${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD}
+      - NEO4J_AUTH=${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:?NEO4J_PASSWORD is required}
+      # Mirror user/pass into non-NEO4J_-prefixed env vars so the healthcheck
+      # can read them. Neo4j auto-maps every NEO4J_* env var into a config
+      # setting; using WYRDBOX_ avoids that.
+      - WYRDBOX_NEO4J_USER=${NEO4J_USERNAME:-neo4j}
+      - WYRDBOX_NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD is required}
       - NEO4J_PLUGINS=["apoc"]
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*
-      - NEO4J_dbms_memory_heap_initial__size=512m
-      - NEO4J_dbms_memory_heap_max__size=1024m
+      - NEO4J_server_memory_heap_initial__size=${NEO4J_HEAP_INITIAL:-512m}
+      - NEO4J_server_memory_heap_max__size=${NEO4J_HEAP_MAX:-1024m}
+      - NEO4J_server_default__listen__address=0.0.0.0
+      # NOTE: Neo4j 5.x community has no dbms.browser.enabled setting.
+      # The browser is served by the HTTP connector (port 7474). To restrict it
+      # in prod, do NOT expose :7474 publicly (firewall / port mapping only).
     volumes:
       - neo4j_data:/data:Z
       - neo4j_logs:/logs:Z
     networks:
       - wyrdly-network
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USERNAME:-neo4j} -p ${NEO4J_PASSWORD} 'RETURN 1' || exit 1"]
+      test: ["CMD-SHELL", "cypher-shell -u $WYRDBOX_NEO4J_USER -p $WYRDBOX_NEO4J_PASSWORD 'RETURN 1' || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 12
       start_period: 60s
 
+  # ─────────────────────────────────────────────────────────────────────────
+  # RustFS — S3-compatible Object Storage
+  # Expected in prod:
+  #   RUSTFS_ACCESS_KEY=<random 32+ chars>   REQUIRED
+  #   RUSTFS_SECRET_KEY=<random 64+ chars>   REQUIRED
+  # ─────────────────────────────────────────────────────────────────────────
   wyrdly-rustfs:
     image: docker.io/rustfs/rustfs:latest
     container_name: wyrdly-rustfs
     restart: unless-stopped
     ports:
-      - "${RUSTFS_API_PORT:-9000}:9000" # S3 API
-      - "${RUSTFS_CONSOLE_PORT:-9001}:9001" # Web Console UI
+      - "${RUSTFS_API_PORT:-9000}:9000"     # S3 API — never expose publicly
+      - "${RUSTFS_CONSOLE_PORT:-9001}:9001" # Web Console — firewall-restricted
     environment:
-      - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
-      - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
+      - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY:?RUSTFS_ACCESS_KEY is required}
+      - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY:?RUSTFS_SECRET_KEY is required}
     volumes:
       - rustfs_data:/data:Z
     networks:
@@ -45,12 +77,29 @@ services:
       retries: 5
       start_period: 10s
 
+  # ─────────────────────────────────────────────────────────────────────────
+  # Redis 7 — Idempotency + Rate Limiting
+  # Expected in prod:
+  #   REDIS_PORT=6379 (not exposed publicly)
+  # ─────────────────────────────────────────────────────────────────────────
   wyrdly-redis:
     image: redis:7-alpine
     container_name: wyrdly-redis
     restart: unless-stopped
+    # Only expose on host loopback unless you accept the risk of a public Redis.
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
+    command:
+      - redis-server
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - ${REDIS_LOGLEVEL:-warning}
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-256mb}
+      - --maxmemory-policy
+      - ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
     networks:
       - wyrdly-network
     healthcheck:
@@ -59,6 +108,11 @@ services:
       timeout: 3s
       retries: 5
 
+  # ─────────────────────────────────────────────────────────────────────────
+  # Backend — Quarkus (Java 21)
+  # Required env in prod: NEO4J_PASSWORD, RUSTFS_ACCESS_KEY, RUSTFS_SECRET_KEY,
+  # CORS_ORIGINS, APP_PUBLIC_BASE_URL, JWT_ISSUER, VAPID_SUBJECT.
+  # ─────────────────────────────────────────────────────────────────────────
   wyrdly-backend:
     build:
       context: ./wyrdly-backend
@@ -66,36 +120,76 @@ services:
     container_name: wyrdly-backend
     restart: unless-stopped
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      # Bind to loopback. Host port MUST differ from FRONTEND_PORT (8080)
+      # because both services run on the same host. Frontend owns :8080 as
+      # the public entry (Cloudflare Tunnel); backend uses 18080 for ops
+      # and smoke-test access. The frontend Nginx reaches the backend over
+      # the wyrdly-network (wyrdly-backend:8080), NOT via this host port.
+      - "${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-18080}:8080"
     environment:
+      # ─── Profile ────────────────────────────────────────────────────────
+      # Force the %prod. profile so application.properties fails closed.
+      - QUARKUS_PROFILE=${QUARKUS_PROFILE:-prod}
+
+      # ─── Neo4j ───────────────────────────────────────────────────────────
       - NEO4J_URI=${NEO4J_URI:-bolt://wyrdly-neo4j:7687}
       - NEO4J_USERNAME=${NEO4J_USERNAME:-neo4j}
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD is required in prod}
+      - NEO4J_MAX_POOL_SIZE=${NEO4J_MAX_POOL_SIZE:-300}
+
+      # ─── RustFS / S3 ─────────────────────────────────────────────────────
       - RUSTFS_ENDPOINT=${RUSTFS_ENDPOINT:-http://wyrdly-rustfs:9000}
       - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
       - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
       - RUSTFS_BUCKET=${RUSTFS_BUCKET:-social-media-assets}
       - RUSTFS_REGION=${RUSTFS_REGION:-us-east-1}
       - RUSTFS_FORCE_PATH_STYLE=${RUSTFS_FORCE_PATH_STYLE:-true}
-      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-true}
-      - WYRDLY_SEED_ENABLED=${WYRDLY_SEED_ENABLED:-true}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:80,https://wyrdly.yandro.tech}
+
+      # ─── Redis ───────────────────────────────────────────────────────────
       - REDIS_HOSTS=${REDIS_HOSTS:-redis://wyrdly-redis:6379}
-      # SmallRye JWT requires a URL-form location. Absolute filesystem paths need the file:// prefix.
+
+      # ─── HTTP / CORS / Cookies ──────────────────────────────────────────
+      # Comma-separated. NO localhost in prod. Example: https://wyrdly.yandro.tech
+      - CORS_ORIGINS=${CORS_ORIGINS:?CORS_ORIGINS is required in prod}
+      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-true}
+      - AUTH_COOKIE_SAME_SITE=${AUTH_COOKIE_SAME_SITE:-Lax}
+      - AUTH_COOKIE_PATH=${AUTH_COOKIE_PATH:-/}
+      - AUTH_REFRESH_TOKEN_MAX_AGE=${AUTH_REFRESH_TOKEN_MAX_AGE:-604800}
+
+      # ─── Public URLs ────────────────────────────────────────────────────
+      - APP_PUBLIC_BASE_URL=${APP_PUBLIC_BASE_URL:?APP_PUBLIC_BASE_URL is required in prod}
+      - JWT_ISSUER=${JWT_ISSUER:?JWT_ISSUER is required in prod}
+
+      # ─── SmallRye JWT (RSA keys) ────────────────────────────────────────
+      # Absolute filesystem paths inside the container need the file:// prefix.
       - JWT_PUBLIC_KEY_LOCATION=${JWT_PUBLIC_KEY_LOCATION:-file:///deployments/jwt/publicKey.pem}
       - JWT_PRIVATE_KEY_LOCATION=${JWT_PRIVATE_KEY_LOCATION:-file:///deployments/jwt/privateKey.pem}
-      # HU11 / TASK-01 (#62) — Web Push VAPID keypair bootstrap.
+
+      # ─── Web Push (VAPID) ────────────────────────────────────────────────
       - VAPID_PUBLIC_KEY_LOCATION=${VAPID_PUBLIC_KEY_LOCATION:-/deployments/vapid/publicKey.txt}
       - VAPID_PRIVATE_KEY_LOCATION=${VAPID_PRIVATE_KEY_LOCATION:-/deployments/vapid/privateKey.txt}
-      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:ops@wyrdly.com}
-      - VAPID_GENERATE_IF_MISSING=${VAPID_GENERATE_IF_MISSING:-true}
-      # HU11 / TASK-04 (#32) — push dispatcher pool + follower fan-out tuning.
+      - VAPID_SUBJECT=${VAPID_SUBJECT:?VAPID_SUBJECT is required in prod}
+      - VAPID_GENERATE_IF_MISSING=${VAPID_GENERATE_IF_MISSING:-false}
+
+      # ─── Push dispatcher / fan-out tuning ────────────────────────────────
       - PUSH_DISPATCH_POOL_SIZE=${PUSH_DISPATCH_POOL_SIZE:-8}
       - PUSH_DISPATCH_QUEUE_CAPACITY=${PUSH_DISPATCH_QUEUE_CAPACITY:-5000}
       - PUSH_FANOUT_BATCH_SIZE=${PUSH_FANOUT_BATCH_SIZE:-200}
       - PUSH_FANOUT_MAX_RECIPIENTS=${PUSH_FANOUT_MAX_RECIPIENTS:-10000}
+
+      # ─── Seed data ───────────────────────────────────────────────────────
+      # DEFAULT false in prod. Set true ONLY for the first deployment if you
+      # really want the dev seed users in your prod graph (you don't).
+      - WYRDLY_SEED_ENABLED=${WYRDLY_SEED_ENABLED:-false}
+
+      # ─── Logging ─────────────────────────────────────────────────────────
+      - QUARKUS_LOG_LEVEL=${QUARKUS_LOG_LEVEL:-INFO}
+      # Log format defaults to Quarkus DEFAULT. Override via QUARKUS_LOG_CONSOLE_FORMAT env var.
+      # - QUARKUS_LOG_CONSOLE_FORMAT=${QUARKUS_LOG_CONSOLE_FORMAT:-%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{2}] (%t) %s%e%n}
     volumes:
+      # RSA keys for JWT signing. Generated once, mounted read-only.
       - ${JWT_KEYS_DIR:-./jwt}:/deployments/jwt:ro
+      # ECDSA P-256 keys for Web Push. Generated lazily if VAPID_GENERATE_IF_MISSING=true.
       - ${VAPID_KEYS_DIR:-./vapid}:/deployments/vapid:rw
     depends_on:
       wyrdly-neo4j:
@@ -113,18 +207,25 @@ services:
       retries: 5
       start_period: 20s
 
+  # ─────────────────────────────────────────────────────────────────────────
+  # Frontend — React SPA served by unprivileged Nginx (with reverse proxy)
+  # In prod, the public entry point is cloudflared (or another LB) fronting
+  # THIS container; the frontend is NOT directly exposed to the internet.
+  # ─────────────────────────────────────────────────────────────────────────
   wyrdly-frontend:
     build:
       context: ./wyrdly-frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_BASE_URL=""
-        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:8080}
-        - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:8080}
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL:?VITE_BACKEND_URL is required in prod}
+        - VITE_WS_URL=${VITE_WS_URL:?VITE_WS_URL is required in prod}
     container_name: wyrdly-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-3000}:8080"
+      # Frontend Nginx is the public entry — Cloudflare Tunnel reaches this
+      # host port. Must NOT collide with BACKEND_PORT.
+      - "${FRONTEND_BIND:-127.0.0.1}:${FRONTEND_PORT:-8080}:8080"
     depends_on:
       wyrdly-backend:
         condition: service_healthy
@@ -137,13 +238,19 @@ services:
       retries: 3
       start_period: 5s
 
+  # ─────────────────────────────────────────────────────────────────────────
+  # Cloudflare Tunnel — public entry point (HTTPS termination upstream).
+  # Required in prod: CLOUDFLARE_TUNNEL_TOKEN.
+  # Disabled by default; enable by setting CLOUDFLARE_ENABLED=true and a token.
+  # ─────────────────────────────────────────────────────────────────────────
   wyrdly-cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: wyrdly-cloudflared
     restart: unless-stopped
+    profiles: ["cloudflare"]
     command: tunnel --no-autoupdate --protocol http2 run
     environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required when cloudflare profile is active}
     networks:
       - wyrdly-network
 

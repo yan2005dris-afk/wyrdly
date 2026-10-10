@@ -324,7 +324,7 @@ services:
 
 ```bash
 # 1. Configurar variables de entorno
-cp .env.example .env
+cp .env.dev .env
 
 # 2. Levantar la infraestructura completa con Docker Compose
 docker compose up -d --build

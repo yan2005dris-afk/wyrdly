@@ -46,27 +46,34 @@ cd yaga-social
 ```
 
 ### Paso 2: Configurar las Variables de Entorno
-Copia el archivo de plantilla `.env.example` a `.env`:
+Copia el archivo de plantilla `.env.dev` a `.env`:
 ```bash
-cp .env.example .env
+cp .env.dev .env
 ```
 
-Para uso local, los valores por defecto en `.env.example` son suficientes, pero debes definir o ajustar las siguientes variables mínimas en `.env`:
+Los valores por defecto en [`.env.dev`](../../.env.dev) ya están pensados para local dev, pero conviene revisar las variables mínimas:
+
 ```env
-# Contraseñas y accesos locales
-NEO4J_PASSWORD=secretpassword
+# Contraseñas y accesos locales (placeholders dev-friendly)
+NEO4J_PASSWORD=local_dev_password
 RUSTFS_ACCESS_KEY=rustfsadmin
 RUSTFS_SECRET_KEY=rustfssecret123
 
 # En local sin HTTPS, asegurar cookies no restrictivas:
 AUTH_COOKIE_SECURE=false
 
-# Habilitar precarga de datos de prueba:
+# Habilitar precarga de datos de prueba (¡NUNCA en producción!):
 WYRDLY_SEED_ENABLED=true
+
+# El perfil dev activa el bloque %dev. en application.properties
+# (migraciones + seed + log DEBUG).
+QUARKUS_PROFILE=dev
 ```
 
 > [!TIP]
-> Si no vas a exponer la aplicación mediante Cloudflare Tunnel en local, asigna un valor dummy a `CLOUDFLARE_TUNNEL_TOKEN=dummy_token` o comenta el servicio `wyrdly-cloudflared` en `compose.yaml`.
+> El servicio `wyrdly-cloudflared` está detrás del profile `cloudflare` en [`compose.yaml`](../../compose.yaml), por lo que **no se inicia** con un `docker compose up` normal. Si querés exponerlo localmente: `docker compose --profile cloudflare up -d`.
+>
+> Para producción usá [`.env.prod`](../../.env.prod) + [`PRODUCTION_DEPLOYMENT.md`](./PRODUCTION_DEPLOYMENT.md).
 
 ### Paso 3: Generar las Claves Criptográficas
 

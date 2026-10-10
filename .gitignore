@@ -6,8 +6,12 @@ target/
 .vscode/
 node_modules/
 dist/
+# Ignore all env files by default. Real secrets must NEVER be committed.
 .env
-.env.local
+.env.*
+# Allow the two committed templates (dev + prod contracts).
+!.env.dev
+!.env.prod
 .DS_Store
 *.log
 __pycache__/
