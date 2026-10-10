@@ -91,8 +91,11 @@ else
     -e "s|^NEO4J_PASSWORD=__SET_ME_NEO4J_PASSWORD__|NEO4J_PASSWORD=${NEO4J_PASSWORD}|" \
     -e "s|^RUSTFS_ACCESS_KEY=__SET_ME_RUSTFS_ACCESS_KEY__|RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}|" \
     -e "s|^RUSTFS_SECRET_KEY=__SET_ME_RUSTFS_SECRET_KEY__|RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}|" \
-    -e "s|^CLOUDFLARE_TUNNEL_TOKEN=__SET_ME_CLOUDFLARE_TUNNEL_TOKEN__|CLOUDFLARE_TUNNEL_TOKEN=__SET_ME_CLOUDFLARE_TUNNEL_TOKEN__|" \
     "$ENV_FILE"
+  # NOTE: CLOUDFLARE_TUNNEL_TOKEN is intentionally NOT substituted here.
+  # Its placeholder stays as __SET_ME_CLOUDFLARE_TUNNEL_TOKEN__ until the
+  # operator fills it in manually, because the token comes from the
+  # Cloudflare dashboard, not from this script.
 
   echo
   echo "============================================================"
