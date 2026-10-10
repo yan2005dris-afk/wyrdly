@@ -50,8 +50,8 @@ jobs:
             APP_PUBLIC_BASE_URL
             JWT_ISSUER
             VAPID_SUBJECT
-            VITE_BACKEND_URL
-            VITE_WS_URL
+            # VITE_BACKEND_URL / VITE_WS_URL are baked into the frontend bundle
+            # but never used at runtime when Nginx reverse-proxies /api and /ws.
             # CLOUDFLARE_TUNNEL_TOKEN is only required when the cloudflare
             # profile is active. Validate it conditionally below.
           )

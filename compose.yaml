@@ -217,9 +217,14 @@ services:
       context: ./wyrdly-frontend
       dockerfile: Dockerfile
       args:
+        # VITE_BACKEND_URL / VITE_WS_URL are only consumed by the Vite dev
+        # server proxy. In prod, the frontend talks to the same origin via
+        # Nginx reverse proxy, so these values are baked into the bundle
+        # but never used at runtime. Defaults keep the build green even
+        # without a populated .env.
         - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
-        - VITE_BACKEND_URL=${VITE_BACKEND_URL:?VITE_BACKEND_URL is required in prod}
-        - VITE_WS_URL=${VITE_WS_URL:?VITE_WS_URL is required in prod}
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:8080}
+        - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:8080}
     container_name: wyrdly-frontend
     restart: unless-stopped
     ports:
