@@ -180,5 +180,7 @@ docker compose --env-file /etc/wyrdly/.env up -d --build
 - [`.env.dev`](../../.env.dev) — quick-start local.
 - [`compose.yaml`](../../compose.yaml) — defaults prod-safe.
 - [`application.properties`](../../wyrdly-backend/src/main/resources/application.properties) — bloque `%prod.`.
+- [`scripts/generate-jwt-keys.sh`](../../scripts/generate-jwt-keys.sh) — provisionar RSA.
+- [`scripts/generate-vapid-keys.sh`](../../scripts/generate-vapid-keys.sh) — provisionar VAPID (idempotente).
 - [`LOCAL_DEPLOYMENT.md`](./LOCAL_DEPLOYMENT.md) — desarrollo local.
 - [Runbook Web Push (VAPID)](../operations/WEB_PUSH.md) — rotación de claves VAPID.

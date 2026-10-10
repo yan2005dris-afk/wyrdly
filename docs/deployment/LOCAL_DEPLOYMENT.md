@@ -85,7 +85,7 @@ QUARKUS_PROFILE=dev
    *Esto generará `privateKey.pem` y `publicKey.pem` requeridos por el backend.*
 
 2. **Par de claves ECDSA P-256 para Web Push VAPID:**
-   El contenedor `wyrdly-backend` ejecuta automáticamente el script idempotente `init-vapid-keys.sh` al iniciar y persiste las claves en `./vapid`. No requiere acción manual.
+   El contenedor `wyrdly-backend` ejecuta automáticamente el script idempotente `init-vapid-keys.sh` al iniciar y persiste las claves en `./vapid`. Si querés pre-generarlas en el host, corré `./scripts/generate-vapid-keys.sh ./vapid`.
 
 ### Paso 4: Construir y Levantar los Contenedores
 Inicia todos los servicios en segundo plano:
