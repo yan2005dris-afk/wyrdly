@@ -114,12 +114,14 @@ curl -fsS https://wyrdly.yandro.tech/healthz   # nginx → "healthy"
 # Frontend healthcheck interno (loopback, :8080)
 curl -fsS http://127.0.0.1:8080/healthz
 
-# Backend healthcheck interno (loopback, :18080 — NO público)
+# Backend healthcheck interno (loopback, :18080 — NO público).
+# El frontend Nginx NO expone /q/* hacia el backend, así que esta ruta
+# sólo es accesible desde el host (o vía SSH tunnel). Para healthcheck
+# público usá /healthz del frontend (arriba) — Nginx devuelve 200 si el
+# container responde, y la app entera está healthy porque depende_on es
+# service_healthy contra wyrdly-backend.
 curl -fsS http://127.0.0.1:18080/q/health/live
 # → "status: UP"
-
-# Backend healthcheck público (a través de Cloudflare, ruta /api)
-curl -fsS https://api.wyrdly.yandro.tech/q/health/live
 
 # Logs en vivo
 docker compose --env-file /etc/wyrdly/.env logs -f wyrdly-backend
@@ -141,7 +143,7 @@ docker compose --env-file /etc/wyrdly/.env logs -f wyrdly-backend
 - [ ] `AUTH_COOKIE_SECURE=true`, `AUTH_COOKIE_SAME_SITE=Lax`.
 - [ ] `WYRDLY_SEED_ENABLED=false`.
 - [ ] `VAPID_GENERATE_IF_MISSING=false` (claves pre-aprovisionadas).
-- [ ] `NEO4J_BROWSER_ENABLED=false`.
+- [ ] Neo4j Browser (`:7474`) **no** expuesto públicamente — sólo accesible por SSH tunnel si lo necesitás (Neo4j 5 community no tiene flag para apagarlo, se restringe por firewall / bind address).
 - [ ] `BACKEND_BIND=127.0.0.1` y `FRONTEND_BIND=127.0.0.1` (sólo cloudflared es público).
 - [ ] `BACKEND_PORT=18080` y `FRONTEND_PORT=8080` (no chocan en el mismo host).
 - [ ] Cloudflare Tunnel con token real.
