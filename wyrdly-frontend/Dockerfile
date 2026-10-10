@@ -3,8 +3,10 @@ FROM docker.io/library/node:22-alpine AS build
 
 WORKDIR /app
 
-# Enable pnpm via corepack
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Enable pnpm via corepack. Pin to v10 to match .github/workflows/frontend-ci.yml
+# (which uses pnpm/action-setup@v4 with version: 10); a divergence here lets
+# the build image and the CI run different lockfile resolvers.
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 # Copy package descriptors and lockfile
 COPY package.json pnpm-lock.yaml ./
