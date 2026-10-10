@@ -25,15 +25,34 @@ jobs:
         id: config
         run: |
           if [ -r /etc/wyrdly/.env ]; then
-            echo "env_file=/etc/wyrdly/.env" >> "$GITHUB_OUTPUT"
-            echo "Using system environment file: /etc/wyrdly/.env"
+            env_file=/etc/wyrdly/.env
+            echo "Using system environment file: $env_file"
           elif [ -r .env ]; then
-            echo "env_file=.env" >> "$GITHUB_OUTPUT"
-            echo "Using repository environment file: .env"
+            env_file=.env
+            echo "Using repository environment file: $env_file"
           else
             echo "ERROR: required environment file (/etc/wyrdly/.env or .env) is absent or unreadable."
             exit 1
           fi
+          # Source the env file once so subsequent steps can read everything
+          # they need through step outputs (GitHub Actions does not propagate
+          # shell-loaded vars across steps).
+          # shellcheck disable=SC1090
+          set -a; . "$env_file"; set +a
+
+          # Compose profile flags based on CLOUDFLARE_ENABLED (default: false).
+          if [ "${CLOUDFLARE_ENABLED:-false}" = "true" ]; then
+            compose_profiles="--profile cloudflare"
+          else
+            compose_profiles=""
+          fi
+          jwt_dir="${JWT_KEYS_DIR:-/etc/wyrdly/jwt}"
+
+          {
+            echo "env_file=$env_file"
+            echo "compose_profiles=$compose_profiles"
+            echo "jwt_dir=$jwt_dir"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Validate required production env vars
         env:
@@ -79,15 +98,9 @@ jobs:
           echo "All required vars present."
 
       - name: Ensure external JWT keys exist
-        env:
-          ENV_FILE: ${{ steps.config.outputs.env_file }}
         run: |
           set -eu
-          # Source the env file first so JWT_KEYS_DIR is honoured. Fall back to
-          # /etc/wyrdly/jwt to match the documented production layout.
-          # shellcheck disable=SC1090
-          set -a; . "$ENV_FILE"; set +a
-          jwt_dir="${JWT_KEYS_DIR:-/etc/wyrdly/jwt}"
+          jwt_dir="${{ steps.config.outputs.jwt_dir }}"
           if ! mkdir -p "$jwt_dir"; then
             echo "ERROR: runner cannot create or access $jwt_dir."
             exit 1
@@ -108,30 +121,21 @@ jobs:
           DOCKER_BUILDKIT: 1
           COMPOSE_DOCKER_CLI_BUILD: 1
         run: |
-          # The cloudflare profile only starts cloudflared if CLOUDFLARE_ENABLED
-          # is true in the env file. Default: false.
-          # shellcheck disable=SC1090
-          set -a; . "${{ steps.config.outputs.env_file }}"; set +a
-          if [ "${CLOUDFLARE_ENABLED:-false}" = "true" ]; then
-            profiles="--profile cloudflare"
-          else
-            profiles=""
-          fi
-          docker compose --env-file "${{ steps.config.outputs.env_file }}" $profiles up -d --build --remove-orphans
+          docker compose --env-file "${{ steps.config.outputs.env_file }}" \
+                         ${{ steps.config.outputs.compose_profiles }} \
+                         up -d --build --remove-orphans
 
       - name: Show deployment status
         env:
           ENV_FILE: ${{ steps.config.outputs.env_file }}
         run: |
-          # shellcheck disable=SC1090
-          set -a; . "$ENV_FILE"; set +a
-          if [ "${CLOUDFLARE_ENABLED:-false}" = "true" ]; then
-            profiles="--profile cloudflare"
-          else
-            profiles=""
-          fi
-          docker compose --env-file "$ENV_FILE" $profiles ps
+          docker compose --env-file "$ENV_FILE" \
+                         ${{ steps.config.outputs.compose_profiles }} \
+                         ps
 
       - name: Clean up old images
         run: |
-          docker image prune -f
+          # Keep images younger than 168h (1 week) so rollback to a previous
+          # build still has the corresponding image available, without
+          # letting the daemon accumulate old builds indefinitely.
+          docker image prune -f --filter "until=168h"
