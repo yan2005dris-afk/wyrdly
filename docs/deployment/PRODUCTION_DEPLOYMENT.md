@@ -66,12 +66,19 @@ Reemplazá cada `__SET_ME_*__` con el valor real. Las **mínimas obligatorias** 
 
 | Variable | Generador sugerido |
 | :--- | :--- |
-| `NEO4J_PASSWORD` | `openssl rand -base64 36` |
-| `RUSTFS_ACCESS_KEY` | `openssl rand -hex 16` |
-| `RUSTFS_SECRET_KEY` | `openssl rand -base64 48` |
+| `NEO4J_PASSWORD` | `openssl rand -hex 24` (48 hex chars) |
+| `RUSTFS_ACCESS_KEY` | `openssl rand -hex 16` (32 hex chars) |
+| `RUSTFS_SECRET_KEY` | `openssl rand -hex 32` (64 hex chars) |
 | `CLOUDFLARE_TUNNEL_TOKEN` | Dashboard Cloudflare → tu tunnel → `Configure` |
 
 `CORS_ORIGINS` y `APP_PUBLIC_BASE_URL` deben matchear tu dominio público.
+
+> [!IMPORTANT]
+> **Generadores URL-safe solamente.** Usá `openssl rand -hex N`, nunca `openssl rand -base64 N`.
+> El alfabeto de base64 estándar (`A-Za-z0-9+/=`) incluye `+` y `/`, que rompen el parseo de `NEO4J_AUTH`
+> (Neo4j hace `split('/')` en el entrypoint y rechaza cualquier resto) y son frágiles para secretos binarios
+> consumidos por clientes S3 / JSON / URLs. El bug que motivó esta nota está documentado en
+> `odd/tasks/fix-neo4j-auth-password-format.md`.
 
 ### Paso 3 — Verificar el Contrato
 

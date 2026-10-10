@@ -63,10 +63,34 @@ else
   chmod 600 "$ENV_FILE"
 
   # Replace placeholders with random secrets.
+  #
+  # IMPORTANT: use URL/posix-portable char sets only ([A-Za-z0-9]).
+  # - NEO4J_AUTH parses with split('/') on the entrypoint: a '/' or '+' in the
+  #   password (e.g. openssl rand -base64 output) makes Neo4j reject the line
+  #   and crash-loop the container. Bug precedent: prod wyrdly host on
+  #   2025-Q4 deployment (see odd/tasks/fix-neo4j-auth-password-format.md).
+  # - RUSTFS_SECRET_KEY is read as a binary secret by the S3 client; '+' and
+  #   '/' are not guaranteed safe across parsers and break .env round-trips.
+  NEO4J_PASSWORD="$(openssl rand -hex 24)"        # 48 hex chars (~192 bits)
+  RUSTFS_ACCESS_KEY="$(openssl rand -hex 16)"     # 32 hex chars
+  RUSTFS_SECRET_KEY="$(openssl rand -hex 32)"     # 64 hex chars (~256 bits)
+
+  # Defense-in-depth guard: if any generated secret contains a char outside
+  # [A-Za-z0-9], refuse to write the .env. -hex never violates this; the guard
+  # exists to catch a future maintainer who reverts to -base64 by accident.
+  for secret_name in NEO4J_PASSWORD RUSTFS_ACCESS_KEY RUSTFS_SECRET_KEY; do
+    secret_val="${!secret_name}"
+    if ! printf '%s' "$secret_val" | grep -qE '^[A-Za-z0-9]+$'; then
+      echo "ERROR: $secret_name contains non-portable characters. Aborting." >&2
+      echo "  value: $secret_val" >&2
+      exit 1
+    fi
+  done
+
   sed -i \
-    -e "s|^NEO4J_PASSWORD=__SET_ME_NEO4J_PASSWORD__|NEO4J_PASSWORD=$(openssl rand -base64 36)|" \
-    -e "s|^RUSTFS_ACCESS_KEY=__SET_ME_RUSTFS_ACCESS_KEY__|RUSTFS_ACCESS_KEY=$(openssl rand -hex 16)|" \
-    -e "s|^RUSTFS_SECRET_KEY=__SET_ME_RUSTFS_SECRET_KEY__|RUSTFS_SECRET_KEY=$(openssl rand -base64 48)|" \
+    -e "s|^NEO4J_PASSWORD=__SET_ME_NEO4J_PASSWORD__|NEO4J_PASSWORD=${NEO4J_PASSWORD}|" \
+    -e "s|^RUSTFS_ACCESS_KEY=__SET_ME_RUSTFS_ACCESS_KEY__|RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}|" \
+    -e "s|^RUSTFS_SECRET_KEY=__SET_ME_RUSTFS_SECRET_KEY__|RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}|" \
     -e "s|^CLOUDFLARE_TUNNEL_TOKEN=__SET_ME_CLOUDFLARE_TUNNEL_TOKEN__|CLOUDFLARE_TUNNEL_TOKEN=__SET_ME_CLOUDFLARE_TUNNEL_TOKEN__|" \
     "$ENV_FILE"
 

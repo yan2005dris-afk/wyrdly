@@ -15,15 +15,15 @@ Este documento recoge todas las variables de entorno, decisiones de configuraci�
 |---|---|---|
 | `NEO4J_URI` | `bolt://wyrdly-neo4j:7687` | Usar hostname del contenedor en la misma red |
 | `NEO4J_USERNAME` | `neo4j` | |
-| `NEO4J_PASSWORD` | *(sin default — requerido)* | Usar secreto fuerte, nunca `password` |
+| `NEO4J_PASSWORD` | *(sin default — requerido)* | Solo caracteres `[A-Za-z0-9]`. Generador recomendado: `openssl rand -hex 24` (48 hex chars, ~192 bits). **No usar `openssl rand -base64`**: el alfabeto base64 estándar incluye `+` y `/`, y Neo4j parsea `NEO4J_AUTH=user/password` con `split('/')` tomando solo los dos primeros tokens — un password con `/` rompe el contenedor (ver `odd/tasks/fix-neo4j-auth-password-format.md`). |
 | `NEO4J_MAX_POOL_SIZE` | `300` | Ajustar según carga esperada |
 
 ### RustFS / S3
 | Variable | Default Compose | Notas |
 |---|---|---|
 | `RUSTFS_ENDPOINT` | `http://wyrdly-rustfs:9000` | En AWS S3 usar `https://s3.<region>.amazonaws.com` |
-| `RUSTFS_ACCESS_KEY` | *(sin default — requerido)* | Nunca `placeholder_key` en prod |
-| `RUSTFS_SECRET_KEY` | *(sin default — requerido)* | Nunca `placeholder_secret` en prod |
+| `RUSTFS_ACCESS_KEY` | *(sin default — requerido)* | Solo caracteres `[A-Za-z0-9]`. `openssl rand -hex 16` (32 hex chars). Nunca `placeholder_key` en prod. |
+| `RUSTFS_SECRET_KEY` | *(sin default — requerido)* | Solo caracteres `[A-Za-z0-9]`. `openssl rand -hex 32` (64 hex chars, ~256 bits). Evitar `openssl rand -base64` (los chars `+`/`/` son frágiles para secretos binarios consumidos por clientes S3). Nunca `placeholder_secret` en prod. |
 | `RUSTFS_BUCKET` | `social-media-assets` | |
 | `RUSTFS_REGION` | `us-east-1` | Ajustar si se usa AWS S3 en otra región |
 | `RUSTFS_FORCE_PATH_STYLE` | `true` | `true` para RustFS/MinIO; `false` para AWS S3 en prod |
