@@ -98,7 +98,6 @@ public class ChatWebSocketEndpoint {
       }
     } catch (Exception e) {
       LOGGER.warning("Error processing message: " + e.getMessage());
-      e.printStackTrace();
       try {
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("action", "ERROR");
