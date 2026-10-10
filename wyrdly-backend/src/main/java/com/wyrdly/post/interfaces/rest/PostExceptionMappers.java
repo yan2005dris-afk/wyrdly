@@ -24,6 +24,9 @@ import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 @ApplicationScoped
 public class PostExceptionMappers {
 
+  private static final String DEPENDENCY_DOWN_MESSAGE =
+      "Servicio temporalmente no disponible. Reintenta en unos segundos.";
+
   @ServerExceptionMapper
   public Response handlePostValidation(PostValidationException ex) {
     return buildResponse(Response.Status.BAD_REQUEST, "VALIDATION_ERROR", ex.getMessage());
@@ -47,17 +50,13 @@ public class PostExceptionMappers {
   @ServerExceptionMapper
   public Response handlePostPersistence(PostPersistenceException ex) {
     return buildResponse(
-        Response.Status.INTERNAL_SERVER_ERROR,
-        "DEPENDENCY_DOWN",
-        "Servicio temporalmente no disponible. Reintenta en unos segundos.");
+        Response.Status.INTERNAL_SERVER_ERROR, "DEPENDENCY_DOWN", DEPENDENCY_DOWN_MESSAGE);
   }
 
   @ServerExceptionMapper
   public Response handleCircuitBreakerOpen(CircuitBreakerOpenException ex) {
     return buildResponse(
-        Response.Status.SERVICE_UNAVAILABLE,
-        "DEPENDENCY_DOWN",
-        "Servicio temporalmente no disponible. Reintenta en unos segundos.");
+        Response.Status.SERVICE_UNAVAILABLE, "DEPENDENCY_DOWN", DEPENDENCY_DOWN_MESSAGE);
   }
 
   @ServerExceptionMapper
