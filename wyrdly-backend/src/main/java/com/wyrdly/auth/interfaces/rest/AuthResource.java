@@ -92,22 +92,6 @@ public class AuthResource {
 
   @POST
   @Path("/refresh")
-  @Consumes(MediaType.APPLICATION_JSON)
-  public Response refreshWithBody(
-      @CookieParam("refreshToken") Cookie cookieToken, RefreshTokenRequest request) {
-    String token = null;
-    if (request != null && request.refreshToken() != null && !request.refreshToken().isBlank()) {
-      token = request.refreshToken();
-    } else if (cookieToken != null
-        && cookieToken.getValue() != null
-        && !cookieToken.getValue().isBlank()) {
-      token = cookieToken.getValue();
-    }
-    return executeRefresh(token);
-  }
-
-  @POST
-  @Path("/refresh")
   public Response refreshWithCookieOnly(@CookieParam("refreshToken") Cookie cookieToken) {
     String token = cookieToken != null ? cookieToken.getValue() : null;
     return executeRefresh(token);
