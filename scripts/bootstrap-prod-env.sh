@@ -27,7 +27,7 @@ WYRDDLY_DIR="/etc/wyrdly"
 JWT_DIR="$WYRDDLY_DIR/jwt"
 VAPID_DIR="$WYRDDLY_DIR/vapid"
 ENV_FILE="$WYRDDLY_DIR/.env"
-TEMPLATE="$(dirname "$0")/../env.production.template"
+TEMPLATE="$(dirname "$0")/../.env.prod"
 
 if [ ! -f "$TEMPLATE" ]; then
   echo "ERROR: $TEMPLATE not found. Run from the repo root." >&2
