@@ -345,7 +345,10 @@ export const ProfilePage: FC = () => {
           )}
 
           {activeTab === "settings" && isCurrentUser && (
-            <div className="flex flex-col gap-4" data-testid="profile-settings-tab">
+            <div
+              className="flex flex-col gap-4"
+              data-testid="profile-settings-tab"
+            >
               <WebPushSettingsCard />
             </div>
           )}
