@@ -110,8 +110,24 @@ fi
 # can pick a remediation path (down -v, cypher-shell ALTER USER,
 # etc.) instead of staring at AuthenticationException logs.
 stack_running() {
-  docker compose ps --services --filter "running" 2>/dev/null \
-    | grep -q '^wyrdly-neo4j$' 2>/dev/null
+  # Detect the available container CLI. The CI runner has docker; the dev
+  # hosts I work on have podman. 'docker compose' is a v2 plugin that is
+  # *not* part of the docker CLI itself, so a host with 'docker' binary
+  # may not have 'docker compose' subcommand available (it can also be
+  # called via the legacy 'docker-compose' binary). Probe in order of
+  # preference and bail out to 'not running' if none works.
+  local cli=""
+  if command -v podman >/dev/null 2>&1; then
+    cli="podman"
+  elif command -v docker >/dev/null 2>&1; then
+    cli="docker"
+  else
+    return 1
+  fi
+  # 'docker ps' / 'podman ps' support --filter name=X uniformly; the compose
+  # CLI variant does not always. Going through ps keeps both CLIs identical.
+  "$cli" ps --filter "name=wyrdly-neo4j" --format "{{.Names}}" 2>/dev/null \
+    | grep -q '^wyrdly-neo4j$'
 }
 any_secret_urlunsafe() {
   [[ "${NEO4J_PASSWORD:-}" == *"/"* || "${NEO4J_PASSWORD:-}" == *"+"* \
@@ -151,11 +167,14 @@ regen_in_place() {
   fi
   echo "[bootstrap-local] $var contains '/' or '+' (or is empty); regenerating with $new_value"
   local escaped="${new_value//&/\\&}"
-  # macOS sed and GNU sed differ on -i argument; detect and use the
-  # right form. Quoting via temp file avoids both.
+  # Delete every existing line for this var (operator may have left
+  # duplicates from previous runs that appended instead of replacing)
+  # and append a single fresh line. macOS sed and GNU sed differ on
+  # -i argument, so we go through a temp file.
   local tmp
   tmp="$(mktemp)"
-  sed "s|^${var}=.*|${var}=${escaped}|" .env > "$tmp" && mv "$tmp" .env
+  sed "/^${var}=/d" .env > "$tmp" && mv "$tmp" .env
+  printf '%s=%s\n' "$var" "$escaped" >> .env
   chmod 600 .env
   # Re-source so subsequent steps in this run see the new value.
   # shellcheck disable=SC1090,SC1091
