@@ -94,6 +94,12 @@ QUARKUS_PROFILE=dev
    El contenedor `wyrdly-backend` ejecuta automáticamente el script idempotente `init-vapid-keys.sh` al iniciar y persiste las claves en `./vapid`. Si querés pre-generarlas en el host, corré `./scripts/generate-vapid-keys.sh ./vapid`.
 
 ### Paso 4: Construir y Levantar los Contenedores
+Atajo recomendado (hace los pasos 2–5 por vos: bootstrap + up + espera + URLs):
+```bash
+./scripts/dev-up.sh
+```
+Equivalente manual si preferís cada paso a mano:
+```bash
 Inicia todos los servicios en segundo plano:
 ```bash
 docker compose up -d --build
