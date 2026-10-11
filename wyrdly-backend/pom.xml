@@ -209,6 +209,17 @@
                 the runtime path Quarkus officially recommends for AWS SDK v2
                 + native (`quarkus.s3.sync-client.type=apache` equivalent).
                 Version is inherited from the AWS SDK BOM 2.25.68.
+
+                Note: we deliberately keep `crt-core` and `checksums` on the
+                classpath. They are not loaded by the running S3 path
+                (since `apache-client` does not use the AWS CRT-based HTTP
+                transport) but their classes are referenced transitively
+                via reflection in `S3Configuration` initialization, so
+                Mandrel's static analysis hits "unresolved type" errors if
+                they are excluded. The classes are flagged
+                `--initialize-at-run-time` in `application.properties` so
+                Mandrel never runs their `<clinit>` at build time (which is
+                where the .so JNI would be loaded at runtime).
             -->
             <exclusions>
                 <exclusion>
