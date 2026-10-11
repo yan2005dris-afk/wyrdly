@@ -15,6 +15,8 @@ Base: develop @ 591634b. Objetivo: un comando por perfil, layouts explícitos, c
 - [x] T3 `scripts/prod-up.sh` (HECHO): preflight loud de /etc/wyrdly (env+keys+7 required), up con ese env-file, wait, smoke /healthz. Nunca inventa secretos. Executable, `bash -n` OK.
 - [x] T4 Parcial (HECHO lo no-disruptivo): sintaxis OK en ambos. shellcheck NO disponible en este host (se corre en CI del PR). Test real del path dev DIFERIDO a propósito: implica rebuild+restart del stack que está en uso.
 - [x] T5 Docs 1-liner + PR con issue (HECHO): PR #183, Closes #182. (Docs 1-liner innecesario: los headers de los scripts ya documentan uso y layouts.)
+- [x] T6 Wave 2 en esta misma rama (HECHO): straddle muerto (APP_PUBLIC_BASE_URL→origen frontend, VITE_BACKEND/WS comentados; chat WS ya era same-origin) + `scripts/lib/check-prod-env.sh` único usado por deploy.yml y prod-up.sh. Verificado: diff resuelto con EXACTO los 3 paths previstos, lib OK en positivo y negativo.
+- NOTA-OPS: `/etc/wyrdly/.env` del servidor aún tiene el valor api.* → actualizarlo a mano en el próximo deploy (media rota hasta entonces).
 
 ## Criterios de aceptación
 - Dev desde cero: `rm .env` + `./scripts/dev-up.sh` levanta todo sin intervención.

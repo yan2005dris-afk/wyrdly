@@ -59,42 +59,11 @@ jobs:
           ENV_FILE: ${{ steps.config.outputs.env_file }}
         run: |
           set -eu
-          # These vars MUST be set when QUARKUS_PROFILE=prod. Failing here is
-          # cheaper than discovering it at compose-up time.
-          required=(
-            NEO4J_PASSWORD
-            RUSTFS_ACCESS_KEY
-            RUSTFS_SECRET_KEY
-            CORS_ORIGINS
-            APP_PUBLIC_BASE_URL
-            JWT_ISSUER
-            VAPID_SUBJECT
-            # VITE_BACKEND_URL / VITE_WS_URL are baked into the frontend bundle
-            # but never used at runtime when Nginx reverse-proxies /api and /ws.
-            # CLOUDFLARE_TUNNEL_TOKEN is only required when the cloudflare
-            # profile is active. Validate it conditionally below.
-          )
-          missing=()
+          # Single source of truth for the required contract lives in
+          # scripts/lib/check-prod-env.sh (also used by scripts/prod-up.sh).
           # shellcheck disable=SC1090
           set -a; . "$ENV_FILE"; set +a
-          for v in "${required[@]}"; do
-            if [ -z "${!v:-}" ]; then
-              missing+=("$v")
-            fi
-          done
-
-          # CLOUDFLARE_TUNNEL_TOKEN is only required when the cloudflare profile
-          # is in use. If the operator opted in, the value must be set.
-          if [ "${CLOUDFLARE_ENABLED:-false}" = "true" ] && [ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
-            missing+=("CLOUDFLARE_TUNNEL_TOKEN (CLOUDFLARE_ENABLED=true)")
-          fi
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "ERROR: missing required production variables:"
-            for m in "${missing[@]}"; do echo "  - $m"; done
-            echo ""
-            echo "See .env.prod for the expected values."
-            exit 1
-          fi
+          ./scripts/lib/check-prod-env.sh "$ENV_FILE"
 
           # URL-safety check on the auto-generated secrets. Neo4j parses
           # NEO4J_AUTH=user/password with split('/') and only the first two

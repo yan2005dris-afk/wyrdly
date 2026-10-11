@@ -68,19 +68,8 @@ fi
 # shellcheck disable=SC1090,SC1091
 set -a; . "$ENV_FILE"; set +a
 
-missing=()
-for v in NEO4J_PASSWORD RUSTFS_ACCESS_KEY RUSTFS_SECRET_KEY CORS_ORIGINS \
-         APP_PUBLIC_BASE_URL JWT_ISSUER VAPID_SUBJECT; do
-  if [ -z "${!v:-}" ]; then
-    missing+=("$v")
-  fi
-done
-if [ "${CLOUDFLARE_ENABLED:-false}" = "true" ] && [ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
-  missing+=("CLOUDFLARE_TUNNEL_TOKEN (CLOUDFLARE_ENABLED=true)")
-fi
-if [ "${#missing[@]}" -gt 0 ]; then
-  echo "ERROR: missing required production variables in $ENV_FILE:" >&2
-  for m in "${missing[@]}"; do echo "  - $m" >&2; done
+# Single source of truth: scripts/lib/check-prod-env.sh (also used by deploy.yml).
+if ! "$REPO_ROOT/scripts/lib/check-prod-env.sh" "$ENV_FILE"; then
   exit 1
 fi
 
