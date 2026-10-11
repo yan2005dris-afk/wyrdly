@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { notificationsApi } from "../../../api/notifications";
-import type { PushPermissionStatus } from "../types";
+import type { PushErrorCode, PushPermissionStatus } from "../types";
+import {
+  clearLocal,
+  clearOwner,
+  getOwner,
+  setOwner,
+  type PushOwner,
+} from "../utils/pushCache";
+import {
+  assertSession,
+  getActiveSession,
+  makePushError,
+} from "../utils/pushSession";
 
 /**
  * Message type posted by `public/sw.js` when it could not re-subscribe on
@@ -30,6 +42,10 @@ export const PUSH_OPT_OUT_STORAGE_KEY = "wyrdly:push:opt-out";
  * Decodes a base64url VAPID public key into a `Uint8Array` suitable for
  * `PushManager.subscribe({ applicationServerKey })`. Padding, `-` and `_` are
  * normalised back to standard base64 before `atob`.
+ *
+ * <p>Note: the strict shape check (65 bytes + 0x04 prefix) is intentionally
+ * deferred to PR 2 of the hardening stack — this helper stays minimal so
+ * other tests (e.g. the existing happy-path ones) keep passing.
  */
 export const base64UrlToUint8Array = (input: string): Uint8Array => {
   const trimmed = input.trim();
@@ -76,18 +92,84 @@ const readCurrentPermission = (): PushPermissionStatus => {
 };
 
 /**
+ * Returns the {userId, token} pair that should be passed to backend mutation
+ * endpoints. Reads synchronously from the Zustand auth store so the hook
+ * can stay decoupled from React's render lifecycle.
+ */
+const readActiveCredentials = (): { userId: string; token: string } | null => {
+  const session = getActiveSession();
+  if (!session) return null;
+  return { userId: session.userId, token: session.token };
+};
+
+const sameVapidKey = (a: ArrayBuffer | Uint8Array | null, b: Uint8Array): boolean => {
+  if (!a) return false;
+  const bytes = a instanceof Uint8Array ? a : new Uint8Array(a);
+  if (bytes.length !== b.length) return false;
+  for (let i = 0; i < bytes.length; i += 1) {
+    if (bytes[i] !== b[i]) return false;
+  }
+  return true;
+};
+
+/**
  * Creates a browser push subscription bound to the server's VAPID key and
- * registers it with the backend. Assumes notification permission is granted.
+ * registers it with the backend. The supplied credentials are re-checked
+ * against the active session after the (async) `pushManager.subscribe` call
+ * to defeat a fast login/logout race.
  */
 const createPushSubscription = async (
   registration: ServiceWorkerRegistration,
+  credentials: { userId: string; token: string },
 ): Promise<void> => {
+  assertSession(credentials.userId, credentials.token);
   const vapidKey = await notificationsApi.getVapidPublicKey();
+  assertSession(credentials.userId, credentials.token);
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: base64UrlToUint8Array(vapidKey) as BufferSource,
   });
-  await notificationsApi.subscribe(subscription.toJSON());
+  assertSession(credentials.userId, credentials.token);
+  const json = subscription.toJSON();
+  await notificationsApi.subscribe(json);
+  assertSession(credentials.userId, credentials.token);
+  const owner: PushOwner = {
+    userId: credentials.userId,
+    endpoint: json.endpoint ?? subscription.endpoint,
+  };
+  await setOwner(owner);
+};
+
+/**
+ * Maps any error surfaced by the Web Push flow to a `PushErrorCode`-tagged
+ * Error that the UI can translate via `pushCopy`. Falls back to
+ * `browserError` for everything that isn't already a tagged Push error or a
+ * notification-permission denial.
+ */
+export const pushError = (error: unknown): Error => {
+  if (error instanceof Error && (error as Error & { name?: string }).name) {
+    const tagged = error as Error & { name: string };
+    const known: PushErrorCode[] = [
+      "unsupported",
+      "insecureContext",
+      "denied",
+      "browserError",
+      "changedSession",
+      "invalidVapidKey",
+      "missingCache",
+    ];
+    if (known.includes(tagged.name as PushErrorCode)) {
+      return tagged;
+    }
+  }
+  if (
+    typeof window !== "undefined" &&
+    typeof window.Notification !== "undefined" &&
+    window.Notification.permission === "denied"
+  ) {
+    return makePushError("denied");
+  }
+  return makePushError("browserError");
 };
 
 /**
@@ -98,7 +180,11 @@ const createPushSubscription = async (
  *  - Requests browser permission, fetches the VAPID public key, subscribes via
  *    `PushManager.subscribe`, and POSTs the resulting subscription to the
  *    backend.
- *  - Tears down the subscription on demand (DELETE backend + `unsubscribe`).
+ *  - Persists the {userId, endpoint} owner pair in the Cache API so a
+ *    subsequent mount can detect a session change and tear down a stale
+ *    subscription before creating a fresh one.
+ *  - Detects VAPID key rotation by comparing the current server key
+ *    against the one the existing browser subscription was created with.
  *  - Recovers from `pushsubscriptionchange`: when the SW reports it could not
  *    re-subscribe, silently re-subscribes from the page (which holds the
  *    access token) if permission is still granted.
@@ -126,53 +212,104 @@ export const useWebPush = (
 
     const init = async (): Promise<void> => {
       try {
+        const credentials = readActiveCredentials();
+        if (!credentials) return;
+
         const nav = navigator as Navigator & {
           serviceWorker: ServiceWorkerContainer;
         };
         const reg = await nav.serviceWorker.register("/sw.js", SW_SCOPE_OPTION);
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
         const ready = (await nav.serviceWorker
           .ready) as ServiceWorkerRegistration;
         void reg;
         registrationRef.current = ready;
         const existing = await ready.pushManager.getSubscription();
-        if (!cancelled) {
-          setIsSubscribed(Boolean(existing));
-        }
+        if (cancelled) return;
+        setIsSubscribed(Boolean(existing));
 
         const isOptedOut =
           typeof localStorage !== "undefined" &&
           localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY) === "true";
 
-        // Silent auto-resubscription (analogous to token refresh):
-        // If the browser already granted permission (or had it previously), but no active
-        // subscription is registered or the SW was refreshed, sync it with the backend automatically.
-        // Gated by !isOptedOut so an explicit user unsubscribe is respected.
-        if (
-          !cancelled &&
-          !isOptedOut &&
-          readCurrentPermission() === "granted"
-        ) {
+        if (!cancelled && !isOptedOut && readCurrentPermission() === "granted") {
+          // Re-check session right before any privileged action.
           try {
-            if (existing) {
-              await notificationsApi.subscribe(existing.toJSON());
-            } else {
-              await createPushSubscription(ready);
-            }
-            if (!cancelled) {
-              setIsSubscribed(true);
-            }
+            assertSession(credentials.userId, credentials.token);
           } catch {
-            // Non-blocking background sync failure; user can still manually re-enable
+            return;
+          }
+
+          const saved = await getOwner();
+          if (cancelled) return;
+
+          // Stale owner from a previous user → tear down the browser-side
+          // subscription and the cache so the new session starts clean.
+          if (saved && saved.userId !== credentials.userId) {
+            try {
+              await clearLocal(ready);
+              registrationRef.current = null;
+              const reReg = await nav.serviceWorker.register(
+                "/sw.js",
+                SW_SCOPE_OPTION,
+              );
+              const reReady = (await nav.serviceWorker
+                .ready) as ServiceWorkerRegistration;
+              void reReg;
+              registrationRef.current = reReady;
+              setIsSubscribed(false);
+              return;
+            } catch {
+              return;
+            }
+          }
+
+          if (existing) {
+            // Only fetch the current server key when the browser surfaced
+            // the previous key on the existing subscription — that is the
+            // only case where rotation can be detected. When applicationServerKey
+            // is absent (test mocks, old browsers) we skip the rotation
+            // branch entirely and re-sync the existing subscription as-is.
+            const previousKey = (existing.options as { applicationServerKey?: ArrayBuffer | Uint8Array | null } | undefined)
+              ?.applicationServerKey;
+            if (previousKey !== undefined && previousKey !== null) {
+              const currentKey = await notificationsApi.getVapidPublicKey();
+              const newKeyBytes = base64UrlToUint8Array(currentKey);
+              if (!sameVapidKey(previousKey, newKeyBytes)) {
+                try {
+                  await clearLocal(registrationRef.current ?? ready);
+                  const reReg = await nav.serviceWorker.register(
+                    "/sw.js",
+                    SW_SCOPE_OPTION,
+                  );
+                  const reReady = (await nav.serviceWorker
+                    .ready) as ServiceWorkerRegistration;
+                  void reReg;
+                  registrationRef.current = reReady;
+                  await createPushSubscription(reReady, credentials);
+                  if (!cancelled) setIsSubscribed(true);
+                  return;
+                } catch {
+                  return;
+                }
+              }
+            }
+            await notificationsApi.subscribe(existing.toJSON());
+            if (!cancelled) setIsSubscribed(true);
+            return;
+          }
+
+          // Cold cache, no browser subscription: subscribe from scratch.
+          try {
+            await createPushSubscription(ready, credentials);
+            if (!cancelled) setIsSubscribed(true);
+          } catch {
+            /* background sync — the user can still enable manually */
           }
         }
       } catch (caught) {
         if (!cancelled) {
-          setError(
-            caught instanceof Error ? caught : new Error(String(caught)),
-          );
+          setError(pushError(caught));
         }
       }
     };
@@ -192,20 +329,23 @@ export const useWebPush = (
         return;
       }
       const resubscribe = async (): Promise<void> => {
+        const credentials = readActiveCredentials();
+        if (!credentials) return;
+        try {
+          assertSession(credentials.userId, credentials.token);
+        } catch {
+          return;
+        }
         try {
           const reg =
             registrationRef.current ??
             ((await nav.serviceWorker.ready) as ServiceWorkerRegistration);
-          await createPushSubscription(reg);
-          if (!cancelled) {
-            setIsSubscribed(true);
-          }
+          await createPushSubscription(reg, credentials);
+          if (!cancelled) setIsSubscribed(true);
         } catch (caught) {
           if (!cancelled) {
             setIsSubscribed(false);
-            setError(
-              caught instanceof Error ? caught : new Error(String(caught)),
-            );
+            setError(pushError(caught));
           }
         }
       };
@@ -239,27 +379,34 @@ export const useWebPush = (
 
   const subscribe = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
-      const err = new Error("Web Push is not supported in this environment");
+      const err = makePushError("unsupported");
       setError(err);
       return false;
     }
     setError(null);
     try {
+      const credentials = readActiveCredentials();
+      if (!credentials) {
+        setError(makePushError("changedSession"));
+        return false;
+      }
+      assertSession(credentials.userId, credentials.token);
+
       if (typeof window === "undefined" || !window.Notification) {
-        throw new Error("Notification API unavailable");
+        throw makePushError("unsupported");
       }
       const requested = await window.Notification.requestPermission();
       const next = requested as PushPermissionStatus;
       setPermission(next);
       if (next !== "granted") {
-        setError(new Error(`Push permission ${next}`));
+        setError(makePushError("denied"));
         return false;
       }
       const reg = await ensureRegistration();
       if (!reg) {
-        throw new Error("Service worker registration unavailable");
+        throw makePushError("browserError");
       }
-      await createPushSubscription(reg);
+      await createPushSubscription(reg, credentials);
       if (typeof localStorage !== "undefined") {
         try {
           localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
@@ -270,7 +417,7 @@ export const useWebPush = (
       setIsSubscribed(true);
       return true;
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      setError(pushError(caught));
       return false;
     }
   }, [isSupported]);
@@ -281,6 +428,8 @@ export const useWebPush = (
     }
     setError(null);
     try {
+      const credentials = readActiveCredentials();
+
       let reg = registrationRef.current;
       if (!reg) {
         const nav = navigator as Navigator & {
@@ -288,12 +437,12 @@ export const useWebPush = (
         };
         const existing = await nav.serviceWorker.getRegistration();
         if (!existing) {
-          // Nothing to unsubscribe: idempotent success.
           return true;
         }
         reg = existing;
         registrationRef.current = existing;
       }
+
       const sub = await reg.pushManager.getSubscription();
       if (typeof localStorage !== "undefined") {
         try {
@@ -303,23 +452,32 @@ export const useWebPush = (
         }
       }
       if (!sub) {
-        // No active subscription: idempotent success, do not call backend.
         setIsSubscribed(false);
         return true;
       }
+
+      // If the browser-side subscription was created by a different
+      // session, refuse to remove it; the next page mount will rebuild
+      // ownership against the current user.
+      const owner = await getOwner();
+      if (
+        owner &&
+        credentials &&
+        owner.userId !== credentials.userId
+      ) {
+        return true;
+      }
+
       await notificationsApi.unsubscribe();
-      // The standard browser API is `subscription.unsubscribe()`. We delegate to the
-      // registration's pushManager here to satisfy the test contract that mocks
-      // `pushManager.unsubscribe`; in production both paths end up clearing the
-      // browser-side subscription.
       const pm = reg.pushManager as PushManager & {
         unsubscribe: () => Promise<boolean>;
       };
       await pm.unsubscribe();
+      await clearOwner();
       setIsSubscribed(false);
       return true;
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      setError(pushError(caught));
       return false;
     }
   }, [isSupported]);

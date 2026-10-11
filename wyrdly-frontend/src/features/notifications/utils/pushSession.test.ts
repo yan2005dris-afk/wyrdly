@@ -1,9 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { useAuthStore } from "../../auth/store/useAuthStore";
 import { pushCopy } from "../copy";
 import { assertSession, getActiveSession, makePushError } from "./pushSession";
-
-type AuthSnapshot = ReturnType<typeof useAuthStore.getState>;
 
 const originalState = useAuthStore.getState();
 const setUser = (user: { id: string } | null, token: string | null) => {
@@ -77,5 +75,4 @@ describe("makePushError", () => {
   });
 });
 
-// Avoid an unused import warning when vi is only consumed by tooling.
-void vi;
+// end of file
