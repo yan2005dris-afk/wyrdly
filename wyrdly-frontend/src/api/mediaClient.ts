@@ -1,17 +1,6 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import { getAccessToken } from "./tokenStore";
-
-const resolveBaseUrl = (): string => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (typeof envUrl === "string") {
-    const sanitized = envUrl.replace(/^["']+|["']+$/g, "").trim();
-    if (sanitized) return sanitized;
-    return "";
-  }
-  return import.meta.env.DEV ? "http://localhost:8080" : "";
-};
-
-const API_BASE_URL = resolveBaseUrl();
+import { API_BASE_URL } from "./axios";
 
 /**
  * Dedicated axios instance for multipart/form-data uploads.
