@@ -11,6 +11,8 @@ export type {
 } from "./components/ProfileHeaderCard";
 export { PostGridItem, PostGridItemSkeleton } from "./components/PostGridItem";
 export type { PostGridItemProps } from "./components/PostGridItem";
+export { WebPushSettingsCard } from "./components/WebPushSettingsCard";
+export type { WebPushSettingsCardProps } from "./components/WebPushSettingsCard";
 
 // Hooks
 export { useUserProfile } from "./hooks/useUserProfile";
