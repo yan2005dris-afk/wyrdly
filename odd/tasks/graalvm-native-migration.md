@@ -66,12 +66,24 @@ Resolver esta feature **antes** de empezar #181 (VAPID garantías) tiene sentido
 
 ## Evidencia de Verificación
 
-Pendiente de T7. Se completará con:
+T7 — verificación end-to-end local (sin Mandrel instalado):
 
-- Hash del commit final de la rama.
-- Logs del job `native-build` verde en CI.
-- Comparación `startup time` y `RSS mem` antes/después del switch.
-- Confirmación de `/q/health/live` <500 ms en la imagen nativa local.
+- **`./mvnw spotless:check`** → PASS. Sin drift de formato.
+- **`./mvnw package -DskipTests`** → BUILD SUCCESS en **12.5 s** con el layout JVM estándar (`target/quarkus-app/{lib,app,quarkus}/` + `quarkus-run.jar`). El path viejo no está roto.
+- **`java -jar target/quarkus-app/quarkus-run.jar`** + `wget /q/health/live` → **healthy after 1 s**; el chequeo devuelve `{"status":"UP","checks":[{"name":"neo4j","status":"UP"}]}`. El neo4j driver, el VAPID keypair (generado on-demand con `VAPID_GENERATE_IF_MISSING=true`) y la firma JWT funcionan idénticamente a antes.
+- **`docker compose config --quiet`** → exit 0. El `compose.yaml` con el nuevo init-container `wyrdly-vapid-bootstrap` parsea sin error.
+- **Native build** (`target/wyrdly-backend-1.0.0-SNAPSHOT-runner`) **aún no generado localmente**: requiere Mandrel (RHEL8 base). Será generado y validado por el job `native-build` en `.github/workflows/backend-ci.yml` cuando esta rama se pusheé. El target de cold start es **<500 ms**; RSS **<80 MB**; se compararán contra el baseline JVM (1 s cold start, ~300 MB RSS) en la primera corrida verde del job CI.
+
+## Estado del Branch
+
+| Commit | Descripción |
+|---|---|
+| `3bfd979` | `docs(tasks): add graalvm-native-migration feature document` |
+| `75e2219` | `feat(infra): migrate wyrdly-backend to GraalVM/Mandrel native build` (Dockerfile + compose.yaml con init-container `wyrdly-vapid-bootstrap` Alpine 3.20) |
+| `a1d5e35` | `ci(backend): add native-build job + ADR-008` (job Mandrel + decisión documentada) |
+| `4c398bf` | `docs(build): add native-build guide for local GraalVM/Mandrel builds` |
+
+Listo para push + PR contra `develop` cuando se autorice.
 
 ## Apéndice: Decisiones arquitectónicas
 
