@@ -194,45 +194,29 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
             <!--
-                Force the Apache-based HTTP client instead of `netty-nio-client`
-                AND drop the CRT-based checksum bindings.
+                Force the Apache-based HTTP client instead of `netty-nio-client`.
+                Keep `crt-core` and `checksums` on the classpath — `core`'s
+                `SdkExecutionAttribute.<clinit>` references
+                `software.amazon.awssdk.checksums.DefaultChecksumAlgorithm`,
+                so excluding `checksums` entirely breaks the build.
 
-                Reason: `netty-nio-client` (the AWS SDK v2 default) drags in
-                `software.amazon.awssdk:netty-nio-client` whose S3 signing
-                classes (`Crc32Checksum` / `Crc32CChecksum`) reference
-                JNI bindings under `software.amazon.awssdk.crt.*`
-                (CRT = Common Runtime). Native Image cannot embed the
-                CRT native lib and fails the AOT step with:
-
-                  Discovered unresolved type during parsing:
-                    software.amazon.awssdk.crt.checksums.CRC32
-                    software.amazon.awssdk.crt.checksums.CRC32C
-
-                Excluding `netty-nio-client` alone is not enough: `s3`
-                transitively pulls in `crt-core` and `checksums`, which
-                still register the CRT-backed `Crc32*Checksum` classes at
-                static analysis time. Excluding all three stops the SPI
-                loader from ever seeing a CRT-bound class.
+                The two CRT-bound checksum classes that DID break native-image
+                (`software.amazon.awssdk.http.auth.aws.internal.signer.checksums.Crc32Checksum`
+                and `Crc32CChecksum`) are kept on the classpath but marked
+                for lazy init in `application.properties` (initialize-at
+                run-time flag passed through `quarkus.native.additional-build-args`)
+                so Mandrel does not touch their native bindings at build time.
 
                 `apache-client` is pure Java (no JNI) and works identically
                 for our S3 use-case (CRUD against RustFS / S3-compatible).
-                SHA-256 / SHA-1 checksums built into the JDK are used
-                instead of CRC32/CRC32C. The runtime CRT-free path is what
-                Quarkus recommends for AWS SDK v2 + native — see
+                The runtime CRT-free path is what Quarkus recommends for
+                AWS SDK v2 + native — see
                 https://quarkus.io/guides/amazon-s3#native-support.
             -->
             <exclusions>
                 <exclusion>
                     <groupId>software.amazon.awssdk</groupId>
                     <artifactId>netty-nio-client</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>software.amazon.awssdk</groupId>
-                    <artifactId>crt-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>software.amazon.awssdk</groupId>
-                    <artifactId>checksums</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
