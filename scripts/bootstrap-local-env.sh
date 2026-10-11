@@ -110,17 +110,17 @@ fi
 # can pick a remediation path (down -v, cypher-shell ALTER USER,
 # etc.) instead of staring at AuthenticationException logs.
 stack_running() {
-  # Detect the available container CLI. The CI runner has docker; the dev
-  # hosts I work on have podman. 'docker compose' is a v2 plugin that is
-  # *not* part of the docker CLI itself, so a host with 'docker' binary
-  # may not have 'docker compose' subcommand available (it can also be
-  # called via the legacy 'docker-compose' binary). Probe in order of
-  # preference and bail out to 'not running' if none works.
+  # Detect the available container CLI. The CI runner has docker; dev
+  # hosts also run docker. 'docker compose' is a v2 plugin that is *not*
+  # part of the docker CLI itself, so a host with 'docker' binary may not
+  # have 'docker compose' subcommand available (it can also be called via
+  # the legacy 'docker-compose' binary). Probe in order of preference and
+  # bail out to 'not running' if none works.
   local cli=""
-  if command -v podman >/dev/null 2>&1; then
-    cli="podman"
-  elif command -v docker >/dev/null 2>&1; then
+  if command -v docker >/dev/null 2>&1; then
     cli="docker"
+  elif command -v podman >/dev/null 2>&1; then
+    cli="podman"
   else
     return 1
   fi

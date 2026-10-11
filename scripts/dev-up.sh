@@ -8,7 +8,7 @@
 #   2. Warns when ./.env is NEWER than the neo4j data volume (password may
 #      have changed since the volume was created → Bolt auth mismatch).
 #      Comparison is mtime-based; no secret is ever printed.
-#   3. Builds + starts the stack (podman or docker, auto-detected).
+#   3. Builds + starts the stack (docker preferred, podman fallback).
 #   4. Waits until backend + frontend are healthy.
 #   5. Prints the local URLs.
 #
@@ -24,12 +24,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 detect_cli() {
-  if command -v podman >/dev/null 2>&1; then
-    echo "podman"
-  elif command -v docker >/dev/null 2>&1; then
+  if command -v docker >/dev/null 2>&1; then
     echo "docker"
+  elif command -v podman >/dev/null 2>&1; then
+    echo "podman"
   else
-    echo "ERROR: neither podman nor docker found." >&2
+    echo "ERROR: docker not found; install docker (or podman as fallback)." >&2
     exit 1
   fi
 }

@@ -34,7 +34,7 @@ detect_cli() {
   elif command -v podman >/dev/null 2>&1; then
     echo "podman"
   else
-    echo "ERROR: neither docker nor podman found." >&2
+    echo "ERROR: docker not found; install docker (or podman as fallback)." >&2
     exit 1
   fi
 }
