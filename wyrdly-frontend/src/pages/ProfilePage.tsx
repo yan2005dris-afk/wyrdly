@@ -9,6 +9,7 @@ import {
   ProfileHeaderCard,
   ProfileHeaderSkeleton,
   EditProfileModal,
+  WebPushSettingsCard,
   useUserProfile,
   useUserPosts,
   useProfileUsers,
@@ -340,6 +341,15 @@ export const ProfilePage: FC = () => {
           {activeTab === "reactions" && (
             <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500">
               Reactions tab coming soon.
+            </div>
+          )}
+
+          {activeTab === "settings" && isCurrentUser && (
+            <div
+              className="flex flex-col gap-4"
+              data-testid="profile-settings-tab"
+            >
+              <WebPushSettingsCard />
             </div>
           )}
         </div>

@@ -55,9 +55,7 @@ describe("assertSession", () => {
 
   it("throws when the token changed for the same user", () => {
     setUser({ id: "usr_a" }, "token_b");
-    expect(() => assertSession("usr_a", "token_a")).toThrow(
-      /La sesión cambió/,
-    );
+    expect(() => assertSession("usr_a", "token_a")).toThrow(/La sesión cambió/);
   });
 
   it("throws when there is no active session", () => {

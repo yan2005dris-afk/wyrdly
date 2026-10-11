@@ -14,10 +14,7 @@ import { notificationsApi } from "../../../api/notifications";
 import { useAuthStore } from "../../auth/store/useAuthStore";
 import { pushCopy } from "../copy";
 import type { PushErrorCode } from "../types";
-import {
-  PUSH_CACHE_NAME,
-  PUSH_STATE_URL,
-} from "../utils/pushCache";
+import { PUSH_CACHE_NAME, PUSH_STATE_URL } from "../utils/pushCache";
 import {
   PUSH_OPT_OUT_STORAGE_KEY,
   PUSH_SUBSCRIPTION_CHANGE_FAILED,
@@ -110,7 +107,9 @@ const installCachesMock = () => {
   });
   return {
     store,
-    open: (globalThis as unknown as { caches: { open: ReturnType<typeof vi.fn> } }).caches.open,
+    open: (
+      globalThis as unknown as { caches: { open: ReturnType<typeof vi.fn> } }
+    ).caches.open,
   };
 };
 
@@ -494,7 +493,9 @@ describe("useWebPush", () => {
           endpoint: "https://push.example.com/endpoint/abc",
           keys: { p256dh: "p256dh-key", auth: "auth-key" },
         }),
-        options: { applicationServerKey: base64UrlToUint8Array(VAPID_BASE64URL) },
+        options: {
+          applicationServerKey: base64UrlToUint8Array(VAPID_BASE64URL),
+        },
       });
       installBrowserShims();
 
@@ -698,9 +699,11 @@ describe("useWebPush", () => {
       installBrowserShims();
 
       // Seed the cache with an owner from a previous session.
-      const cache = await (globalThis as unknown as {
-        caches: { open: () => Promise<unknown> };
-      }).caches.open(PUSH_CACHE_NAME);
+      const cache = await (
+        globalThis as unknown as {
+          caches: { open: () => Promise<unknown> };
+        }
+      ).caches.open(PUSH_CACHE_NAME);
       await (
         cache as unknown as {
           put: (url: string, resp: Response) => Promise<void>;
@@ -736,9 +739,11 @@ describe("useWebPush", () => {
         await result.current.subscribe();
       });
 
-      const cache = await (globalThis as unknown as {
-        caches: { open: () => Promise<unknown> };
-      }).caches.open(PUSH_CACHE_NAME);
+      const cache = await (
+        globalThis as unknown as {
+          caches: { open: () => Promise<unknown> };
+        }
+      ).caches.open(PUSH_CACHE_NAME);
       const stored = await (
         cache as unknown as {
           match: (url: string) => Promise<Response | undefined>;
@@ -778,7 +783,8 @@ describe("useWebPush", () => {
       installBrowserShims();
 
       // Server now returns a different VAPID public key (e.g. after rotation).
-      const rotated = "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YwfAhCjwVqQUr4QgYqWGo6C-KAETYGo9NTelLTgkOGOHZHZFiW627C0=";
+      const rotated =
+        "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YwfAhCjwVqQUr4QgYqWGo6C-KAETYGo9NTelLTgkOGOHZHZFiW627C0=";
       mockedGetVapidPublicKey.mockResolvedValueOnce(rotated);
 
       renderHook(() => useWebPush({ enabled: true }));
@@ -816,9 +822,11 @@ describe("useWebPush", () => {
     });
     installBrowserShims();
 
-    const cache = await (globalThis as unknown as {
-      caches: { open: () => Promise<unknown> };
-    }).caches.open(PUSH_CACHE_NAME);
+    const cache = await (
+      globalThis as unknown as {
+        caches: { open: () => Promise<unknown> };
+      }
+    ).caches.open(PUSH_CACHE_NAME);
     await (
       cache as unknown as {
         put: (url: string, resp: Response) => Promise<void>;
@@ -884,9 +892,11 @@ describe("navigator.locks serialization", () => {
   });
 
   it("serializes two concurrent subscribe() calls through navigator.locks", async () => {
-    const request = vi.fn(async (name: string, action: () => Promise<unknown>) => {
-      return action();
-    });
+    const request = vi.fn(
+      async (name: string, action: () => Promise<unknown>) => {
+        return action();
+      },
+    );
     state = buildState();
     installCachesMock();
     installBrowserShims();
@@ -939,7 +949,8 @@ describe("navigator.locks serialization", () => {
       (globalThis as unknown as { navigator: { locks?: unknown } }).navigator,
       "locks",
     );
-    delete (globalThis as unknown as { navigator: { locks?: unknown } }).navigator?.locks;
+    delete (globalThis as unknown as { navigator: { locks?: unknown } })
+      .navigator?.locks;
 
     const { result } = renderHook(() => useWebPush({ enabled: true }));
     await flushMicrotasks();
@@ -1034,7 +1045,8 @@ describe("pushError translation helper", () => {
       if (original) {
         Object.defineProperty(globalThis, "Notification", original);
       } else {
-        delete (globalThis as unknown as { Notification?: unknown }).Notification;
+        delete (globalThis as unknown as { Notification?: unknown })
+          .Notification;
       }
     }
   });

@@ -73,7 +73,10 @@ const detectSupport = (): DetectSupportResult => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return { supported: false, reason: "unsupported" };
   }
-  if (typeof window.isSecureContext !== "undefined" && window.isSecureContext !== true) {
+  if (
+    typeof window.isSecureContext !== "undefined" &&
+    window.isSecureContext !== true
+  ) {
     return { supported: false, reason: "insecureContext" };
   }
   const nav = navigator as Navigator & {
@@ -118,7 +121,10 @@ const readActiveCredentials = (): { userId: string; token: string } | null => {
   return { userId: session.userId, token: session.token };
 };
 
-const sameVapidKey = (a: ArrayBuffer | Uint8Array | null, b: Uint8Array): boolean => {
+const sameVapidKey = (
+  a: ArrayBuffer | Uint8Array | null,
+  b: Uint8Array,
+): boolean => {
   if (!a) return false;
   const bytes = a instanceof Uint8Array ? a : new Uint8Array(a);
   if (bytes.length !== b.length) return false;
@@ -138,10 +144,7 @@ async function withPushLock<T>(action: () => Promise<T>): Promise<T> {
   const nav = (typeof navigator !== "undefined" ? navigator : undefined) as
     | (Navigator & {
         locks?: {
-          request: (
-            name: string,
-            cb: () => Promise<T>,
-          ) => Promise<T>;
+          request: (name: string, cb: () => Promise<T>) => Promise<T>;
         };
       })
     | undefined;
@@ -273,7 +276,11 @@ export const useWebPush = (
           typeof localStorage !== "undefined" &&
           localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY) === "true";
 
-        if (!cancelled && !isOptedOut && readCurrentPermission() === "granted") {
+        if (
+          !cancelled &&
+          !isOptedOut &&
+          readCurrentPermission() === "granted"
+        ) {
           // Re-check session right before any privileged action.
           try {
             assertSession(credentials.userId, credentials.token);
@@ -311,8 +318,11 @@ export const useWebPush = (
             // only case where rotation can be detected. When applicationServerKey
             // is absent (test mocks, old browsers) we skip the rotation
             // branch entirely and re-sync the existing subscription as-is.
-            const previousKey = (existing.options as { applicationServerKey?: ArrayBuffer | Uint8Array | null } | undefined)
-              ?.applicationServerKey;
+            const previousKey = (
+              existing.options as
+                | { applicationServerKey?: ArrayBuffer | Uint8Array | null }
+                | undefined
+            )?.applicationServerKey;
             if (previousKey !== undefined && previousKey !== null) {
               const currentKey = await notificationsApi.getVapidPublicKey();
               const newKeyBytes = base64UrlToUint8Array(currentKey);
@@ -427,37 +437,37 @@ export const useWebPush = (
     setError(null);
     try {
       return await withPushLock(async () => {
-      const credentials = readActiveCredentials();
-      if (!credentials) {
-        setError(makePushError("changedSession"));
-        return false;
-      }
-      assertSession(credentials.userId, credentials.token);
-
-      if (typeof window === "undefined" || !window.Notification) {
-        throw makePushError("unsupported");
-      }
-      const requested = await window.Notification.requestPermission();
-      const next = requested as PushPermissionStatus;
-      setPermission(next);
-      if (next !== "granted") {
-        setError(makePushError("denied"));
-        return false;
-      }
-      const reg = await ensureRegistration();
-      if (!reg) {
-        throw makePushError("browserError");
-      }
-      await createPushSubscription(reg, credentials);
-      if (typeof localStorage !== "undefined") {
-        try {
-          localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
-        } catch {
-          /* ignore */
+        const credentials = readActiveCredentials();
+        if (!credentials) {
+          setError(makePushError("changedSession"));
+          return false;
         }
-      }
-      setIsSubscribed(true);
-      return true;
+        assertSession(credentials.userId, credentials.token);
+
+        if (typeof window === "undefined" || !window.Notification) {
+          throw makePushError("unsupported");
+        }
+        const requested = await window.Notification.requestPermission();
+        const next = requested as PushPermissionStatus;
+        setPermission(next);
+        if (next !== "granted") {
+          setError(makePushError("denied"));
+          return false;
+        }
+        const reg = await ensureRegistration();
+        if (!reg) {
+          throw makePushError("browserError");
+        }
+        await createPushSubscription(reg, credentials);
+        if (typeof localStorage !== "undefined") {
+          try {
+            localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
+          } catch {
+            /* ignore */
+          }
+        }
+        setIsSubscribed(true);
+        return true;
       });
     } catch (caught) {
       setError(pushError(caught));
@@ -472,54 +482,50 @@ export const useWebPush = (
     setError(null);
     try {
       return await withPushLock(async () => {
-      const credentials = readActiveCredentials();
+        const credentials = readActiveCredentials();
 
-      let reg = registrationRef.current;
-      if (!reg) {
-        const nav = navigator as Navigator & {
-          serviceWorker: ServiceWorkerContainer;
-        };
-        const existing = await nav.serviceWorker.getRegistration();
-        if (!existing) {
+        let reg = registrationRef.current;
+        if (!reg) {
+          const nav = navigator as Navigator & {
+            serviceWorker: ServiceWorkerContainer;
+          };
+          const existing = await nav.serviceWorker.getRegistration();
+          if (!existing) {
+            return true;
+          }
+          reg = existing;
+          registrationRef.current = existing;
+        }
+
+        const sub = await reg.pushManager.getSubscription();
+        if (typeof localStorage !== "undefined") {
+          try {
+            localStorage.setItem(PUSH_OPT_OUT_STORAGE_KEY, "true");
+          } catch {
+            /* ignore */
+          }
+        }
+        if (!sub) {
+          setIsSubscribed(false);
           return true;
         }
-        reg = existing;
-        registrationRef.current = existing;
-      }
 
-      const sub = await reg.pushManager.getSubscription();
-      if (typeof localStorage !== "undefined") {
-        try {
-          localStorage.setItem(PUSH_OPT_OUT_STORAGE_KEY, "true");
-        } catch {
-          /* ignore */
+        // If the browser-side subscription was created by a different
+        // session, refuse to remove it; the next page mount will rebuild
+        // ownership against the current user.
+        const owner = await getOwner();
+        if (owner && credentials && owner.userId !== credentials.userId) {
+          return true;
         }
-      }
-      if (!sub) {
+
+        await notificationsApi.unsubscribe();
+        const pm = reg.pushManager as PushManager & {
+          unsubscribe: () => Promise<boolean>;
+        };
+        await pm.unsubscribe();
+        await clearOwner();
         setIsSubscribed(false);
         return true;
-      }
-
-      // If the browser-side subscription was created by a different
-      // session, refuse to remove it; the next page mount will rebuild
-      // ownership against the current user.
-      const owner = await getOwner();
-      if (
-        owner &&
-        credentials &&
-        owner.userId !== credentials.userId
-      ) {
-        return true;
-      }
-
-      await notificationsApi.unsubscribe();
-      const pm = reg.pushManager as PushManager & {
-        unsubscribe: () => Promise<boolean>;
-      };
-      await pm.unsubscribe();
-      await clearOwner();
-      setIsSubscribed(false);
-      return true;
       });
     } catch (caught) {
       setError(pushError(caught));
