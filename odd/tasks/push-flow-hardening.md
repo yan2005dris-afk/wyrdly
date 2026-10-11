@@ -100,6 +100,25 @@ Branched off PR 2.
 - **Frontend tests**: dos `subscribe()` concurrentes → solo se ejecuta
   uno; `unsubscribe()` cross-user → no-op.
 
+## Tareas adicionales (post-stack)
+
+### `feat(profile): add WebPushSettingsCard as a Settings tab on ProfilePage`
+
+- [x] **`TASK-12`** — Componente `features/profile/components/WebPushSettingsCard/` con
+      badge `Habilitado / Deshabilitado / Bloqueado por el navegador / No disponible`,
+      toggle `Habilitar / Deshabilitar` y copy de razón via `pushCopy`.
+- [x] **`TASK-13`** — Nuevo tab `Settings` en `ProfileHeaderCard` visible solo
+      cuando `isCurrentUser`. `ProfileTabId` extendido con `"settings"`.
+- [x] **`TASK-14`** — `ProfilePage` renderiza `<WebPushSettingsCard />` cuando
+      `activeTab === "settings" && isCurrentUser`.
+- [x] **`TASK-15`** — Tests (5 casos: default disabled, after enable, disable
+      llama backend, denied, unsupported).
+
+El usuario pidió "esto del permiso de web push en perfil pon ahi la
+aceptacion como configuracion de web push enable o disable". El banner
+del MainLayout sigue existiendo para el primer opt-in; esta card es la
+configuracion persistente para habilitar/deshabilitar a posteriori.
+
 ## Convenciones
 
 - Conventional Commits en español consistente con el módulo `push` previo:
