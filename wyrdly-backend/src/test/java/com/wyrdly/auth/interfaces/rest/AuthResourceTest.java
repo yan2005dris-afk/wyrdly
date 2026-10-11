@@ -232,26 +232,6 @@ class AuthResourceTest {
   }
 
   @Test
-  void refresh_Returns200OnSuccessWithBody() {
-    RefreshTokenRequest request = new RefreshTokenRequest("valid_refresh_token");
-    UserDto userDto = new UserDto("usr_123", "testuser", "test@wyrdly.social", "Test User", "", "");
-    AuthResponse response = new AuthResponse("new_token", "new_refresh", 900, userDto);
-
-    when(refreshTokenUseCase.refresh(any(RefreshTokenRequest.class))).thenReturn(response);
-
-    given()
-        .contentType(ContentType.JSON)
-        .body(request)
-        .when()
-        .post("/api/auth/refresh")
-        .then()
-        .statusCode(200)
-        .cookie("refreshToken", equalTo("new_refresh"))
-        .body("token", equalTo("new_token"))
-        .body("refreshToken", equalTo("new_refresh"));
-  }
-
-  @Test
   void refresh_Returns200OnSuccessWithCookieOnly() {
     UserDto userDto = new UserDto("usr_123", "testuser", "test@wyrdly.social", "Test User", "", "");
     AuthResponse response = new AuthResponse("new_token", "new_refresh", 900, userDto);
