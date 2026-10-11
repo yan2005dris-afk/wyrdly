@@ -8,12 +8,24 @@
 # glibc/musl surprises that plain upstream GraalVM can introduce on RHEL
 # (Mandrel) versus Ubuntu (musl) hosts.
 #
+# Image: `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21` (in
+# namespace `quarkus`). This is the official Quarkus-republished Mandrel
+# image, based on Red Hat UBI9 (Universal Base Image), and is publicly
+# accessible without Red Hat Registry credentials. The earlier candidate
+# `quay.io/quarkus/mandrel-for-jdk-21-rhel8:latest` is NOT publicly pullable
+# (it lives behind `registry.redhat.io` auth), and triggers `unauthorized`
+# errors both in CI and against rootless Podman locally. Pin to
+# `:jdk-21` (auto-tracks the latest 21.x Mandrel build); pin to a digest for
+# reproducibility in release-bearing lanes.
+#
 # Pre-requisites assumed by this Dockerfile:
 #   * `pom.xml` declares `<packaging>quarkus</packaging>` and activates the
 #     `<id>native</id>` profile (TASK-04 verified this; do not change).
 #   * `mvnw` is executable; the `quarkus` user owns the workspace (see below).
+#   * Image ships a `quarkus` user (UID 1001, `APP_HOME=/home/quarkus`,
+#     `JAVA_HOME=/opt/mandrel`, `PATH` includes `/opt/mandrel/bin`).
 # ─────────────────────────────────────────────────────────────────────────
-FROM quay.io/quarkus/mandrel-for-jdk-21-rhel8:latest AS build
+FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21 AS build
 
 # Honour outbound HTTP/HTTPS proxies only when the caller actually passes
 # them via `--build-arg`. Both UPPER and lower case forms are honoured

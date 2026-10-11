@@ -143,7 +143,11 @@ jobs:
     # the 6-hour CI ceiling. Set to 60s+ only if debugging a specific stall.
     runs-on: ubuntu-latest
     container:
-      image: quay.io/quarkus/mandrel-for-jdk-21-rhel8:latest
+      # Public Mandrel image (UBI9 base). The legacy
+      # `mandrel-for-jdk-21-rhel8:latest` requires Red Hat Registry auth
+      # that this repo does not have, so use the official Quarkus-republished
+      # UBI9 build image instead (namespace `quarkus`, NOT `quarkusio`).
+      image: quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21
     defaults:
       run:
         working-directory: wyrdly-backend

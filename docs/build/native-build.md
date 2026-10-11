@@ -31,6 +31,8 @@ docker buildx build \
 # Output: target/wyrdly-backend-* dentro de la imagen wyrdly-backend:native-dev
 ```
 
+> La imagen base `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21` es **pública** (no requiere credenciales Red Hat). El candidato obvio `mandrel-for-jdk-21-rhel8:latest` falla con `unauthorized` en imágenes sin auth Red Hat y debe evitarse para repos que no tienen esos secretos configurados.
+
 > Tip: la primera build tarda ~5–10 min (compilación AOT). Builds subsiguientes reutilizan la capa de Maven cache (`dependency:go-offline`) y solo recomponen `*-runner` cuando cambian archivos en `src/`.
 
 Para extraer el runner generado:
