@@ -217,9 +217,9 @@
                 via reflection in `S3Configuration` initialization, so
                 Mandrel's static analysis hits "unresolved type" errors if
                 they are excluded. The classes are flagged
-                `--initialize-at-run-time` in `application.properties` so
-                Mandrel never runs their `<clinit>` at build time (which is
-                where the .so JNI would be loaded at runtime).
+                (double-dash) initialize-at-run-time in application.properties
+                so Mandrel never runs their `<clinit>` at build time
+                (which is where the .so JNI would be loaded at runtime).
             -->
             <exclusions>
                 <exclusion>
