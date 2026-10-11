@@ -9,7 +9,9 @@ Base: develop @ 72dfca4. Objetivo: dejar el repo sin duplicados, sin vacíos y s
 - `docs/DOCUMENTO_PRESENTACION.md`, `docs/FRONTEND_TASKS.md` (decidir: archivar o borrar)
 
 ## Checklist
-- [ ] T1 Verificar vacíos: `src/` y `odd/hu11-web-push-notifications/` (ls -R + find, ruta declarada: inline)
+- [x] T1 Verificar vacíos (2026-10-11):
+  - `odd/hu11-web-push-notifications/`: VACÍO real → eliminado con `rmdir` (sin cambio git, los dirs vacíos no se trackean).
+  - `src/` raíz: NO es parte del build. Es residuo de haber corrido `JwtKeyGenerator` desde la raíz en vez de `wyrdly-backend/` (ese generador usa ruta relativa `src/main/resources/jwt/` y corre en fase `process-test-classes` con CWD `wyrdly-backend/`). Sus keys están ignoradas por `.gitignore:23` (untracked) y nada las lee: compose monta `./jwt`, prod lee `/deployments/jwt`, tests leen `wyrdly-backend/src/main/resources/jwt/`. La pubkey del residuo DIFIERE de la canónica `./jwt` (mismo tamaño, distinto contenido) → keypair distinto abandonado, incluye copia de privada.   Plan: `rm -rf src/` (sin `git rm`, no está trackeado) → HECHO (2026-10-11) con OK explícito. Verificado: `./jwt/` y `wyrdly-backend/src/main/resources/jwt/` intactos.
 - [x] T2 Duplicado: HECHO (2026-10-11). `DiagramaDeFlujo.png` (175.7K, oscuro) completo: flechas Muestra Notificación + Push Event visibles y marco exterior completo. `DiagramaDeFlujo (1).png` (174.4K, claro) mismo contenido pero con flechas cortadas/arriba truncadas. Ninguno referenciado en docs (grep solo cita este tracking). Decisión: conservado el oscuro original, borrado el `(1)` claro con `git rm` (staged).
 - [ ] T3 `odd/tasks/` 27 archivos: definir destino con el usuario antes de mover/borrar (ruta: por definir)
 - [ ] T4 Docs académicos: definir destino con el usuario antes de mover/borrar (ruta: por definir)
