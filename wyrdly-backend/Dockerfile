@@ -95,7 +95,7 @@ RUN ./mvnw -B -e -ntp -DskipTests package -Dnative
 # container (see compose.yaml) which writes to the same `./vapid` volume
 # the backend reads at startup.
 # ─────────────────────────────────────────────────────────────────────────
-FROM quay.io/quarkus/quarkus-micro-image:21.0
+FROM quay.io/quarkus/quarkus-micro-image:2.0
 
 WORKDIR /deployments
 
