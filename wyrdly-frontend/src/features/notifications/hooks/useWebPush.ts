@@ -73,7 +73,10 @@ const detectSupport = (): DetectSupportResult => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return { supported: false, reason: "unsupported" };
   }
-  if (typeof window.isSecureContext !== "undefined" && window.isSecureContext !== true) {
+  if (
+    typeof window.isSecureContext !== "undefined" &&
+    window.isSecureContext !== true
+  ) {
     return { supported: false, reason: "insecureContext" };
   }
   const nav = navigator as Navigator & {
@@ -118,7 +121,10 @@ const readActiveCredentials = (): { userId: string; token: string } | null => {
   return { userId: session.userId, token: session.token };
 };
 
-const sameVapidKey = (a: ArrayBuffer | Uint8Array | null, b: Uint8Array): boolean => {
+const sameVapidKey = (
+  a: ArrayBuffer | Uint8Array | null,
+  b: Uint8Array,
+): boolean => {
   if (!a) return false;
   const bytes = a instanceof Uint8Array ? a : new Uint8Array(a);
   if (bytes.length !== b.length) return false;
@@ -273,7 +279,11 @@ export const useWebPush = (
           typeof localStorage !== "undefined" &&
           localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY) === "true";
 
-        if (!cancelled && !isOptedOut && readCurrentPermission() === "granted") {
+        if (
+          !cancelled &&
+          !isOptedOut &&
+          readCurrentPermission() === "granted"
+        ) {
           // Re-check session right before any privileged action.
           try {
             assertSession(credentials.userId, credentials.token);
@@ -311,8 +321,11 @@ export const useWebPush = (
             // only case where rotation can be detected. When applicationServerKey
             // is absent (test mocks, old browsers) we skip the rotation
             // branch entirely and re-sync the existing subscription as-is.
-            const previousKey = (existing.options as { applicationServerKey?: ArrayBuffer | Uint8Array | null } | undefined)
-              ?.applicationServerKey;
+            const previousKey = (
+              existing.options as
+                | { applicationServerKey?: ArrayBuffer | Uint8Array | null }
+                | undefined
+            )?.applicationServerKey;
             if (previousKey !== undefined && previousKey !== null) {
               const currentKey = await notificationsApi.getVapidPublicKey();
               const newKeyBytes = base64UrlToUint8Array(currentKey);
@@ -504,11 +517,7 @@ export const useWebPush = (
       // session, refuse to remove it; the next page mount will rebuild
       // ownership against the current user.
       const owner = await getOwner();
-      if (
-        owner &&
-        credentials &&
-        owner.userId !== credentials.userId
-      ) {
+      if (owner && credentials && owner.userId !== credentials.userId) {
         return true;
       }
 

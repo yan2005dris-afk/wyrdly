@@ -71,7 +71,9 @@ describe("PushPermissionBanner Component", () => {
         reason="unsupported"
       />,
     );
-    expect(screen.getByText(/Push notifications unavailable/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Push notifications unavailable/),
+    ).toBeInTheDocument();
   });
 
   it("shows missing-cache copy when reason='missing-cache'", () => {
