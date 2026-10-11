@@ -42,7 +42,8 @@ export const PushPermissionBanner: FC<PushPermissionBannerProps> = ({
   const body = variant
     ? variant.body
     : "to get instant alerts when your network posts.";
-  const enableLabel = variant?.enableLabel ?? (isLoading ? "Enabling..." : "Enable");
+  const enableLabel =
+    variant?.enableLabel ?? (isLoading ? "Enabling..." : "Enable");
 
   return (
     <header

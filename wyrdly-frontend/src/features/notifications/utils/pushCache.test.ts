@@ -41,17 +41,21 @@ const installCachesMock = () => {
     configurable: true,
     writable: true,
   });
-  return { fakeCache, open, restore: () => {
-    if (original === undefined) {
-      delete (globalThis as { caches?: unknown }).caches;
-    } else {
-      Object.defineProperty(globalThis, "caches", {
-        value: original,
-        configurable: true,
-        writable: true,
-      });
-    }
-  } };
+  return {
+    fakeCache,
+    open,
+    restore: () => {
+      if (original === undefined) {
+        delete (globalThis as { caches?: unknown }).caches;
+      } else {
+        Object.defineProperty(globalThis, "caches", {
+          value: original,
+          configurable: true,
+          writable: true,
+        });
+      }
+    },
+  };
 };
 
 describe("pushCache", () => {
@@ -151,10 +155,11 @@ describe("clearLocal", () => {
     const sub = { unsubscribe };
     const closeA = vi.fn();
     const closeB = vi.fn();
-    const reg = makeRegistration(sub, vi.fn(async () => sub), [
-      { close: closeA },
-      { close: closeB },
-    ]);
+    const reg = makeRegistration(
+      sub,
+      vi.fn(async () => sub),
+      [{ close: closeA }, { close: closeB }],
+    );
     await setOwner({ userId: "u", endpoint: "https://x/y" });
 
     const ok = await clearLocal(reg);
@@ -167,7 +172,11 @@ describe("clearLocal", () => {
   });
 
   it("returns true when no subscription exists (idempotent cleanup)", async () => {
-    const reg = makeRegistration(null, vi.fn(async () => null), []);
+    const reg = makeRegistration(
+      null,
+      vi.fn(async () => null),
+      [],
+    );
     const ok = await clearLocal(reg);
     expect(ok).toBe(true);
   });
@@ -175,7 +184,11 @@ describe("clearLocal", () => {
   it("returns false when the browser refuses to release the subscription", async () => {
     const unsubscribe = vi.fn(async () => false);
     const sub = { unsubscribe };
-    const reg = makeRegistration(sub, vi.fn(async () => sub), []);
+    const reg = makeRegistration(
+      sub,
+      vi.fn(async () => sub),
+      [],
+    );
     const ok = await clearLocal(reg);
     expect(ok).toBe(false);
     expect(unsubscribe).toHaveBeenCalledTimes(1);
