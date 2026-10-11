@@ -43,9 +43,11 @@ export const PUSH_OPT_OUT_STORAGE_KEY = "wyrdly:push:opt-out";
  * `PushManager.subscribe({ applicationServerKey })`. Padding, `-` and `_` are
  * normalised back to standard base64 before `atob`.
  *
- * <p>Note: the strict shape check (65 bytes + 0x04 prefix) is intentionally
- * deferred to PR 2 of the hardening stack — this helper stays minimal so
- * other tests (e.g. the existing happy-path ones) keep passing.
+ * <p>Throws a `PushErrorCode.invalidVapidKey`-tagged error when the
+ * resulting bytes do not match the ANSI X9.62 uncompressed EC point shape:
+ * exactly 65 bytes starting with the `0x04` prefix. The browser would
+ * otherwise reject a malformed key with a generic `InvalidAccessError` that
+ * gives the user no actionable feedback.
  */
 export const base64UrlToUint8Array = (input: string): Uint8Array => {
   const trimmed = input.trim();
@@ -56,29 +58,43 @@ export const base64UrlToUint8Array = (input: string): Uint8Array => {
   for (let i = 0; i < raw.length; i += 1) {
     out[i] = raw.charCodeAt(i);
   }
+  if (out.length !== 65 || out[0] !== 0x04) {
+    throw makePushError("invalidVapidKey");
+  }
   return out;
 };
 
-const detectSupport = (): boolean => {
+export interface DetectSupportResult {
+  readonly supported: boolean;
+  readonly reason?: PushErrorCode;
+}
+
+const detectSupport = (): DetectSupportResult => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return false;
+    return { supported: false, reason: "unsupported" };
+  }
+  if (typeof window.isSecureContext !== "undefined" && window.isSecureContext !== true) {
+    return { supported: false, reason: "insecureContext" };
   }
   const nav = navigator as Navigator & {
     serviceWorker?: ServiceWorkerContainer;
   };
   if (!nav.serviceWorker) {
-    return false;
+    return { supported: false, reason: "unsupported" };
   }
   const win = window as Window & {
     PushManager?: unknown;
   };
   if (typeof win.PushManager === "undefined") {
-    return false;
+    return { supported: false, reason: "unsupported" };
   }
   if (typeof window.Notification === "undefined") {
-    return false;
+    return { supported: false, reason: "unsupported" };
   }
-  return true;
+  if (typeof caches === "undefined") {
+    return { supported: false, reason: "missingCache" };
+  }
+  return { supported: true };
 };
 
 const readCurrentPermission = (): PushPermissionStatus => {
@@ -196,7 +212,9 @@ export const useWebPush = (
   options: UseWebPushOptions = {},
 ): UseWebPushResult => {
   const { enabled = true } = options;
-  const isSupported = detectSupport();
+  const support = detectSupport();
+  const isSupported = support.supported;
+  const supportReason = support.reason;
   const [permission, setPermission] = useState<PushPermissionStatus>(
     readCurrentPermission,
   );
@@ -379,7 +397,7 @@ export const useWebPush = (
 
   const subscribe = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
-      const err = makePushError("unsupported");
+      const err = makePushError(supportReason ?? "unsupported");
       setError(err);
       return false;
     }
@@ -420,7 +438,7 @@ export const useWebPush = (
       setError(pushError(caught));
       return false;
     }
-  }, [isSupported]);
+  }, [isSupported, supportReason]);
 
   const unsubscribe = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
