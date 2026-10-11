@@ -79,6 +79,11 @@ Reemplazá cada `__SET_ME_*__` con el valor real. Las **mínimas obligatorias** 
 > (Neo4j hace `split('/')` en el entrypoint y rechaza cualquier resto) y son frágiles para secretos binarios
 > consumidos por clientes S3 / JSON / URLs. El bug que motivó esta nota está documentado en
 > `odd/tasks/fix-neo4j-auth-password-format.md`.
+>
+> **Rotar password ≠ cambiar el `.env`.** Neo4j persiste el auth en el volumen de datos: con volumen ya creado,
+> cambiar `NEO4J_PASSWORD` no tiene efecto y el container sigue fallando igual. En dev: `docker compose down`,
+> `docker volume rm wyrdly_neo4j_data`, `up -d` (el seed se re-ejecuta solo). En prod con datos reales: rotación
+> online (`neo4j-admin dbms set-initial-password` o `ALTER CURRENT USER SET PASSWORD`), nunca wipe.
 
 ### Paso 3 — Verificar el Contrato
 
@@ -179,6 +184,7 @@ docker compose --env-file /etc/wyrdly/.env up -d --build
 | Login devuelve 401 con `Secure` cookie en HTTP | `AUTH_COOKIE_SECURE=true` con HTTP | Activá HTTPS (Cloudflare) o usá solo dev |
 | Neo4j Browser no carga | `NEO4J_BROWSER_ENABLED=false` | Acceso local vía SSH tunnel si lo necesitás |
 | Backend no arranca | JWT keys ausentes | Verificar `/etc/wyrdly/jwt/*.pem` |
+| Neo4j en restart loop: `Invalid value for NEO4J_AUTH` | Password base64 con `/`/`+`, o password rotada sin tratar el volumen | Regenerar hex y recrear el volumen (dev) o rotación online (prod con datos, ver nota) |
 | VAPID no firma push | Claves ECDSA mal generadas | Regenerar con el script |
 
 ---

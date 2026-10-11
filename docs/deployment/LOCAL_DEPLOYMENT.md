@@ -70,6 +70,12 @@ WYRDLY_SEED_ENABLED=true
 QUARKUS_PROFILE=dev
 ```
 
+> [!IMPORTANT]
+> **Secrets solo hex también en dev** (`openssl rand -hex N`), nunca base64: Neo4j parte `NEO4J_AUTH` por `/`
+> y entra en restart loop con `Invalid value for NEO4J_AUTH` exactamente igual que en prod. Si rotás
+> `NEO4J_PASSWORD` con el volumen ya creado, hay que recrearlo (`docker compose down`,
+> `docker volume rm wyrdly_neo4j_data`, `up -d`); el seed se re-ejecuta solo.
+
 > [!TIP]
 > El servicio `wyrdly-cloudflared` está detrás del profile `cloudflare` en [`compose.yaml`](../../compose.yaml), por lo que **no se inicia** con un `docker compose up` normal. Si querés exponerlo localmente: `docker compose --profile cloudflare up -d`.
 >
@@ -209,3 +215,5 @@ docker compose down -v
    - Asegúrate de tener instalado `openssl` en tu sistema (`which openssl`).
 3. **Error 401 en login con cookies en modo local:**
    - Asegúrate de tener `AUTH_COOKIE_SECURE=false` en tu archivo `.env` local si estás accediendo por HTTP (`http://localhost:3000`). En producción sobre HTTPS este valor debe ser `true`.
+4. **Neo4j en restart loop (`Invalid value for NEO4J_AUTH`):**
+   - La password tiene `/` o `+` (base64) o la rotaste sin recrear el volumen. Regenerá hex, luego `docker compose down`, `docker volume rm wyrdly_neo4j_data` y `docker compose up -d` (el seed se re-ejecuta solo).
