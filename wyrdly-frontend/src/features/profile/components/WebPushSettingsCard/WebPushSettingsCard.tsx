@@ -1,6 +1,7 @@
 import { useCallback, useState, type FC } from "react";
 import { Bell, BellOff, AlertTriangle } from "lucide-react";
 import { pushCopy } from "../../../notifications/copy";
+import { useAuthStore } from "../../../auth/store/useAuthStore";
 import { useWebPush } from "../../../notifications/hooks/useWebPush";
 import type { PushErrorCode } from "../../../notifications/types";
 import { Button } from "../../../../components/ui/Button";
@@ -93,8 +94,24 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
   );
 
   const [busy, setBusy] = useState<"enable" | "disable" | null>(null);
+  // Tracks the most recent user-initiated action so the error box only
+  // appears immediately after a click — not as leftover state from a
+  // previous mount, a previous failed attempt on another instance of the
+  // hook (e.g. MainLayout's banner), or a session that has since been
+  // restored. See bug repro in WebPushSettingsCard.test.tsx.
+  const [attemptedAction, setAttemptedAction] = useState<
+    "enable" | "disable" | null
+  >(null);
+  // Subscribe to auth changes; when the session is restored we clear the
+  // stale action marker so the error stops rendering even before the user
+  // clicks again. Selector is intentionally narrow to avoid extra
+  // re-renders on unrelated auth-store updates.
+  const hasSession = useAuthStore((s) => Boolean(s.user && s.token));
+  const liveAttemptedAction =
+    hasSession && attemptedAction !== null ? null : attemptedAction;
 
   const handleEnable = useCallback(async () => {
+    setAttemptedAction("enable");
     setBusy("enable");
     try {
       await subscribe();
@@ -104,6 +121,7 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
   }, [subscribe]);
 
   const handleDisable = useCallback(async () => {
+    setAttemptedAction("disable");
     setBusy("disable");
     try {
       await unsubscribe();
@@ -149,12 +167,18 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
 
       <div className={styles.body}>
         <p className={styles.description}>{state.body}</p>
-        {error && state.status === "disabled" && error.name !== "denied" && (
-          <div className={styles.errorBox} data-testid="webpush-settings-error">
-            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>{error.message}</span>
-          </div>
-        )}
+        {error &&
+          liveAttemptedAction !== null &&
+          state.status === "disabled" &&
+          error.name !== "denied" && (
+            <div
+              className={styles.errorBox}
+              data-testid="webpush-settings-error"
+            >
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{error.message}</span>
+            </div>
+          )}
         <p className={styles.helperText}>
           El cambio se aplica solo a este navegador. Si usás la app en varios
           dispositivos, activalas en cada uno.
