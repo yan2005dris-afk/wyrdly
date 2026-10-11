@@ -27,9 +27,7 @@ const describeState = (
     return {
       status: "disabled",
       badgeText: "No disponible",
-      body:
-        reasonCopy(supportReason) ??
-        pushCopy.unsupported,
+      body: reasonCopy(supportReason) ?? pushCopy.unsupported,
     };
   }
   if (permission === "denied") {
@@ -76,7 +74,11 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
   const supportReason: PushErrorCode | undefined = (() => {
     if (!isSupported && error?.name) {
       const code = error.name as PushErrorCode;
-      if (code === "unsupported" || code === "missingCache" || code === "insecureContext") {
+      if (
+        code === "unsupported" ||
+        code === "missingCache" ||
+        code === "insecureContext"
+      ) {
         return code;
       }
     }
@@ -112,7 +114,12 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
 
   const ctaLabel = state.status === "enabled" ? "Deshabilitar" : "Habilitar";
   const ctaVariant = state.status === "enabled" ? "outline" : "primary";
-  const ctaIcon = state.status === "enabled" ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />;
+  const ctaIcon =
+    state.status === "enabled" ? (
+      <BellOff className="w-3.5 h-3.5" />
+    ) : (
+      <Bell className="w-3.5 h-3.5" />
+    );
 
   return (
     <section
@@ -129,7 +136,9 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
         </div>
         <span
           className={`${styles.statusBadge} ${
-            state.status === "enabled" ? styles.statusEnabled : styles.statusDisabled
+            state.status === "enabled"
+              ? styles.statusEnabled
+              : styles.statusDisabled
           }`}
           data-testid="webpush-settings-badge"
         >
@@ -147,8 +156,8 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
           </div>
         )}
         <p className={styles.helperText}>
-          El cambio se aplica solo a este navegador. Si usás la app en
-          varios dispositivos, activalas en cada uno.
+          El cambio se aplica solo a este navegador. Si usás la app en varios
+          dispositivos, activalas en cada uno.
         </p>
       </div>
 
