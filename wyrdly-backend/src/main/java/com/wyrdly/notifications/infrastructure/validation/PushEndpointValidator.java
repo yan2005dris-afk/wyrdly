@@ -7,19 +7,17 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
- * Syntactic guard that rejects unsafe or non-public push endpoints before a
- * {@code PushSubscription} is persisted.
+ * Syntactic guard that rejects unsafe or non-public push endpoints before a {@code
+ * PushSubscription} is persisted.
  *
- * <p>Validates the {@code endpoint} URL against the W3C Push API constraints
- * that browser push gateways actually satisfy. Push gateways (FCM, Mozilla
- * Autopush, Apple WebPush) issue HTTPS endpoints under public hostnames; any
- * other shape is either a developer mistake or an attempt to redirect push
- * traffic to an attacker-controlled receiver.
+ * <p>Validates the {@code endpoint} URL against the W3C Push API constraints that browser push
+ * gateways actually satisfy. Push gateways (FCM, Mozilla Autopush, Apple WebPush) issue HTTPS
+ * endpoints under public hostnames; any other shape is either a developer mistake or an attempt to
+ * redirect push traffic to an attacker-controlled receiver.
  *
- * <p>This check is intentionally syntactic — it never performs DNS at
- * request time. A hostname that becomes hostile after registration cannot
- * be detected here; that is mitigated by the gateway's 410 Gone response
- * and {@code PushDispatcher}'s auto-cleanup.
+ * <p>This check is intentionally syntactic — it never performs DNS at request time. A hostname that
+ * becomes hostile after registration cannot be detected here; that is mitigated by the gateway's
+ * 410 Gone response and {@code PushDispatcher}'s auto-cleanup.
  *
  * <p>Rejected shapes:
  *
@@ -27,8 +25,7 @@ import java.util.regex.Pattern;
  *   <li>scheme other than {@code https}
  *   <li>missing host
  *   <li>userInfo or fragment component present
- *   <li>{@code localhost}, IP literal (v4 or v6), {@code .local}, {@code
- *       .internal}
+ *   <li>{@code localhost}, IP literal (v4 or v6), {@code .local}, {@code .internal}
  *   <li>label longer than 63 chars, leading/trailing hyphen, empty label
  *   <li>less than two labels or TLD that is all-numeric (RFC 3696 §2)
  *   <li>total hostname longer than 253 characters
@@ -37,14 +34,13 @@ import java.util.regex.Pattern;
  */
 public final class PushEndpointValidator {
 
-  private static final Pattern LABEL_PATTERN =
-      Pattern.compile("[a-z0-9](?:[a-z0-9-]*[a-z0-9])?");
+  private static final Pattern LABEL_PATTERN = Pattern.compile("[a-z0-9](?:[a-z0-9-]*[a-z0-9])?");
 
   private PushEndpointValidator() {}
 
   /**
-   * Throws {@link InvalidSubscriptionException} when the supplied endpoint
-   * does not satisfy the syntactic constraints.
+   * Throws {@link InvalidSubscriptionException} when the supplied endpoint does not satisfy the
+   * syntactic constraints.
    */
   public static void validate(String endpoint) {
     if (endpoint == null || endpoint.isBlank()) {
@@ -54,25 +50,21 @@ public final class PushEndpointValidator {
     try {
       uri = new URI(endpoint.trim());
     } catch (URISyntaxException failure) {
-      throw new InvalidSubscriptionException(
-          "endpoint must be a syntactically valid URI");
+      throw new InvalidSubscriptionException("endpoint must be a syntactically valid URI");
     }
 
     if (!"https".equalsIgnoreCase(uri.getScheme())) {
-      throw new InvalidSubscriptionException(
-          "endpoint scheme must be https");
+      throw new InvalidSubscriptionException("endpoint scheme must be https");
     }
     String host = uri.getHost();
     if (host == null || host.isEmpty()) {
       throw new InvalidSubscriptionException("endpoint host is required");
     }
     if (uri.getRawUserInfo() != null) {
-      throw new InvalidSubscriptionException(
-          "endpoint must not contain userInfo");
+      throw new InvalidSubscriptionException("endpoint must not contain userInfo");
     }
     if (uri.getRawFragment() != null) {
-      throw new InvalidSubscriptionException(
-          "endpoint must not contain a fragment");
+      throw new InvalidSubscriptionException("endpoint must not contain a fragment");
     }
     if (!isPublicHostname(host)) {
       throw new InvalidSubscriptionException(
@@ -81,11 +73,11 @@ public final class PushEndpointValidator {
   }
 
   /**
-   * Public-hostname test: rejects {@code localhost}, IP literals, and the
-   * reserved TLDs that resolve only inside a private network.
+   * Public-hostname test: rejects {@code localhost}, IP literals, and the reserved TLDs that
+   * resolve only inside a private network.
    *
-   * <p>Brackets around an IPv6 literal that may survive {@code URI.getHost()}
-   * are stripped before further inspection.
+   * <p>Brackets around an IPv6 literal that may survive {@code URI.getHost()} are stripped before
+   * further inspection.
    */
   private static boolean isPublicHostname(String rawHost) {
     String host = rawHost.toLowerCase(Locale.ROOT);

@@ -33,8 +33,7 @@ class PushEndpointValidatorTest {
       })
   void rejectsNonHttpsOrUnparseable(String endpoint) {
     assertThrows(
-        InvalidSubscriptionException.class,
-        () -> PushEndpointValidator.validate(endpoint));
+        InvalidSubscriptionException.class, () -> PushEndpointValidator.validate(endpoint));
   }
 
   @ParameterizedTest
@@ -54,8 +53,7 @@ class PushEndpointValidatorTest {
       })
   void rejectsLoopbackOrReservedHosts(String endpoint) {
     assertThrows(
-        InvalidSubscriptionException.class,
-        () -> PushEndpointValidator.validate(endpoint));
+        InvalidSubscriptionException.class, () -> PushEndpointValidator.validate(endpoint));
   }
 
   @ParameterizedTest
@@ -66,8 +64,7 @@ class PushEndpointValidatorTest {
       })
   void rejectsUserInfoOrFragment(String endpoint) {
     assertThrows(
-        InvalidSubscriptionException.class,
-        () -> PushEndpointValidator.validate(endpoint));
+        InvalidSubscriptionException.class, () -> PushEndpointValidator.validate(endpoint));
   }
 
   @Test
@@ -79,15 +76,9 @@ class PushEndpointValidatorTest {
 
   @Test
   void rejectsBlankOrNull() {
-    assertThrows(
-        InvalidSubscriptionException.class,
-        () -> PushEndpointValidator.validate(null));
-    assertThrows(
-        InvalidSubscriptionException.class,
-        () -> PushEndpointValidator.validate(""));
-    assertThrows(
-        InvalidSubscriptionException.class,
-        () -> PushEndpointValidator.validate("   "));
+    assertThrows(InvalidSubscriptionException.class, () -> PushEndpointValidator.validate(null));
+    assertThrows(InvalidSubscriptionException.class, () -> PushEndpointValidator.validate(""));
+    assertThrows(InvalidSubscriptionException.class, () -> PushEndpointValidator.validate("   "));
   }
 
   @ParameterizedTest
@@ -100,8 +91,7 @@ class PushEndpointValidatorTest {
       })
   void rejectsMalformedLabels(String endpoint) {
     assertThrows(
-        InvalidSubscriptionException.class,
-        () -> PushEndpointValidator.validate(endpoint));
+        InvalidSubscriptionException.class, () -> PushEndpointValidator.validate(endpoint));
   }
 
   @Test
@@ -109,7 +99,6 @@ class PushEndpointValidatorTest {
     String longLabel = "a".repeat(64);
     String endpoint = "https://prefix." + longLabel + ".com/foo";
     assertThrows(
-        InvalidSubscriptionException.class,
-        () -> PushEndpointValidator.validate(endpoint));
+        InvalidSubscriptionException.class, () -> PushEndpointValidator.validate(endpoint));
   }
 }

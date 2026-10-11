@@ -156,8 +156,7 @@ class SubscribeToPushUseCaseImplTest {
   void rejectsLocalhostEndpoint() {
     SubscribeRequestDto bad =
         new SubscribeRequestDto(
-            "https://localhost:9999/mock-push",
-            new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
+            "https://localhost:9999/mock-push", new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
     assertThrows(InvalidSubscriptionException.class, () -> useCase.subscribe(USER_ID, bad));
     org.mockito.Mockito.verifyNoInteractions(repo);
   }
@@ -166,8 +165,7 @@ class SubscribeToPushUseCaseImplTest {
   void rejectsLocalTld() {
     SubscribeRequestDto bad =
         new SubscribeRequestDto(
-            "https://router.local/foo",
-            new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
+            "https://router.local/foo", new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
     assertThrows(InvalidSubscriptionException.class, () -> useCase.subscribe(USER_ID, bad));
     org.mockito.Mockito.verifyNoInteractions(repo);
   }
@@ -176,8 +174,7 @@ class SubscribeToPushUseCaseImplTest {
   void rejectsIpLiteral() {
     SubscribeRequestDto bad =
         new SubscribeRequestDto(
-            "https://192.168.0.1/foo",
-            new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
+            "https://192.168.0.1/foo", new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
     assertThrows(InvalidSubscriptionException.class, () -> useCase.subscribe(USER_ID, bad));
     org.mockito.Mockito.verifyNoInteractions(repo);
   }
