@@ -1,0 +1,32 @@
+# Cleanup pendientes repo — rama chore/repo-cleanup-pendientes
+
+Base: develop @ 72dfca4. Objetivo: dejar el repo sin duplicados, sin vacíos y sin docs académicos sueltos.
+
+## Alcance autorizado
+- `docs/Diagramas/DiagramaDeFlujo (1).png` (duplicado, verificar hash antes de borrar)
+- `src/` raíz y `odd/hu11-web-push-notifications/` (verificar vacíos antes de borrar)
+- `odd/tasks/` 27 archivos (decidir: archivar / borrar / mover, NO borrar a ciegas)
+- `docs/DOCUMENTO_PRESENTACION.md`, `docs/FRONTEND_TASKS.md` (decidir: archivar o borrar)
+
+## Checklist
+- [x] T1 Verificar vacíos (2026-10-11):
+  - `odd/hu11-web-push-notifications/`: VACÍO real → eliminado con `rmdir` (sin cambio git, los dirs vacíos no se trackean).
+  - `src/` raíz: NO es parte del build. Es residuo de haber corrido `JwtKeyGenerator` desde la raíz en vez de `wyrdly-backend/` (ese generador usa ruta relativa `src/main/resources/jwt/` y corre en fase `process-test-classes` con CWD `wyrdly-backend/`). Sus keys están ignoradas por `.gitignore:23` (untracked) y nada las lee: compose monta `./jwt`, prod lee `/deployments/jwt`, tests leen `wyrdly-backend/src/main/resources/jwt/`. La pubkey del residuo DIFIERE de la canónica `./jwt` (mismo tamaño, distinto contenido) → keypair distinto abandonado, incluye copia de privada.   Plan: `rm -rf src/` (sin `git rm`, no está trackeado) → HECHO (2026-10-11) con OK explícito. Verificado: `./jwt/` y `wyrdly-backend/src/main/resources/jwt/` intactos.
+- [x] T2 Duplicado: HECHO (2026-10-11). `DiagramaDeFlujo.png` (175.7K, oscuro) completo: flechas Muestra Notificación + Push Event visibles y marco exterior completo. `DiagramaDeFlujo (1).png` (174.4K, claro) mismo contenido pero con flechas cortadas/arriba truncadas. Ninguno referenciado en docs (grep solo cita este tracking). Decisión: conservado el oscuro original, borrado el `(1)` claro con `git rm` (staged).
+- [x] T3 `odd/tasks/` 27 archivos: DECIDIDO — se dejan (2026-10-11, decisión explícita del usuario). Verificado: todos con checks en `[x]`, corresponden a trabajo mergeado en `develop` (auth, chat, feed, skeletons, e2e, comments #136, responsive #130, push #107/#135, prod-env `7a0e02d`). Este tracker se excluye de la cuenta.
+- [x] T4 Docs académicos: SIN ACCIÓN (2026-10-11). `docs/FRONTEND_TASKS.md`: migración 44/44 `[x]`, 0 pendientes — misma categoría que T3, se deja. `docs/DOCUMENTO_PRESENTACION.md` (19K, 10-oct): entregable de la cátedra alineado con TRD/PRD/NEO4J_SCHEMA — se conserva. Ninguno referenciado por código (normal en docs).
+
+## Criterios de aceptación
+- `git status` limpio salvo los deletes/moves intencionales en esta rama.
+- Ningún delete sin evidencia previa (hash o ls) registrada en este doc.
+- T3 y T4 no se ejecutan sin decisión explícita del usuario.
+
+## Progreso
+- Rama creada desde develop. T1 verificado (2026-10-11):
+  - `odd/hu11-web-push-notifications/`: VACÍO real (0 archivos, ni `.gitkeep`). Git no trackea dirs vacíos, `rmdir` no genera cambio.
+  - `src/` raíz: NO vacío. Contiene `main/`, `resources/`, `jwt/` + 2 archivos (`privateKey.pem` 1.7K, `publicKey.pem`). NO borrar sin decidir destino de esas keys.
+- T2 verificado: PNGs DIFERENTES (174.4K vs 175.7K, sha256 `f9f67ee4…` vs `5c846363…`, `cmp` = DIFERENTES). NO borrar a ciegas.
+- Ruta: inline por indisponibilidad de delegación (Task free-tier falla); batches acotados con verificación. Sin writers paralelos.
+
+## Next step
+- Ejecutar T1 y T2 (solo lectura + 1 delete mecánico verificado), luego pedir decisión T3/T4.
