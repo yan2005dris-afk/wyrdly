@@ -303,10 +303,10 @@ describe("WebPushSettingsCard", () => {
     expect(screen.getByTestId("webpush-settings-badge")).toHaveTextContent(
       "Bloqueado por el navegador",
     );
+    expect(screen.getByRole("button", { name: "Habilitar" })).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Habilitar" }),
-    ).toBeDisabled();
-    expect(screen.getByText(pushCopy.denied, { exact: false })).toBeInTheDocument();
+      screen.getByText(pushCopy.denied, { exact: false }),
+    ).toBeInTheDocument();
   });
 
   it("renders No disponible badge when the browser does not expose the required APIs", () => {
@@ -316,7 +316,10 @@ describe("WebPushSettingsCard", () => {
       "PushManager" in (globalThis as unknown as { PushManager?: unknown });
     delete (globalThis as unknown as { Notification?: unknown }).Notification;
     delete (globalThis as unknown as { PushManager?: unknown }).PushManager;
-    originalNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+    originalNavigator = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "navigator",
+    );
     Object.defineProperty(globalThis, "navigator", {
       value: {},
       configurable: true,
@@ -329,8 +332,6 @@ describe("WebPushSettingsCard", () => {
     expect(screen.getByTestId("webpush-settings-badge")).toHaveTextContent(
       "No disponible",
     );
-    expect(
-      screen.getByRole("button", { name: "Habilitar" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Habilitar" })).toBeDisabled();
   });
 });
