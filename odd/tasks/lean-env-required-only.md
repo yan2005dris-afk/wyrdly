@@ -18,7 +18,7 @@ Base: develop @ 8c062a6. Objetivo: `.env.prod` (53 vars) y `.env.dev` (51 vars) 
 - [x] T2 Reescribir `.env.prod` (HECHO): 53 → 21 activas + 32 en bloque ADVANCED comentado. Restauradas 7 con tuning custom (HEAP×2, PUSH×2, VITE_BACKEND/WS, REDIS_MAXMEMORY). Valores intactos.
 - [x] T3 Reescribir `.env.dev` (HECHO): 51 → 24 activas + 27 en ADVANCED. Restauradas 8 custom (AUTH_COOKIE_SECURE, POOL, HEAP_MAX, LOG_LEVEL, REDIS_BIND, REDIS_LOGLEVEL, BACKEND_PORT, FRONTEND_PORT).
 - [x] T4 Validar (HECHO): set de nombres idéntico, sintaxis OK, `compose config` resuelto con 0/130 hojas distintas en ambos archivos.
-- [ ] T5 PR a develop con issue linkeada
+- [x] T5 PR a develop con issue linkeada (HECHO): PR #172, Closes #171.
 - LECCIÓN: comparar hashes entre llamadas es inválido (env del shell difiere); toda comparación antes/después va en la MISMA llamada. Así se evitó borrar tuning custom real.
 
 ## Criterios de aceptación
