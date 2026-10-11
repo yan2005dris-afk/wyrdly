@@ -95,7 +95,32 @@ jobs:
             echo "See .env.prod for the expected values."
             exit 1
           fi
-          echo "All required vars present."
+
+          # URL-safety check on the auto-generated secrets. Neo4j parses
+          # NEO4J_AUTH=user/password with split('/') and only the first two
+          # tokens survive — a '/' in the password crashes the container in
+          # a restart loop (see odd/tasks/fix-neo4j-auth-password-format.md).
+          # '+' breaks both the S3 client JSON parser and the .env round-trip
+          # for RUSTFS_SECRET_KEY. Reject any non-portable char and point the
+          # operator at the bootstrap generator, which already uses
+          # openssl rand -hex (URL-safe alphabet only).
+          #
+          # This only runs in CI; local docker compose up won't catch this
+          # until Neo4j is up, so a fast-fail here saves a debug round.
+          bad_chars='[/+]'
+          for v in NEO4J_PASSWORD RUSTFS_ACCESS_KEY RUSTFS_SECRET_KEY; do
+            if [[ "${!v}" == *${bad_chars}* ]]; then
+              echo "ERROR: $v contains '/' or '+'. Regenerate with:"
+              case "$v" in
+                NEO4J_PASSWORD)     echo "  openssl rand -hex 24" ;;
+                RUSTFS_ACCESS_KEY)  echo "  openssl rand -hex 16" ;;
+                RUSTFS_SECRET_KEY)  echo "  openssl rand -hex 32" ;;
+              esac
+              exit 1
+            fi
+          done
+
+          echo "All required vars present and URL-safe."
 
       - name: Ensure external JWT keys exist
         run: |
