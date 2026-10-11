@@ -14,7 +14,7 @@ Base: develop @ 591634b. Objetivo: un comando por perfil, layouts explícitos, c
 - [x] T2 `scripts/dev-up.sh` (HECHO): bootstrap-local + stale-volume warn (mtime, value-blind) + up + wait + URLs. Executable, `bash -n` OK.
 - [x] T3 `scripts/prod-up.sh` (HECHO): preflight loud de /etc/wyrdly (env+keys+7 required), up con ese env-file, wait, smoke /healthz. Nunca inventa secretos. Executable, `bash -n` OK.
 - [x] T4 Parcial (HECHO lo no-disruptivo): sintaxis OK en ambos. shellcheck NO disponible en este host (se corre en CI del PR). Test real del path dev DIFERIDO a propósito: implica rebuild+restart del stack que está en uso.
-- [ ] T5 Docs 1-liner + PR con issue
+- [x] T5 Docs 1-liner + PR con issue (HECHO): PR #183, Closes #182. (Docs 1-liner innecesario: los headers de los scripts ya documentan uso y layouts.)
 
 ## Criterios de aceptación
 - Dev desde cero: `rm .env` + `./scripts/dev-up.sh` levanta todo sin intervención.
