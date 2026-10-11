@@ -1,6 +1,7 @@
 import type { UserProfileSummary } from "../../../../types/domain";
 
-export type ProfileTabId = "posts" | "followers" | "following" | "reactions" | "settings";
+export type ProfileTabId =
+  "posts" | "followers" | "following" | "reactions" | "settings";
 
 export interface ProfileHeaderCardProps {
   readonly user: UserProfileSummary;
