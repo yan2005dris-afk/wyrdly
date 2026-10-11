@@ -129,6 +129,29 @@ const sameVapidKey = (a: ArrayBuffer | Uint8Array | null, b: Uint8Array): boolea
 };
 
 /**
+ * Serializes enable/disable across tabs so two concurrent calls don't race
+ * the browser-side subscription state. Falls back to running the action
+ * directly when `navigator.locks` is unavailable (Safari < 15.4, embedded
+ * WebViews).
+ */
+async function withPushLock<T>(action: () => Promise<T>): Promise<T> {
+  const nav = (typeof navigator !== "undefined" ? navigator : undefined) as
+    | (Navigator & {
+        locks?: {
+          request: (
+            name: string,
+            cb: () => Promise<T>,
+          ) => Promise<T>;
+        };
+      })
+    | undefined;
+  if (!nav?.locks?.request) {
+    return action();
+  }
+  return nav.locks.request("wyrdly-push", action);
+}
+
+/**
  * Creates a browser push subscription bound to the server's VAPID key and
  * registers it with the backend. The supplied credentials are re-checked
  * against the active session after the (async) `pushManager.subscribe` call
@@ -403,6 +426,7 @@ export const useWebPush = (
     }
     setError(null);
     try {
+      return await withPushLock(async () => {
       const credentials = readActiveCredentials();
       if (!credentials) {
         setError(makePushError("changedSession"));
@@ -434,6 +458,7 @@ export const useWebPush = (
       }
       setIsSubscribed(true);
       return true;
+      });
     } catch (caught) {
       setError(pushError(caught));
       return false;
@@ -446,6 +471,7 @@ export const useWebPush = (
     }
     setError(null);
     try {
+      return await withPushLock(async () => {
       const credentials = readActiveCredentials();
 
       let reg = registrationRef.current;
@@ -494,6 +520,7 @@ export const useWebPush = (
       await clearOwner();
       setIsSubscribed(false);
       return true;
+      });
     } catch (caught) {
       setError(pushError(caught));
       return false;
