@@ -356,7 +356,25 @@ class PushDispatcherImplTest {
 
   @Test
   void shutsDownGracefullyWithoutError() {
-    assertDoesNotThrow(dispatcher::shutdown);
+    // Use a dedicated local dispatcher (not the @Inject-ed one) so the
+    // shared bean keeps working for the rest of the suite. JUnit 5 runs
+    // tests by method-name hash, so this method may execute in the middle
+    // of the class — shutting down the injected dispatcher would close
+    // the ManagedExecutor + backoff scheduler for every subsequent test.
+    PushDispatcherImpl localDispatcher =
+        new PushDispatcherImpl(
+            vapidKeyProvider,
+            subscriptionRepository,
+            gatewayClient,
+            new com.fasterxml.jackson.databind.ObjectMapper(),
+            meterRegistry,
+            managedExecutor,
+            "mailto:ops@wyrdly.com",
+            1,
+            10,
+            1000,
+            0);
+    assertDoesNotThrow(localDispatcher::shutdown);
   }
 
   // ---- helpers ------------------------------------------------------------
