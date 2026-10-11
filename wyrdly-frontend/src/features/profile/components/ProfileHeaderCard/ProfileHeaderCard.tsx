@@ -68,12 +68,16 @@ const formatCount = (count: number): string => {
   return count.toString();
 };
 
-const PROFILE_TABS: readonly TabItem<ProfileTabId>[] = [
+const PROFILE_TABS_BASE: readonly TabItem<ProfileTabId>[] = [
   { id: "posts", label: "Posts" },
   { id: "followers", label: "Followers" },
   { id: "following", label: "Following" },
   { id: "reactions", label: "Reactions" },
 ];
+const SETTINGS_TAB: TabItem<ProfileTabId> = {
+  id: "settings",
+  label: "Settings",
+};
 
 export const ProfileHeaderCard: FC<ProfileHeaderCardProps> = ({
   user,
@@ -229,7 +233,11 @@ export const ProfileHeaderCard: FC<ProfileHeaderCardProps> = ({
       {/* Profile Section Tabs */}
       <div className={styles.tabsContainer}>
         <Tabs<ProfileTabId>
-          items={PROFILE_TABS}
+          items={
+            isCurrentUser
+              ? [...PROFILE_TABS_BASE, SETTINGS_TAB]
+              : PROFILE_TABS_BASE
+          }
           activeTab={activeTab}
           onChange={onTabChange}
           variant="underline"
