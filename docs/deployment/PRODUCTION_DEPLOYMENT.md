@@ -98,7 +98,8 @@ Si `compose config` falla con un error `required variable YYYY is required`, fal
 
 ### Paso 4 — Disparar el Deploy
 
-El deploy corre en el self-hosted runner vía GitHub Actions:
+Atajo equivalente en el host (mismo env-file, misma validación, más smoke local):
+`./scripts/prod-up.sh`. El deploy corre en el self-hosted runner vía GitHub Actions:
 
 - Push a `develop` o `main`, o
 - `Actions → Deploy Wyrdly → Run workflow`.
