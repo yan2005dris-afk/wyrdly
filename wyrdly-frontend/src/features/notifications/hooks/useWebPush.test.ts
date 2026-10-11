@@ -892,9 +892,11 @@ describe("navigator.locks serialization", () => {
   });
 
   it("serializes two concurrent subscribe() calls through navigator.locks", async () => {
-    const request = vi.fn(async (name: string, action: () => Promise<unknown>) => {
-      return action();
-    });
+    const request = vi.fn(
+      async (name: string, action: () => Promise<unknown>) => {
+        return action();
+      },
+    );
     state = buildState();
     installCachesMock();
     installBrowserShims();
@@ -947,7 +949,8 @@ describe("navigator.locks serialization", () => {
       (globalThis as unknown as { navigator: { locks?: unknown } }).navigator,
       "locks",
     );
-    delete (globalThis as unknown as { navigator: { locks?: unknown } }).navigator?.locks;
+    delete (globalThis as unknown as { navigator: { locks?: unknown } })
+      .navigator?.locks;
 
     const { result } = renderHook(() => useWebPush({ enabled: true }));
     await flushMicrotasks();
