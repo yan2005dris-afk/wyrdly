@@ -8,28 +8,32 @@
 # glibc/musl surprises that plain upstream GraalVM can introduce on RHEL
 # (Mandrel) versus Ubuntu (musl) hosts.
 #
-# Image: `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27`
-# (in namespace `quarkus`). This is the official Quarkus-republished Mandrel 25 image,
+# Image: `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:23.1.12.1-Final-java21-2026-09-27`
+# (in namespace `quarkus`). This is the official Quarkus-republished Mandrel 23 image,
 # based on Red Hat UBI9 (Universal Base Image), publicly accessible without Red Hat
-# Registry credentials. Mandrel 25.x is the minimum officially supported version by
-# Quarkus 3.31+ (and 3.33 LTS); Mandrel 25 only ships with JDK 25, so this image pairs
-# with our JDK 25 build target (`<maven.compiler.release>25</...>` in pom.xml).
-# Earlier candidate `quay.io/quarkus/mandrel-for-jdk-21-rhel8:latest` is NOT publicly
-# pullable (it lives behind `registry.redhat.io` auth). The legacy `:jdk-21` tag
-# points at Mandrel 23 which is rejected by Quarkus 3.31+ as out-of-date. Pin to a
-# specific dated tag for reproducibility; rotate to a newer `25.0.X-Final-java25-*`
-# tag when Quarkus/Red Hat bumps the GA build.
+# Registry credentials. It pairs with our Quarkus 3.20.6 LTS build target
+# (`<quarkus.platform.version>3.20.6</...>` and `<maven.compiler.release>21</...>`
+# in pom.xml).
+#
+# Mandrel 23.x is the version pre-bundled with Quarkus 3.20 LTS. Its reflection
+# metadata subsystem is more permissive than Mandrel 25's (which Quarkus 3.31+
+# requires, paired with JDK 25 only). Mandrel 23 is the version for which the
+# `quarkus-amazon-s3` extension is documented to work natively against AWS SDK v2.
+#
+# Earlier candidate `quay.io/quarkus/mandrel-for-jdk-21-rhel8:latest` is NOT publicly pullable
+# (it lives behind `registry.redhat.io` auth). Pin to a specific dated tag like
+# `23.1.12.1-Final-java21-2026-09-27` for reproducibility.
 #
 # Pre-requisites assumed by this Dockerfile:
 #   * `pom.xml` declares `<packaging>quarkus</packaging>` and activates the
 #     `<id>native</id>` profile (TASK-04 verified this; do not change).
-#   * `<quarkus.platform.version>3.39.5</...>` paired with Mandrel 25.
-#   * `<maven.compiler.release>25</...>` paired with the JDK 25 image.
+#   * `<quarkus.platform.version>3.20.6</...>` paired with Mandrel 23.
+#   * `<maven.compiler.release>21</...>` paired with the JDK 21 image.
 #   * `mvnw` is executable; the `quarkus` user owns the workspace (see below).
 #   * Image ships a `quarkus` user (UID 1001, `APP_HOME=/home/quarkus`,
 #     `JAVA_HOME=/opt/mandrel`, `PATH` includes `/opt/mandrel/bin`).
 # ─────────────────────────────────────────────────────────────────────────
-FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27 AS build
+FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:23.1.12.1-Final-java21-2026-09-27 AS build
 
 # Honour outbound HTTP/HTTPS proxies only when the caller actually passes
 # them via `--build-arg`. Both UPPER and lower case forms are honoured

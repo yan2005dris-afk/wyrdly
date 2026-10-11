@@ -4,33 +4,40 @@
     <groupId>com.wyrdly</groupId>
     <artifactId>wyrdly-backend</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <packaging>quarkus</packaging>
+    <packaging>jar</packaging>
 
     <properties>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
-        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <!--
-            Quarkus 3.39.x paired with JDK 25 + Mandrel 25.
+            Pinned to 3.20.x LTS (3.20.6, latest patch).
 
-            Reason: see ADR-008 (graalvm-native-backend). Quarkus 3.31+ bumped
-            the minimum officially supported GraalVM/Mandrel version to 25.0;
-            Mandrel 25 images ship with JDK 25 only. We migrate the project to
-            JDK 25 in the same PR as the native build switch so we stay aligned
-            with the LTS roadmap (3.33 LTS) and avoid the alternative downgrade
-            to Quarkus 3.15 (which would be EOL'd shortly).
+            Reason: see ADR-008 (graalvm-native-backend). Quarkus 3.20 LTS ships
+            Mandrel 23.1 + JDK 21 by default. Quarkus 3.31+ bumped the minimum
+            officially supported GraalVM/Mandrel version to 25.0; Mandrel 25 ships
+            only with JDK 25 images. To stay on JDK 21 we stay on the Quarkus 3.20
+            LTS line, which targets Mandrel 23 + JDK 21 out of the box.
+
+            Migration path to JDK 25: bump `<quarkus.platform.version>` to 3.33+,
+            bump `<maven.compiler.release>` to 25, restore the `<packaging>quarkus</packaging>`
+            declaration that Quarkus 3.20 doesn't recognize, and update the
+            Mandrel base image in `wyrdly-backend/Dockerfile` and
+            `.github/workflows/backend-ci.yml` to a 25.0.X-Final-java25-* tag.
+            This 3.20 line is also why `<packaging>` defaults to `jar` and the
+            test artifacts use the `quarkus-junit5` (JUnit 5) naming.
         -->
-        <quarkus.platform.version>3.39.5</quarkus.platform.version>
+        <quarkus.platform.version>3.20.6</quarkus.platform.version>
         <!-- Integration tests (Testcontainers, needs Docker) run in `verify`; skip with -DskipITs -->
         <skipITs>false</skipITs>
         <!-- -DskipUnitTests runs only the integration tests (used by the CI IT job) -->
         <skipUnitTests>false</skipUnitTests>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <testcontainers.version>2.0.5</testcontainers.version>
-        <quarkus-neo4j.version>6.7.2</quarkus-neo4j.version>
+        <quarkus-neo4j.version>6.5.1</quarkus-neo4j.version>
         <!-- Must match the neo4j-java-driver version shipped by quarkus-neo4j -->
         <neo4j-driver.version>6.2.1</neo4j-driver.version>
     </properties>
@@ -148,7 +155,7 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit-mockito</artifactId>
+            <artifactId>quarkus-junit5-mockito</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -158,7 +165,7 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit</artifactId>
+            <artifactId>quarkus-junit5</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -195,23 +202,13 @@
             <artifactId>s3</artifactId>
             <!--
                 Force the Apache-based HTTP client instead of `netty-nio-client`.
-                Keep `crt-core` and `checksums` on the classpath — `core`'s
-                `SdkExecutionAttribute.<clinit>` references
-                `software.amazon.awssdk.checksums.DefaultChecksumAlgorithm`,
-                so excluding `checksums` entirely breaks the build.
 
-                The two CRT-bound checksum classes that DID break native-image
-                (`software.amazon.awssdk.http.auth.aws.internal.signer.checksums.Crc32Checksum`
-                and `Crc32CChecksum`) are kept on the classpath but marked
-                for lazy init in `application.properties` (initialize-at
-                run-time flag passed through `quarkus.native.additional-build-args`)
-                so Mandrel does not touch their native bindings at build time.
-
-                `apache-client` is pure Java (no JNI) and works identically
-                for our S3 use-case (CRUD against RustFS / S3-compatible).
-                The runtime CRT-free path is what Quarkus recommends for
-                AWS SDK v2 + native — see
-                https://quarkus.io/guides/amazon-s3#native-support.
+                Mandrel 23 (Quarkus 3.20 LTS) itself builds OK against the
+                default `netty-nio-client`, but `apache-client` is pure Java
+                (no JNI), avoids Netty's reflection metadata bulk, and is
+                the runtime path Quarkus officially recommends for AWS SDK v2
+                + native (`quarkus.s3.sync-client.type=apache` equivalent).
+                Version is inherited from the AWS SDK BOM 2.25.68.
             -->
             <exclusions>
                 <exclusion>
@@ -221,8 +218,7 @@
             </exclusions>
         </dependency>
         <!-- Explicit declaration of apache-client so it wins the AWS SDK
-             ServiceLoader race against netty-nio-client (excluded above).
-             Version is inherited from the AWS SDK BOM 2.25.68. -->
+             ServiceLoader race against netty-nio-client (excluded above). -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>

@@ -143,13 +143,13 @@ jobs:
     # the 6-hour CI ceiling. Set to 60s+ only if debugging a specific stall.
     runs-on: ubuntu-latest
     container:
-      # Public Mandrel 25 image (UBI9 base, JDK 25). The legacy
+      # Public Mandrel 23 image (UBI9 base, JDK 21). The legacy
       # `mandrel-for-jdk-21-rhel8:latest` requires Red Hat Registry auth that
       # this repo does not have, so we use the official Quarkus-republished
       # UBI9 build image instead (namespace `quarkus`, NOT `quarkusio`).
-      # Mandrel 25 is the minimum supported by Quarkus 3.31+ and matches the
-      # project's JDK 25 build target (`<maven.compiler.release>25</...>`).
-      image: quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27
+      # Mandrel 23 is what Quarkus 3.20 LTS bundles by default and pairs with
+      # this project's JDK 21 build target.
+      image: quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:23.1.12.1-Final-java21-2026-09-27
     defaults:
       run:
         working-directory: wyrdly-backend

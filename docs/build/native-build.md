@@ -46,9 +46,9 @@ chmod +x ./build-runner
 
 ---
 
-## 2. Build local sin Docker (requiere JDK 25 + GraalVM/Mandrel 25 ya instalado)
+## 2. Build local sin Docker (requiere JDK 21 + GraalVM/Mandrel 23.1 ya instalado)
 
-Si ya tenés una JDK 25 con `native-image` instalado (Mandrel 25 distribution):
+Si ya tenés una JDK 21 con `native-image` instalado (Mandrel 23.1 distribution):
 
 ```bash
 cd wyrdly-backend
@@ -137,6 +137,43 @@ quarkus.native.additional-build-args=--initialize-at-run-time=org.apache.http.im
 ```
 
 **Fix permanente**: actualizar `software.amazon.awssdk:bom` a una versión que ya no arrastre Apache HttpComponents legacy como dep obligatoria.
+
+### `Discovered unresolved type during parsing: software.amazon.awssdk.crt.checksums.CRC32 / CRC32C`
+**Síntoma**: el AOT step falla con `Discovered unresolved type during parsing: software.amazon.awssdk.crt.checksums.CRC32` (y CRC32C), originado en `software.amazon.awssdk.http.auth.aws.internal.signer.checksums.Crc32Checksum`.
+
+**Causa típica**: `software.amazon.awssdk:s3` transitivamente trae `software.amazon.awssdk:netty-nio-client` (HTTP transport default) cuyo classpath apunta a clases que referencian `software.amazon.awssdk.crt.checksums.*` (CRT = Common Runtime), una librería **nativa** (JNI `.so`) que GraalVM no puede empaquetar.
+
+Excluir `netty-nio-client` **no es suficiente** — `s3` sigue arrastrando transitivamente `crt-core` y `checksums` y el SPI sigue intentando registrar las clases `Crc32*`.
+
+**Fix**: en `pom.xml`, excluir las 3 deps nativas y agregar explícitamente `apache-client` (Java puro):
+```xml
+<dependency>
+    <groupId>software.amazon.awssdk</groupId>
+    <artifactId>s3</artifactId>
+    <exclusions>
+        <exclusion>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>crt-core</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>checksums</artifactId>
+        </exclusion>
+    </exclusions>
+</dependency>
+<dependency>
+    <groupId>software.amazon.awssdk</groupId>
+    <artifactId>apache-client</artifactId>
+</dependency>
+```
+
+**Consecuencia funcional**: SHA-256 (built-in en JDK) se usa en lugar de CRC32/CRC32C para validar checksums de objetos S3. Funcionalidad equivalente contra RustFS.
+
+**Fix permanente**: cuando AWS SDK v2 introduzca un HTTP transport Java puro que use CRC32C sin CRT, podríamos volver al default; mientras tanto apache-client + exclusions es el path documentado por Quarkus (`https://quarkus.io/guides/amazon-s3#native-support`).
 
 ### `GLIBC_2.X not found` al ejecutar
 **Síntoma**: `version 'GLIBC_2.34' not found` (o similar) al `./build-runner`.

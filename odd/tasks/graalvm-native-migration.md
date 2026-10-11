@@ -25,7 +25,7 @@ Resolver esta feature **antes** de empezar #181 (VAPID garantías) tiene sentido
 ## Alcance Autorizado
 
 1. **Dockerfile del backend multi-stage con Mandrel + `quarkus-micro-image`**.
-   - Stage build: `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27` (Mandrel 25 + UBI9 + JDK 25, públicamente accesible — la alternativa obvia `mandrel-for-jdk-21-rhel8` queda descartada por requerir autenticación Red Hat Registry). El proyecto se migra a JDK 25 en el mismo PR para alinear con el roadmap LTS oficial de Quarkus. Validación de imagen en T2.
+   - Stage build: `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:23.1.12.1-Final-java21-2026-09-27` (Mandrel 23.1 + UBI9 + JDK 21, públicamente accesible — la alternativa obvia `mandrel-for-jdk-21-rhel8` queda descartada por requerir autenticación Red Hat Registry). Validación de imagen en T2. Quarkus 3.20.6 LTS paired con este Mandrel.
    - Build command: `mvn package -Dnative -DskipTests`.
    - Stage runtime: `quay.io/quarkus/quarkus-micro-image:21.0` (UID 10001 `quarkus` ya viene listo).
    - EntryPoint: `["./deployments/runner", "-Dquarkus.http.host=0.0.0.0"]` (sin `su-exec`, sin `java -jar`).
@@ -36,7 +36,7 @@ Resolver esta feature **antes** de empezar #181 (VAPID garantías) tiene sentido
    - El backend `depends_on: wyrdly-vapid-bootstrap { condition: service_completed_successfully }`.
 3. **`pom.xml`**: verificar y, si hace falta, completar el profile `native` con `quarkus.native.resources.includes` y `quarkus.native.args` para que las extensiones problemáticas (`smallrye-jwt`, `quarkus-neo4j`, `bucket4j-redis`, `software.amazon.awssdk:s3`) cierren la compilación AOT sin warnings de clases no reflectables.
 4. **`compose.yaml`**: actualizar service `wyrdly-backend` para usar el Dockerfile nuevo (ya está) y añadir el service `wyrdly-vapid-bootstrap`. Healthcheck del backend sigue siendo `GET /q/health/live`.
-5. **`backend-ci.yml`**: añadir job `native-build` que use `container: image: quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27` y verifique que `target/wyrdly-backend-*-runner` existe, es ejecutable, y arranca `/q/health/live` en <500 ms. **No rompe** los jobs existentes (`format`, `unit-test`, `coverage`, `integration-test`, `build` JVM).
+5. **`backend-ci.yml`**: añadir job `native-build` que use `container: image: quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:23.1.12.1-Final-java21-2026-09-27` y verifique que `target/wyrdly-backend-*-runner` existe, es ejecutable, y arranca `/q/health/live` en <500 ms. **No rompe** los jobs existentes (`format`, `unit-test`, `coverage`, `integration-test`, `build` JVM).
 6. **`deploy.yml`**: queda igual (ya hace `docker compose up -d --build --remove-orphans`). Solo se beneficia del nuevo Dockerfile.
 7. **Documentación**: agregar bloque "Native build local" al `WEB_PUSH.md` o un `docs/build/native-build.md` explicando cómo correr `mvn package -Dnative` con Mandrel (vía Docker) y qué esperar del runtime.
 
@@ -55,7 +55,7 @@ Resolver esta feature **antes** de empezar #181 (VAPID garantías) tiene sentido
 - [ ] **TASK-02**: Reescribir `wyrdly-backend/Dockerfile` a multi-stage Mandrel + `quarkus-micro-image` con entrypoint nativo. Quitar el bootstrap VAPID y todo el setup `su-exec`/Alpine del runtime. (Commit: TBD)
 - [ ] **TASK-03**: Adaptar `compose.yaml`: añadir service `wyrdly-vapid-bootstrap` (Alpine + `init-vapid-keys.sh`), volume `./vapid` compartido, backend `depends_on` con `condition: service_completed_successfully`. (Commit: TBD)
 - [ ] **TASK-04**: Validar y completar `wyrdly-backend/pom.xml` profile `native`: agregar/quitar properties de reflexión según haga falta. Confirmar `quarkus.package.type=fast-jar` cuando NO se esté buildeando nativo. (Commit: TBD)
-- [x] **TASK-05**: Agregar job `native-build` al `.github/workflows/backend-ci.yml` con `container: quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27`, comando `mvn package -Dnative -DskipTests`, y un smoke-test contra el runner binario (`./target/*-runner &` + `wget http://127.0.0.1:8080/q/health/live`). **No modificar** los otros jobs. (Commit: `a1d5e35`)
+- [x] **TASK-05**: Agregar job `native-build` al `.github/workflows/backend-ci.yml` con `container: quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:23.1.12.1-Final-java21-2026-09-27`, comando `mvn package -Dnative -DskipTests`, y un smoke-test contra el runner binario (`./target/*-runner &` + `wget http://127.0.0.1:8080/q/health/live`). **No modificar** los otros jobs. (Commit: `a1d5e35`)
 - [ ] **TASK-06**: Docs: agregar `docs/build/native-build.md` con instrucciones locales (Docker Mandrel, smoke test, troubleshooting `reflect-config`). (Commit: TBD)
 - [ ] **TASK-07**: Verificación end-to-end de la branch:
   - `mvn spotless:check` (formato).
