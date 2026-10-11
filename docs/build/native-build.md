@@ -126,6 +126,18 @@ pnpm -F @wyrdly/e2e test --tags @push
 ```
 **Fix permanente**: reportar upstream con stack trace exacto; el fix termina en una nueva versión de Mandrel con la registración correcta.
 
+### `UnsupportedFeatureException: Detected an instance of Random/SplittableRandom class in the image heap. SecureRandom embedded in org.apache.http.impl.auth.NTLMEngineImpl`
+**Síntoma**: el AOT step falla con `Fatal error: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException` apuntando a `org.apache.http.impl.auth.NTLMEngineImpl.access$000`.
+
+**Causa típica**: Apache HttpComponents HttpClient legacy (`httpclient-4.x`) llega como transitiva de `software.amazon.awssdk:bom 2.25.68`. Su `NTLMEngineImpl` declara un `SecureRandom` estático que GraalVM **prohibe** en image heap (un seed capturado en build-time rompe la generación criptográfica en runtime).
+
+**Fix**: declarar el build-time initialization flag en `application.properties` (solo aplica durante `mvn package -Dnative`):
+```properties
+quarkus.native.additional-build-args=--initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl
+```
+
+**Fix permanente**: actualizar `software.amazon.awssdk:bom` a una versión que ya no arrastre Apache HttpComponents legacy como dep obligatoria.
+
 ### `GLIBC_2.X not found` al ejecutar
 **Síntoma**: `version 'GLIBC_2.34' not found` (o similar) al `./build-runner`.
 

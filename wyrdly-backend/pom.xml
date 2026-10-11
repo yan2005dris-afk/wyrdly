@@ -193,6 +193,55 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
+            <!--
+                Force the Apache-based HTTP client instead of `netty-nio-client`
+                AND drop the CRT-based checksum bindings.
+
+                Reason: `netty-nio-client` (the AWS SDK v2 default) drags in
+                `software.amazon.awssdk:netty-nio-client` whose S3 signing
+                classes (`Crc32Checksum` / `Crc32CChecksum`) reference
+                JNI bindings under `software.amazon.awssdk.crt.*`
+                (CRT = Common Runtime). Native Image cannot embed the
+                CRT native lib and fails the AOT step with:
+
+                  Discovered unresolved type during parsing:
+                    software.amazon.awssdk.crt.checksums.CRC32
+                    software.amazon.awssdk.crt.checksums.CRC32C
+
+                Excluding `netty-nio-client` alone is not enough: `s3`
+                transitively pulls in `crt-core` and `checksums`, which
+                still register the CRT-backed `Crc32*Checksum` classes at
+                static analysis time. Excluding all three stops the SPI
+                loader from ever seeing a CRT-bound class.
+
+                `apache-client` is pure Java (no JNI) and works identically
+                for our S3 use-case (CRUD against RustFS / S3-compatible).
+                SHA-256 / SHA-1 checksums built into the JDK are used
+                instead of CRC32/CRC32C. The runtime CRT-free path is what
+                Quarkus recommends for AWS SDK v2 + native — see
+                https://quarkus.io/guides/amazon-s3#native-support.
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>crt-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>checksums</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Explicit declaration of apache-client so it wins the AWS SDK
+             ServiceLoader race against netty-nio-client (excluded above).
+             Version is inherited from the AWS SDK BOM 2.25.68. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apache-client</artifactId>
         </dependency>
     </dependencies>
 
