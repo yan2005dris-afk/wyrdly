@@ -242,6 +242,41 @@ const flushMicrotasks = async () => {
   });
 };
 
+describe("base64UrlToUint8Array strict shape validation", () => {
+  const validKey =
+    "BMKftmPKcnl-KG398DhmM-XMTxDLx7F2XI7Oxu-DP-NW9yMNWXDJh-LySIwDfJ3i5NVZRAGve26uF9uPLjVGpNc";
+  const wrongPrefix =
+    "BXYM2SaXxBCLBOh1S8eZU7DsRCJiwD_40wLc-EA77iNH1EAPgb-7XVFShyUzsHeSuI-VQhXyrbQkgsvzcBvGQSc";
+
+  it("decodes a valid 65-byte / 0x04-prefixed VAPID key without throwing", () => {
+    expect(() => base64UrlToUint8Array(validKey)).not.toThrow();
+    const bytes = base64UrlToUint8Array(validKey);
+    expect(bytes.length).toBe(65);
+    expect(bytes[0]).toBe(0x04);
+  });
+
+  it("throws an invalidVapidKey error when the prefix byte is not 0x04", () => {
+    let caught: Error | null = null;
+    try {
+      base64UrlToUint8Array(wrongPrefix);
+    } catch (err) {
+      caught = err as Error;
+    }
+    expect(caught?.name).toBe("invalidVapidKey");
+    expect(caught?.message).toBe(pushCopy.invalidVapidKey);
+  });
+
+  it("throws an invalidVapidKey error when the decoded key is not 65 bytes", () => {
+    let caught: Error | null = null;
+    try {
+      base64UrlToUint8Array("aGVsbG8");
+    } catch (err) {
+      caught = err as Error;
+    }
+    expect(caught?.name).toBe("invalidVapidKey");
+  });
+});
+
 describe("useWebPush", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -928,6 +963,126 @@ describe("pushError translation helper", () => {
       err.name = code;
       const out = pushError(err);
       expect(out.name).toBe(code);
+    }
+  });
+});
+
+describe("useWebPush detectSupport — secure context and cache API", () => {
+  afterEach(() => {
+    restoreBrowserShims();
+    restoreCachesMock();
+  });
+
+  const baseShim = () => {
+    hadNotification =
+      "Notification" in (globalThis as unknown as { Notification?: unknown });
+    hadPushManager =
+      "PushManager" in (globalThis as unknown as { PushManager?: unknown });
+    (globalThis as unknown as { Notification: unknown }).Notification = {
+      get permission() {
+        return "default" as NotificationPermission;
+      },
+      requestPermission: vi.fn(),
+    };
+    (globalThis as unknown as { PushManager: unknown }).PushManager =
+      function PushManager() {};
+    installCachesMock();
+  };
+
+  it("isSupported=false with insecureContext reason when isSecureContext is false", () => {
+    originalNavigator = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "navigator",
+    );
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        serviceWorker: { register: vi.fn() },
+      },
+      configurable: true,
+      writable: true,
+    });
+    const originalIsSecureContext = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "isSecureContext",
+    );
+    Object.defineProperty(globalThis, "isSecureContext", {
+      value: false,
+      configurable: true,
+      writable: true,
+    });
+    baseShim();
+
+    const { result } = renderHook(() => useWebPush());
+    expect(result.current.isSupported).toBe(false);
+
+    if (originalIsSecureContext) {
+      Object.defineProperty(
+        globalThis,
+        "isSecureContext",
+        originalIsSecureContext,
+      );
+    } else {
+      delete (globalThis as { isSecureContext?: unknown }).isSecureContext;
+    }
+  });
+
+  it("isSupported=false with missingCache reason when caches is undefined", () => {
+    hadNotification =
+      "Notification" in (globalThis as unknown as { Notification?: unknown });
+    hadPushManager =
+      "PushManager" in (globalThis as unknown as { PushManager?: unknown });
+    (globalThis as unknown as { Notification: unknown }).Notification = {
+      get permission() {
+        return "default" as NotificationPermission;
+      },
+      requestPermission: vi.fn(),
+    };
+    (globalThis as unknown as { PushManager: unknown }).PushManager =
+      function PushManager() {};
+    Object.defineProperty(globalThis, "isSecureContext", {
+      value: true,
+      configurable: true,
+      writable: true,
+    });
+    originalNavigator = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "navigator",
+    );
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        serviceWorker: { register: vi.fn() },
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    const originalCaches = (globalThis as { caches?: unknown }).caches;
+    delete (globalThis as { caches?: unknown }).caches;
+
+    try {
+      const { result } = renderHook(() => useWebPush());
+      expect(result.current.isSupported).toBe(false);
+    } finally {
+      if (originalCaches !== undefined) {
+        Object.defineProperty(globalThis, "caches", {
+          value: originalCaches,
+          configurable: true,
+          writable: true,
+        });
+      }
+      const originalIsSecureContext = Object.getOwnPropertyDescriptor(
+        globalThis,
+        "isSecureContext",
+      );
+      if (originalIsSecureContext) {
+        Object.defineProperty(
+          globalThis,
+          "isSecureContext",
+          originalIsSecureContext,
+        );
+      } else {
+        delete (globalThis as { isSecureContext?: unknown }).isSecureContext;
+      }
     }
   });
 });
