@@ -74,7 +74,17 @@ COPY --chown=quarkus:quarkus src ./src
 # (already expensive) AOT step. The artefact produced is
 # `target/wyrdly-backend-<version>-runner`, an ELF executable ready to
 # `execve` without a JVM.
-RUN ./mvnw -B -e -ntp -DskipTests package -Dnative
+#
+# Invocation note: with `<packaging>jar</packaging>` (Quarkus 3.20 LTS line)
+# the `package` goal alone does NOT trigger Mandrel AOT. We have to
+# explicitly invoke `quarkus:build` on top of `-Pnative` (the profile that
+# sets `<quarkus.native.enabled>true</quarkus.native.enabled>`). With the
+# newer `quarkus` packaging introduced in Quarkus 3.31+ this would happen
+# implicitly; in 3.20.6 we need the explicit goal. (Confirmed empirically:
+# without `quarkus:build` the `mvn package` phase produced a fat-jar
+# `wyrdly-backend-<version>.jar` in 13 s and the *-runner was never
+# produced, so the Stage 2 COPY globbed nothing.)
+RUN ./mvnw -B -e -ntp -DskipTests package -Pnative quarkus:build
 
 # ─────────────────────────────────────────────────────────────────────────
 # Stage 2 — Minimal distroless runtime.
