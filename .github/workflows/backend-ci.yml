@@ -134,3 +134,60 @@ jobs:
       - name: Generate JWT Keys
         run: bash ../scripts/generate-jwt-keys.sh src/main/resources/jwt
       - run: ./mvnw package -DskipTests
+
+  native-build:
+    name: Native Build (Mandrel / quarkus-micro-image)
+    # Target startup is <1s on the native runner; we use a 30-second budget
+    # so a runaway Mandrel build (e.g. transitive native-image metadata fetch
+    # through a corporate proxy) fails fast instead of dragging the job to
+    # the 6-hour CI ceiling. Set to 60s+ only if debugging a specific stall.
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/quarkus/mandrel-for-jdk-21-rhel8:latest
+    defaults:
+      run:
+        working-directory: wyrdly-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      # Explicit Maven cache because the Mandrel container owns its own
+      # ~/.m2 ephemeral filesystem and `setup-java` cache-maven alone
+      # would not survive a `container:` job. Key includes both the pom and
+      # the wrapper so a wrapper bump invalidates the cache too.
+      - name: Cache Maven local repo (~/.m2)
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: maven-native-build-${{ runner.os }}-${{ hashFiles('wyrdly-backend/pom.xml', 'wyrdly-backend/.mvn/wrapper/maven-wrapper.properties') }}
+          restore-keys: |
+            maven-native-build-${{ runner.os }}-
+      - name: Generate JWT Keys
+        run: bash ../scripts/generate-jwt-keys.sh src/main/resources/jwt
+      - name: Make mvnw executable
+        run: chmod +x ./mvnw
+      - name: Native package
+        run: ./mvnw -B -e -ntp -DskipTests package -Dnative
+      - name: Smoke test (runner boots, /q/health/live OK)
+        run: |
+          ./target/wyrdly-backend-*-runner &
+          RUNNER_PID=$!
+          for i in $(seq 1 30); do
+            if wget -qO- http://127.0.0.1:8080/q/health/live > /dev/null 2>&1; then
+              echo "Native runner healthy after ${i}s"
+              STARTUP=$i
+              break
+            fi
+            sleep 1
+          done
+          if [ -z "${STARTUP:-}" ]; then
+            echo "ERROR: native runner did not respond on /q/health/live within 30s" >&2
+            kill $RUNNER_PID 2>/dev/null || true
+            exit 1
+          fi
+          kill $RUNNER_PID 2>/dev/null || true
+          wait $RUNNER_PID 2>/dev/null || true
+      - name: Native binary size
+        run: ls -la ./target/wyrdly-backend-*-runner
