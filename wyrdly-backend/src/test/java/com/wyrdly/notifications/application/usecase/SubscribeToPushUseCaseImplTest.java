@@ -141,4 +141,41 @@ class SubscribeToPushUseCaseImplTest {
   void rejectsNullRequest() {
     assertThrows(InvalidSubscriptionException.class, () -> useCase.subscribe(USER_ID, null));
   }
+
+  @Test
+  void rejectsHttpEndpoint() {
+    SubscribeRequestDto bad =
+        new SubscribeRequestDto(
+            "http://fcm.googleapis.com/fcm/send/abc",
+            new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
+    assertThrows(InvalidSubscriptionException.class, () -> useCase.subscribe(USER_ID, bad));
+    org.mockito.Mockito.verifyNoInteractions(repo);
+  }
+
+  @Test
+  void rejectsLocalhostEndpoint() {
+    SubscribeRequestDto bad =
+        new SubscribeRequestDto(
+            "https://localhost:9999/mock-push", new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
+    assertThrows(InvalidSubscriptionException.class, () -> useCase.subscribe(USER_ID, bad));
+    org.mockito.Mockito.verifyNoInteractions(repo);
+  }
+
+  @Test
+  void rejectsLocalTld() {
+    SubscribeRequestDto bad =
+        new SubscribeRequestDto(
+            "https://router.local/foo", new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
+    assertThrows(InvalidSubscriptionException.class, () -> useCase.subscribe(USER_ID, bad));
+    org.mockito.Mockito.verifyNoInteractions(repo);
+  }
+
+  @Test
+  void rejectsIpLiteral() {
+    SubscribeRequestDto bad =
+        new SubscribeRequestDto(
+            "https://192.168.0.1/foo", new SubscriptionKeysDto(REAL_P256DH, VALID_AUTH));
+    assertThrows(InvalidSubscriptionException.class, () -> useCase.subscribe(USER_ID, bad));
+    org.mockito.Mockito.verifyNoInteractions(repo);
+  }
 }

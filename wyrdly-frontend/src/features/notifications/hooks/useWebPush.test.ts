@@ -11,9 +11,18 @@ vi.mock("../../../api/notifications", () => ({
 }));
 
 import { notificationsApi } from "../../../api/notifications";
+import { useAuthStore } from "../../auth/store/useAuthStore";
+import { pushCopy } from "../copy";
+import type { PushErrorCode } from "../types";
+import {
+  PUSH_CACHE_NAME,
+  PUSH_STATE_URL,
+} from "../utils/pushCache";
 import {
   PUSH_OPT_OUT_STORAGE_KEY,
   PUSH_SUBSCRIPTION_CHANGE_FAILED,
+  base64UrlToUint8Array,
+  pushError,
   useWebPush,
 } from "./useWebPush";
 
@@ -29,6 +38,9 @@ type FakeSubscriptionJson = {
 
 const VAPID_BASE64URL =
   "BEl62iUYgUivxIkv69yViEuiBIa-Ib9SO8q9VVE5TTe2lgYjlAY-CmF3Kk8o8bP3v4dN4HnKpC9pF5nM0E7tPwM";
+
+const SESSION_USER_ID = "usr_test";
+const SESSION_TOKEN = "token_test";
 
 interface MockState {
   notificationPermission: NotificationPermission;
@@ -58,8 +70,61 @@ interface MockState {
 let state: MockState;
 
 let originalNavigator: PropertyDescriptor | undefined;
+let originalCaches: unknown;
+let originalAuthSnapshot: ReturnType<typeof useAuthStore.getState>;
 let hadNotification: boolean;
 let hadPushManager: boolean;
+
+const seedAuth = (userId: string | null, token: string | null) => {
+  useAuthStore.setState({
+    user: userId ? ({ id: userId } as never) : (null as never),
+    token,
+    isAuthenticated: Boolean(userId && token),
+    isLoading: false,
+  });
+};
+
+const installCachesMock = () => {
+  originalCaches = (globalThis as { caches?: unknown }).caches;
+  const store = new Map<string, Response>();
+  const fakeCache = {
+    match: vi.fn(async (req: Request | string) => {
+      const key = typeof req === "string" ? req : req.url;
+      return store.get(key);
+    }),
+    put: vi.fn(async (req: Request | string, response: Response) => {
+      const key = typeof req === "string" ? req : req.url;
+      store.set(key, response);
+    }),
+    delete: vi.fn(async (req: Request | string) => {
+      const key = typeof req === "string" ? req : req.url;
+      return store.delete(key);
+    }),
+  };
+  Object.defineProperty(globalThis, "caches", {
+    value: {
+      open: vi.fn(async () => fakeCache),
+    },
+    configurable: true,
+    writable: true,
+  });
+  return {
+    store,
+    open: (globalThis as unknown as { caches: { open: ReturnType<typeof vi.fn> } }).caches.open,
+  };
+};
+
+const restoreCachesMock = () => {
+  if (originalCaches === undefined) {
+    delete (globalThis as { caches?: unknown }).caches;
+  } else {
+    Object.defineProperty(globalThis, "caches", {
+      value: originalCaches,
+      configurable: true,
+      writable: true,
+    });
+  }
+};
 
 const installBrowserShims = () => {
   hadNotification =
@@ -169,8 +234,9 @@ const buildState = (overrides: Partial<MockState> = {}): MockState => {
 };
 
 const flushMicrotasks = async () => {
-  // Wait two microtask ticks so chained promises resolve.
+  // Wait a few microtask ticks so chained promises resolve.
   await act(async () => {
+    await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
   });
@@ -182,15 +248,20 @@ describe("useWebPush", () => {
     mockedGetVapidPublicKey.mockResolvedValue(VAPID_BASE64URL);
     mockedSubscribe.mockResolvedValue(undefined);
     mockedUnsubscribe.mockResolvedValue(undefined);
+    originalAuthSnapshot = useAuthStore.getState();
+    seedAuth(SESSION_USER_ID, SESSION_TOKEN);
     if (typeof localStorage !== "undefined") {
       localStorage.clear();
     }
     state = buildState();
+    installCachesMock();
     installBrowserShims();
   });
 
   afterEach(() => {
     restoreBrowserShims();
+    restoreCachesMock();
+    useAuthStore.setState(originalAuthSnapshot);
     if (typeof localStorage !== "undefined") {
       localStorage.clear();
     }
@@ -215,6 +286,15 @@ describe("useWebPush", () => {
 
   it("does not register the service worker when enabled=false", async () => {
     renderHook(() => useWebPush({ enabled: false }));
+
+    await flushMicrotasks();
+
+    expect(state.register).not.toHaveBeenCalled();
+  });
+
+  it("does not register the service worker when there is no active session", async () => {
+    seedAuth(null, null);
+    renderHook(() => useWebPush({ enabled: true }));
 
     await flushMicrotasks();
 
@@ -258,6 +338,7 @@ describe("useWebPush", () => {
       notificationPermission: "default",
       requestPermission: vi.fn().mockResolvedValue("denied"),
     });
+    installBrowserShims();
 
     const { result } = renderHook(() => useWebPush({ enabled: true }));
 
@@ -270,7 +351,7 @@ describe("useWebPush", () => {
 
     expect(success).toBe(false);
     expect(result.current.permission).toBe("denied");
-    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.name).toBe("denied");
     expect(state.pushManager.subscribe).not.toHaveBeenCalled();
     expect(mockedSubscribe).not.toHaveBeenCalled();
   });
@@ -280,6 +361,7 @@ describe("useWebPush", () => {
       register: vi.fn().mockRejectedValue(new Error("SW register failed")),
       getRegistration: vi.fn().mockResolvedValue(null),
     });
+    installBrowserShims();
 
     const { result } = renderHook(() => useWebPush({ enabled: true }));
 
@@ -301,6 +383,7 @@ describe("useWebPush", () => {
     state.pushManager.getSubscription = vi.fn().mockResolvedValue({
       endpoint: "https://push.example.com/endpoint/abc",
     });
+    installBrowserShims();
 
     const { result } = renderHook(() => useWebPush({ enabled: true }));
 
@@ -320,6 +403,7 @@ describe("useWebPush", () => {
   it("unsubscribe() is idempotent: returns true even if no subscription exists", async () => {
     state = buildState();
     state.pushManager.getSubscription = vi.fn().mockResolvedValue(null);
+    installBrowserShims();
 
     const { result } = renderHook(() => useWebPush({ enabled: true }));
 
@@ -349,7 +433,8 @@ describe("useWebPush", () => {
     });
 
     expect(success).toBe(false);
-    expect(result.current.error?.message).toBe("VAPID public key was empty");
+    expect(result.current.error?.name).toBe("browserError");
+    expect(result.current.error?.message).toBe(pushCopy.browserError);
     expect(state.pushManager.subscribe).not.toHaveBeenCalled();
     expect(mockedSubscribe).not.toHaveBeenCalled();
   });
@@ -370,22 +455,36 @@ describe("useWebPush", () => {
       state.notificationPermission = "granted";
       state.pushManager.getSubscription = vi.fn().mockResolvedValue({
         endpoint: "https://push.example.com/endpoint/abc",
+        toJSON: () => ({
+          endpoint: "https://push.example.com/endpoint/abc",
+          keys: { p256dh: "p256dh-key", auth: "auth-key" },
+        }),
+        options: { applicationServerKey: base64UrlToUint8Array(VAPID_BASE64URL) },
       });
+      installBrowserShims();
+
       const { result } = renderHook(() => useWebPush({ enabled: true }));
       await flushMicrotasks();
 
       await emitSwMessage({ type: PUSH_SUBSCRIPTION_CHANGE_FAILED });
 
       expect(state.requestPermission).not.toHaveBeenCalled();
-      expect(mockedGetVapidPublicKey).toHaveBeenCalledTimes(1);
+      // One fetch on mount to detect VAPID rotation, one fetch from the
+      // SW-triggered re-subscribe path.
+      expect(mockedGetVapidPublicKey).toHaveBeenCalledTimes(2);
       expect(state.pushManager.subscribe).toHaveBeenCalledTimes(1);
-      expect(mockedSubscribe).toHaveBeenCalledTimes(1);
+      expect(mockedSubscribe).toHaveBeenCalledTimes(2);
       expect(result.current.isSubscribed).toBe(true);
       expect(result.current.error).toBeNull();
     });
 
     it("does not re-subscribe when permission is no longer granted", async () => {
       state.notificationPermission = "denied";
+      state.pushManager.getSubscription = vi.fn().mockResolvedValue({
+        endpoint: "https://push.example.com/endpoint/abc",
+      });
+      installBrowserShims();
+
       renderHook(() => useWebPush({ enabled: true }));
       await flushMicrotasks();
 
@@ -400,6 +499,8 @@ describe("useWebPush", () => {
       state.pushManager.getSubscription = vi.fn().mockResolvedValue({
         endpoint: "https://push.example.com/endpoint/abc",
       });
+      installBrowserShims();
+
       renderHook(() => useWebPush({ enabled: true }));
       await flushMicrotasks();
 
@@ -414,14 +515,16 @@ describe("useWebPush", () => {
       state.pushManager.getSubscription = vi.fn().mockResolvedValue({
         endpoint: "https://push.example.com/endpoint/abc",
       });
+      installBrowserShims();
       mockedSubscribe.mockRejectedValueOnce(new Error("401"));
+
       const { result } = renderHook(() => useWebPush({ enabled: true }));
       await flushMicrotasks();
 
       await emitSwMessage({ type: PUSH_SUBSCRIPTION_CHANGE_FAILED });
 
       expect(result.current.isSubscribed).toBe(false);
-      expect(result.current.error?.message).toBe("401");
+      expect(result.current.error?.message).toBe(pushCopy.browserError);
     });
 
     it("removes the SW message listener on unmount", async () => {
@@ -470,6 +573,9 @@ describe("useWebPush", () => {
         endpoint: "https://push.example.com/existing",
         keys: { p256dh: "p256dh-val", auth: "auth-val" },
       }),
+      options: {
+        applicationServerKey: base64UrlToUint8Array(VAPID_BASE64URL),
+      },
     };
     state = buildState({
       notificationPermission: "granted",
@@ -516,6 +622,9 @@ describe("useWebPush", () => {
     state = buildState({
       notificationPermission: "granted",
     });
+    state.pushManager.getSubscription = vi.fn().mockResolvedValue({
+      endpoint: "https://push.example.com/endpoint/abc",
+    });
     installBrowserShims();
 
     localStorage.removeItem(PUSH_OPT_OUT_STORAGE_KEY);
@@ -536,11 +645,178 @@ describe("useWebPush", () => {
     });
     expect(localStorage.getItem(PUSH_OPT_OUT_STORAGE_KEY)).toBeNull();
   });
+
+  describe("session-change and Cache API owner handling", () => {
+    it("clears the browser subscription when a different user is detected on mount", async () => {
+      const existingSub = {
+        toJSON: () => ({
+          endpoint: "https://push.example.com/other-user",
+          keys: { p256dh: "p", auth: "a" },
+        }),
+        unsubscribe: vi.fn(async () => true),
+        options: { applicationServerKey: null },
+      };
+      state = buildState({ notificationPermission: "granted" });
+      // Always return the same subscription so clearLocal() can find and
+      // unsubscribe it after the stale owner is detected.
+      state.pushManager.getSubscription = vi.fn(async () => existingSub);
+      installBrowserShims();
+
+      // Seed the cache with an owner from a previous session.
+      const cache = await (globalThis as unknown as {
+        caches: { open: () => Promise<unknown> };
+      }).caches.open(PUSH_CACHE_NAME);
+      await (
+        cache as unknown as {
+          put: (url: string, resp: Response) => Promise<void>;
+        }
+      ).put(
+        PUSH_STATE_URL,
+        new Response(
+          JSON.stringify({
+            userId: "usr_OTHER",
+            endpoint: "https://push.example.com/other-user",
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+      renderHook(() => useWebPush({ enabled: true }));
+      await flushMicrotasks();
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      expect(existingSub.unsubscribe).toHaveBeenCalled();
+      expect(mockedSubscribe).not.toHaveBeenCalled();
+    });
+
+    it("persists the {userId, endpoint} owner in the cache after a fresh subscribe()", async () => {
+      state = buildState();
+      installBrowserShims();
+
+      const { result } = renderHook(() => useWebPush({ enabled: true }));
+      await flushMicrotasks();
+
+      await act(async () => {
+        await result.current.subscribe();
+      });
+
+      const cache = await (globalThis as unknown as {
+        caches: { open: () => Promise<unknown> };
+      }).caches.open(PUSH_CACHE_NAME);
+      const stored = await (
+        cache as unknown as {
+          match: (url: string) => Promise<Response | undefined>;
+        }
+      ).match(PUSH_STATE_URL);
+      expect(stored).toBeDefined();
+      const body = await stored?.json();
+      expect(body).toEqual({
+        userId: SESSION_USER_ID,
+        endpoint: "https://push.example.com/endpoint/abc",
+      });
+    });
+
+    it("re-subscribes when the server VAPID key differs from the one used by the existing browser subscription", async () => {
+      const previousKeyBytes = base64UrlToUint8Array(VAPID_BASE64URL);
+      const existingSub = {
+        toJSON: () => ({
+          endpoint: "https://push.example.com/endpoint/abc",
+          keys: { p256dh: "p256dh-key", auth: "auth-key" },
+        }),
+        unsubscribe: vi.fn(async () => true),
+        options: { applicationServerKey: previousKeyBytes },
+      };
+      const newSub = {
+        toJSON: () => ({
+          endpoint: "https://push.example.com/endpoint/abc",
+          keys: { p256dh: "p256dh-key", auth: "auth-key" },
+        }),
+      };
+      state = buildState({ notificationPermission: "granted" });
+      state.pushManager.getSubscription = vi
+        .fn()
+        .mockResolvedValueOnce(existingSub)
+        .mockResolvedValueOnce(existingSub)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(newSub);
+      installBrowserShims();
+
+      // Server now returns a different VAPID public key (e.g. after rotation).
+      const rotated = "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YwfAhCjwVqQUr4QgYqWGo6C-KAETYGo9NTelLTgkOGOHZHZFiW627C0=";
+      mockedGetVapidPublicKey.mockResolvedValueOnce(rotated);
+
+      renderHook(() => useWebPush({ enabled: true }));
+      await flushMicrotasks();
+      await flushMicrotasks();
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      expect(existingSub.unsubscribe).toHaveBeenCalled();
+      expect(state.pushManager.subscribe).toHaveBeenCalled();
+    });
+  });
+
+  it("subscribe() returns false with changedSession error when there is no active session", async () => {
+    seedAuth(null, null);
+    state = buildState();
+    installBrowserShims();
+
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+    await flushMicrotasks();
+
+    let success: boolean | undefined;
+    await act(async () => {
+      success = await result.current.subscribe();
+    });
+
+    expect(success).toBe(false);
+    expect(result.current.error?.name).toBe("changedSession");
+  });
+
+  it("unsubscribe() does not touch the backend when the cached owner belongs to another user", async () => {
+    state = buildState();
+    state.pushManager.getSubscription = vi.fn().mockResolvedValue({
+      endpoint: "https://push.example.com/other-user",
+    });
+    installBrowserShims();
+
+    const cache = await (globalThis as unknown as {
+      caches: { open: () => Promise<unknown> };
+    }).caches.open(PUSH_CACHE_NAME);
+    await (
+      cache as unknown as {
+        put: (url: string, resp: Response) => Promise<void>;
+      }
+    ).put(
+      PUSH_STATE_URL,
+      new Response(
+        JSON.stringify({
+          userId: "usr_OTHER",
+          endpoint: "https://push.example.com/other-user",
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+    await flushMicrotasks();
+
+    let success: boolean | undefined;
+    await act(async () => {
+      success = await result.current.unsubscribe();
+    });
+
+    expect(success).toBe(true);
+    expect(mockedUnsubscribe).not.toHaveBeenCalled();
+    expect(state.pushManager.unsubscribe).not.toHaveBeenCalled();
+  });
 });
 
 describe("useWebPush feature detection (unsupported environment)", () => {
   afterEach(() => {
     restoreBrowserShims();
+    restoreCachesMock();
   });
 
   it("isSupported=false and subscribe() returns false when serviceWorker is missing", async () => {
@@ -567,6 +843,8 @@ describe("useWebPush feature detection (unsupported environment)", () => {
       configurable: true,
       writable: true,
     });
+    originalAuthSnapshot = useAuthStore.getState();
+    seedAuth(SESSION_USER_ID, SESSION_TOKEN);
 
     const { result } = renderHook(() => useWebPush({ enabled: true }));
 
@@ -578,6 +856,78 @@ describe("useWebPush feature detection (unsupported environment)", () => {
     });
 
     expect(success).toBe(false);
-    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.name).toBe("unsupported");
+  });
+});
+
+describe("pushError translation helper", () => {
+  it("returns the tagged error unchanged when its name is a known PushErrorCode", () => {
+    const tagged = new Error("oops");
+    tagged.name = "changedSession";
+    const out = pushError(tagged);
+    expect(out.name).toBe("changedSession");
+    expect(out.message).toBe("oops");
+  });
+
+  it("translates a Notification.permission === 'denied' to the denied code", () => {
+    const original = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "Notification",
+    );
+    (globalThis as unknown as { Notification: unknown }).Notification = {
+      get permission() {
+        return "denied" as NotificationPermission;
+      },
+    };
+    try {
+      const out = pushError(new Error("whatever"));
+      expect(out.name).toBe("denied");
+      expect(out.message).toBe(pushCopy.denied);
+    } finally {
+      if (original) {
+        Object.defineProperty(globalThis, "Notification", original);
+      } else {
+        delete (globalThis as unknown as { Notification?: unknown }).Notification;
+      }
+    }
+  });
+
+  it("falls back to browserError for unknown errors", () => {
+    const original = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "Notification",
+    );
+    (globalThis as unknown as { Notification: unknown }).Notification = {
+      get permission() {
+        return "default" as NotificationPermission;
+      },
+    };
+    try {
+      const out = pushError(new Error("weird"));
+      expect(out.name).toBe("browserError");
+      expect(out.message).toBe(pushCopy.browserError);
+    } finally {
+      if (original) {
+        Object.defineProperty(globalThis, "Notification", original);
+      }
+    }
+  });
+
+  it("accepts every PushErrorCode as a tag without leaking the literal", () => {
+    const codes: PushErrorCode[] = [
+      "unsupported",
+      "insecureContext",
+      "denied",
+      "browserError",
+      "changedSession",
+      "invalidVapidKey",
+      "missingCache",
+    ];
+    for (const code of codes) {
+      const err = new Error("x");
+      err.name = code;
+      const out = pushError(err);
+      expect(out.name).toBe(code);
+    }
   });
 });

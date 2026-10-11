@@ -26,6 +26,20 @@ export interface SocialNotification {
 
 export type PushPermissionStatus = "default" | "granted" | "denied";
 
+/**
+ * Stable error codes for Web Push flows. Each value maps to a copy key in
+ * `features/notifications/copy.ts`; consumers should always surface these
+ * via `pushError()` rather than the raw `Error.message`.
+ */
+export type PushErrorCode =
+  | "unsupported"
+  | "insecureContext"
+  | "denied"
+  | "browserError"
+  | "changedSession"
+  | "invalidVapidKey"
+  | "missingCache";
+
 export interface PushSubscriptionConfig {
   readonly vapidPublicKey: string;
   readonly endpoint?: string;

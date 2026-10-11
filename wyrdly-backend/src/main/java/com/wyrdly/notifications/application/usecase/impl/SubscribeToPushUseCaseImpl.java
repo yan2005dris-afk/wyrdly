@@ -6,6 +6,7 @@ import com.wyrdly.notifications.application.port.PushSubscriptionRepositoryPort;
 import com.wyrdly.notifications.application.usecase.SubscribeToPushUseCase;
 import com.wyrdly.notifications.domain.exception.InvalidSubscriptionException;
 import com.wyrdly.notifications.domain.model.PushSubscription;
+import com.wyrdly.notifications.infrastructure.validation.PushEndpointValidator;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -33,9 +34,10 @@ public class SubscribeToPushUseCaseImpl implements SubscribeToPushUseCase {
   }
 
   private void validate(SubscribeRequestDto request) {
-    if (request == null || request.endpoint() == null || request.endpoint().isBlank()) {
-      throw new InvalidSubscriptionException("endpoint is required");
+    if (request == null) {
+      throw new InvalidSubscriptionException("request is required");
     }
+    PushEndpointValidator.validate(request.endpoint());
     if (request.keys() == null) {
       throw new InvalidSubscriptionException("keys is required");
     }
