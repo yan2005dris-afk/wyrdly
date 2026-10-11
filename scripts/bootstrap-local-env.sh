@@ -101,6 +101,48 @@ fi
 # .env round-trip for the S3 client. A broken secret here causes a
 # 2-minute debug round that ends with a 'docker compose down -v'.
 # Detect and regenerate in place, transparently, with a clear log line.
+#
+# Special case: if the stack is already running AND any secret is
+# URL-unsafe, Neo4j/RustFS have already hashed the OLD secret into
+# their data volumes. Regenerating the .env does not change the
+# stored hash, so the backend will start, fail Bolt auth, and
+# crash-loop. Warn loudly before we touch the .env so the operator
+# can pick a remediation path (down -v, cypher-shell ALTER USER,
+# etc.) instead of staring at AuthenticationException logs.
+stack_running() {
+  docker compose ps --services --filter "running" 2>/dev/null \
+    | grep -q '^wyrdly-neo4j$' 2>/dev/null
+}
+any_secret_urlunsafe() {
+  [[ "${NEO4J_PASSWORD:-}" == *"/"* || "${NEO4J_PASSWORD:-}" == *"+"* \
+     || "${RUSTFS_ACCESS_KEY:-}" == *"/"* || "${RUSTFS_ACCESS_KEY:-}" == *"+"* \
+     || "${RUSTFS_SECRET_KEY:-}" == *"/"* || "${RUSTFS_SECRET_KEY:-}" == *"+"* ]]
+}
+if stack_running && any_secret_urlunsafe; then
+  echo
+  echo "[bootstrap-local] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "[bootstrap-local] !  WARNING: stack is running AND at least one of NEO4J_PASSWORD,"
+  echo "[bootstrap-local] !  RUSTFS_ACCESS_KEY, RUSTFS_SECRET_KEY in .env is URL-unsafe."
+  echo "[bootstrap-local] !"
+  echo "[bootstrap-local] !  Regenerating the .env does not change what Neo4j/RustFS already"
+  echo "[bootstrap-local] !  hashed into their data volumes. After this script finishes,"
+  echo "[bootstrap-local] !  the backend will fail AuthenticationException on startup and"
+  echo "[bootstrap-local] !  crash-loop. You have 3 options once the script ends:"
+  echo "[bootstrap-local] !"
+  echo "[bootstrap-local] !    1) Drop the volumes and re-boot (dev default, los data):"
+  echo "[bootstrap-local] !         docker compose down -v && docker compose up -d"
+  echo "[bootstrap-local] !"
+  echo "[bootstrap-local] !    2) Migrate the password in place (preserves data):"
+  echo "[bootstrap-local] !         docker exec -it wyrdly-neo4j cypher-shell \\"
+  echo "[bootstrap-local] !           -u neo4j -p \"\\\$OLD_PASSWORD\" \\"
+  echo "[bootstrap-local] !           \"ALTER USER neo4j SET PASSWORD '\\\$NEO4J_PASSWORD'\""
+  echo "[bootstrap-local] !         docker compose restart wyrdly-backend"
+  echo "[bootstrap-local] !"
+  echo "[bootstrap-local] !    3) Revert the .env and figure out a different fix."
+  echo "[bootstrap-local] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo
+fi
+
 regen_in_place() {
   local var="$1" new_value="$2"
   local current="${!var:-}"
