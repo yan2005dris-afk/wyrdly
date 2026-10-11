@@ -113,7 +113,54 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────────────────────────────────────
-  # Backend — Quarkus (Java 21)
+  # VAPID keypair bootstrap (HU11) — init-container, one-shot.
+  #
+  # Runs `scripts/init-vapid-keys.sh` (HU11) on first start to generate an
+  # idempotent ECDSA P-256 keypair for Web Push (RFC 8292). The script:
+  #   * exits 0 immediately if both `publicKey.txt` and `privateKey.txt`
+  #     already exist at the mount point — restart on an existing volume
+  #     is a no-op (cold start cost = ~0 ms after the first run),
+  #   * otherwise generates a fresh keypair with `openssl`, exports the
+  #     private key as PKCS#8 DER base64url and the public key as the
+  #     uncompressed EC point (`0x04 || X || Y`) base64url,
+  #   * fails non-zero with stderr diagnostics if the resulting files do
+  #     not match the expected lengths (87 / ~185 bytes) — typically a
+  #     DER parse failure or a stale `openssl` binary.
+  #
+  # The script is unchanged from the previous in-JVM bootstrap path; only
+  # its runtime has moved. The keypair volume (`./vapid`) is shared with
+  # `wyrdly-backend`, which `depends_on` this service with
+  # `service_completed_successfully` so the backend only boots once the
+  # keys are guaranteed on disk. `restart: "no"` keeps Compose from
+  # replaying a successful run on host reboot; the script's idempotency
+  # guard would make that safe anyway, but skipping the restart cycle
+  # avoids polluting the logs with "Keys already present" lines.
+  # ─────────────────────────────────────────────────────────────────────────
+  wyrdly-vapid-bootstrap:
+    # Plain Alpine because the JDK Temurin images do NOT ship `bash` or
+    # `su-exec` by default, and the HU11 bootstrap script requires both
+    # (the shebang is `#!/usr/bin/env bash` and it uses `set -o pipefail`).
+    # The container runs once per cold start (only when `./vapid` is empty)
+    # so paying for `apk add` here is a fair trade for reproducibility and
+    # decoupling from the JDK image's contents.
+    image: alpine:3.20
+    container_name: wyrdly-vapid-bootstrap
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - |
+        set -euo pipefail
+        apk add --no-cache openssl bash coreutils su-exec >/dev/null 2>&1
+        exec /deployments/scripts/init-vapid-keys.sh /deployments/vapid
+    volumes:
+      - ./vapid:/deployments/vapid:rw
+      - ./wyrdly-backend/scripts:/deployments/scripts:ro
+    networks:
+      - wyrdly-network
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Backend — Quarkus (GraalVM/Mandrel native runtime)
   # Required env in prod: NEO4J_PASSWORD, RUSTFS_ACCESS_KEY, RUSTFS_SECRET_KEY,
   # CORS_ORIGINS, APP_PUBLIC_BASE_URL, JWT_ISSUER, VAPID_SUBJECT.
   # ─────────────────────────────────────────────────────────────────────────
@@ -202,6 +249,8 @@ services:
         condition: service_healthy
       wyrdly-redis:
         condition: service_healthy
+      wyrdly-vapid-bootstrap:
+        condition: service_completed_successfully
     networks:
       - wyrdly-network
     healthcheck:
