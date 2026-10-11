@@ -8,24 +8,28 @@
 # glibc/musl surprises that plain upstream GraalVM can introduce on RHEL
 # (Mandrel) versus Ubuntu (musl) hosts.
 #
-# Image: `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21` (in
-# namespace `quarkus`). This is the official Quarkus-republished Mandrel
-# image, based on Red Hat UBI9 (Universal Base Image), and is publicly
-# accessible without Red Hat Registry credentials. The earlier candidate
-# `quay.io/quarkus/mandrel-for-jdk-21-rhel8:latest` is NOT publicly pullable
-# (it lives behind `registry.redhat.io` auth), and triggers `unauthorized`
-# errors both in CI and against rootless Podman locally. Pin to
-# `:jdk-21` (auto-tracks the latest 21.x Mandrel build); pin to a digest for
-# reproducibility in release-bearing lanes.
+# Image: `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27`
+# (in namespace `quarkus`). This is the official Quarkus-republished Mandrel 25 image,
+# based on Red Hat UBI9 (Universal Base Image), publicly accessible without Red Hat
+# Registry credentials. Mandrel 25.x is the minimum officially supported version by
+# Quarkus 3.31+ (and 3.33 LTS); Mandrel 25 only ships with JDK 25, so this image pairs
+# with our JDK 25 build target (`<maven.compiler.release>25</...>` in pom.xml).
+# Earlier candidate `quay.io/quarkus/mandrel-for-jdk-21-rhel8:latest` is NOT publicly
+# pullable (it lives behind `registry.redhat.io` auth). The legacy `:jdk-21` tag
+# points at Mandrel 23 which is rejected by Quarkus 3.31+ as out-of-date. Pin to a
+# specific dated tag for reproducibility; rotate to a newer `25.0.X-Final-java25-*`
+# tag when Quarkus/Red Hat bumps the GA build.
 #
 # Pre-requisites assumed by this Dockerfile:
 #   * `pom.xml` declares `<packaging>quarkus</packaging>` and activates the
 #     `<id>native</id>` profile (TASK-04 verified this; do not change).
+#   * `<quarkus.platform.version>3.39.5</...>` paired with Mandrel 25.
+#   * `<maven.compiler.release>25</...>` paired with the JDK 25 image.
 #   * `mvnw` is executable; the `quarkus` user owns the workspace (see below).
 #   * Image ships a `quarkus` user (UID 1001, `APP_HOME=/home/quarkus`,
 #     `JAVA_HOME=/opt/mandrel`, `PATH` includes `/opt/mandrel/bin`).
 # ─────────────────────────────────────────────────────────────────────────
-FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21 AS build
+FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27 AS build
 
 # Honour outbound HTTP/HTTPS proxies only when the caller actually passes
 # them via `--build-arg`. Both UPPER and lower case forms are honoured

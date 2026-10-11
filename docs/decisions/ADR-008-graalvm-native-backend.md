@@ -33,7 +33,7 @@ Los tres obstáculos concretos para activar native build son:
 
 1. **Razón técnica principal**: Quarkus es GraalVM-native-ready por diseño. Activar native reduce ~5× el tiempo de arranque y ~5× la memoria RSS. En un backend distribuido en Cloudflare Tunnel eso significa más contenedores por nodo y menos escala horizontal. El framework ya estaba pensado para esto; el estado actual es un sub-uso del runtime.
 
-2. **Imágenes oficiales**: `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21` (namespace `quarkus`, no `quarkusio`) para build y `quay.io/quarkus/quarkus-micro-image:21.0` para runtime son imágenes mantenidas por el equipo de Quarkus; no introducen nuevas dependencias externas y evitan la fragilidad del upstream `graalvm-ce` (que tiene incompatibilidades conocidas con `musl/glibc`). El candidato natural `mandrel-for-jdk-21-rhel8` quedó descartado por requerir autenticación contra `registry.redhat.io` (no accesible para un repo open-source sin secretos de Red Hat).
+2. **Imágenes oficiales**: `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27` (namespace `quarkus`, no `quarkusio`) para build y `quay.io/quarkus/quarkus-micro-image:21.0` para runtime son imágenes mantenidas por el equipo de Quarkus; no introducen nuevas dependencias externas y evitan la fragilidad del upstream `graalvm-ce` (que tiene incompatibilidades conocidas con `musl/glibc`). El candidato natural `mandrel-for-jdk-21-rhel8` quedó descartado por requerir autenticación contra `registry.redhat.io` (no accesible para un repo open-source sin secretos de Red Hat). El proyecto migra a **JDK 25** en el mismo PR para mantener el alineamiento con el roadmap LTS oficial (Quarkus 3.33 LTS + Mandrel 25 + JDK 25).
 
 3. **Init-container, no Java bootstrap**: re-implementar `scripts/init-vapid-keys.sh` en Java dentro del backend sería ~80 líneas de crypto DER/PKCS#8/base64url que tienen que coincidir EXACTAMENTE con la salida del `openssl` actual. Cada bit fuera de lugar invalida las suscripciones Web Push silenciosamente (ver [issue #181](https://github.com/yan2005dris-afk/wyrdly/issues/181), §2 "Validación de la clave VAPID"). Mantener el script bash probado en HU11 (#62–#73) en un container propio es estrictamente menos riesgo.
 
@@ -63,7 +63,8 @@ Los tres obstáculos concretos para activar native build son:
 
 - **Tiempo de build CI +5–10 min** (compilación AOT). Mitigado por caching de la etapa `dependency:go-offline` y por la capa de `quarkus-maven-plugin` cache en `~/.m2/repository`.
 - **Cold start del cluster +5 s** la primera vez (init-container hace `apk add`). A partir del segundo arranque el script es idempotente y termina en <100 ms.
-- **Mandrel `@latest` no pineado** aún; pendiente para un PR de seguimiento (T05 listó esta concern).
+- **Mandrel tag specfico (no `@latest`)** pineado para reproducibilidad; pendiente rotación a una `25.0.X-Final-java25-*` más reciente cuando Quarkus/Red Hat bumpeen el GA.
+- **Upgrade JDK 21 → 25** introducido en este PR como paired change. Verifica que las deps externas (`quarkus-neo4j 6.7.2`, `neo4j-driver 6.2.1`, `aws-sdk-bom 2.25.68`, `bucket4j 8.10.1`, `neo4j-migrations 2.15.1`, `jbcrypt 0.4`) sigan siendo compatibles — `mvn package -DskipTests` valida a este PR.
 - **`/etc/passwd` lookup** dentro del micro-image: el `quarkus` user (UID 10001) se referencia numéricamente en el Dockerfile (`USER 10001`) porque la imagen distroless no tiene `getent`.
 
 ### Neutral

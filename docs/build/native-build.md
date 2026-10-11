@@ -10,8 +10,8 @@ La feature completa está documentada en [`../odd/tasks/graalvm-native-migration
 
 - **Docker** 23+ con BuildKit habilitado (o Buildah / Podman compatible).
 - **~10 GB libres** en disco: Mandrel image ~1.5 GB, build artifacts ~300 MB, runner final ~75 MB.
-- **Acceso a internet** para `quay.io/quarkus/mandrel-for-jdk-21-rhel8` y Maven Central.
-- **JDK 21** local si querés correr el build nativo sin Docker (menos recomendado, ver abajo).
+- **Acceso a internet** para `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27` y Maven Central.
+- **JDK 25** local (con Mandrel 25 + native-image) si querés correr el build nativo sin Docker (menos recomendado, ver abajo).
 - Opcional: **netcat (`nc`)** o **webhook.site** para smoke-test del endpoint push.
 
 ---
@@ -31,7 +31,7 @@ docker buildx build \
 # Output: target/wyrdly-backend-* dentro de la imagen wyrdly-backend:native-dev
 ```
 
-> La imagen base `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21` es **pública** (no requiere credenciales Red Hat). El candidato obvio `mandrel-for-jdk-21-rhel8:latest` falla con `unauthorized` en imágenes sin auth Red Hat y debe evitarse para repos que no tienen esos secretos configurados.
+> La imagen base `quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27` es **pública** (no requiere credenciales Red Hat). El candidato obvio `mandrel-for-jdk-21-rhel8:latest` falla con `unauthorized` en imágenes sin auth Red Hat y debe evitarse. La `:jdk-21` tag apunta a **Mandrel 23**, que Quarkus 3.31+ rechaza como “out of date” — siempre deben usarse los tags `25.0.X-Final-java25-*` para Quarkus 3.33 LTS y superiores.
 
 > Tip: la primera build tarda ~5–10 min (compilación AOT). Builds subsiguientes reutilizan la capa de Maven cache (`dependency:go-offline`) y solo recomponen `*-runner` cuando cambian archivos en `src/`.
 
@@ -46,9 +46,9 @@ chmod +x ./build-runner
 
 ---
 
-## 2. Build local sin Docker (requiere JDK 21 + GraalVM/Mandrel ya instalado)
+## 2. Build local sin Docker (requiere JDK 25 + GraalVM/Mandrel 25 ya instalado)
 
-Si ya tenés una JDK 21 con `native-image` instalado:
+Si ya tenés una JDK 25 con `native-image` instalado (Mandrel 25 distribution):
 
 ```bash
 cd wyrdly-backend
@@ -138,12 +138,12 @@ pnpm -F @wyrdly/e2e test --tags @push
 
 **Diagnóstico**: verificar la imagen Mandrel:
 ```bash
-docker run --rm quay.io/quarkus/mandrel-for-jdk-21-rhel8:latest \
-  /bin/bash -c "java -version"
-# Esperado: openjdk version "21.0.X" YYYY-MM-DD
+docker inspect quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.4.1-Final-java25-2026-09-27 \
+  --format '{{.Config.User}} {{range .Config.Env}}{{println .}}{{end}}'
+# Esperado: 1001 (UID) y JAVA_HOME=/opt/mandrel (Mandrel 25 + JDK 25)
 ```
 
-**Fix**: si la versión no es 21.x, probablemente la imagen cambió de major — pineá el digest (`@sha256:...`) en el Dockerfile y en CI.
+**Fix**: si la configuración no es Mandrel 25 + JDK 25, probablemente la imagen cambió — pineá el digest (`@sha256:...`) en el Dockerfile y en CI.
 
 ### `wyrdly-vapid-bootstrap` exit 127
 **Síntoma**: el init-container del compose crash con código 127.

@@ -8,11 +8,21 @@
 
     <properties>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
-        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
+        <!--
+            Quarkus 3.39.x paired with JDK 25 + Mandrel 25.
+
+            Reason: see ADR-008 (graalvm-native-backend). Quarkus 3.31+ bumped
+            the minimum officially supported GraalVM/Mandrel version to 25.0;
+            Mandrel 25 images ship with JDK 25 only. We migrate the project to
+            JDK 25 in the same PR as the native build switch so we stay aligned
+            with the LTS roadmap (3.33 LTS) and avoid the alternative downgrade
+            to Quarkus 3.15 (which would be EOL'd shortly).
+        -->
         <quarkus.platform.version>3.39.5</quarkus.platform.version>
         <!-- Integration tests (Testcontainers, needs Docker) run in `verify`; skip with -DskipITs -->
         <skipITs>false</skipITs>
