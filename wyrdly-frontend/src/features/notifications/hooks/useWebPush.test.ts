@@ -848,6 +848,118 @@ describe("useWebPush", () => {
   });
 });
 
+describe("navigator.locks serialization", () => {
+  let originalLocks: PropertyDescriptor | undefined;
+  let originalAuth: ReturnType<typeof useAuthStore.getState>;
+
+  beforeEach(() => {
+    originalAuth = useAuthStore.getState();
+    seedAuth(SESSION_USER_ID, SESSION_TOKEN);
+    if (typeof localStorage !== "undefined") {
+      localStorage.clear();
+    }
+    vi.clearAllMocks();
+    mockedGetVapidPublicKey.mockResolvedValue(VAPID_BASE64URL);
+    mockedSubscribe.mockResolvedValue(undefined);
+    mockedUnsubscribe.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    if (originalLocks) {
+      Object.defineProperty(
+        (globalThis as unknown as { navigator: { locks?: unknown } }).navigator,
+        "locks",
+        originalLocks,
+      );
+    } else {
+      delete (globalThis as unknown as { navigator?: { locks?: unknown } })
+        .navigator?.locks;
+    }
+    useAuthStore.setState(originalAuth);
+    restoreBrowserShims();
+    restoreCachesMock();
+    if (typeof localStorage !== "undefined") {
+      localStorage.clear();
+    }
+  });
+
+  it("serializes two concurrent subscribe() calls through navigator.locks", async () => {
+    const request = vi.fn(async (name: string, action: () => Promise<unknown>) => {
+      return action();
+    });
+    state = buildState();
+    installCachesMock();
+    installBrowserShims();
+    // installBrowserShims rebuilds the navigator shim; install locks AFTER it.
+    originalLocks = Object.getOwnPropertyDescriptor(
+      (globalThis as unknown as { navigator: { locks?: unknown } }).navigator,
+      "locks",
+    );
+    Object.defineProperty(
+      (globalThis as unknown as { navigator: { locks?: unknown } }).navigator,
+      "locks",
+      { value: { request }, configurable: true, writable: true },
+    );
+
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+    await flushMicrotasks();
+
+    let a: boolean | undefined;
+    let b: boolean | undefined;
+    await act(async () => {
+      [a, b] = await Promise.all([
+        result.current.subscribe(),
+        result.current.subscribe(),
+      ]);
+    });
+    if (a !== true || b !== true) {
+      // Surface the actual error so a future regression is debuggable.
+      throw new Error(
+        `subscribe() returned ${a}/${b}; error=${
+          (result.current as unknown as { error: Error | null }).error?.message
+        }`,
+      );
+    }
+    expect(a).toBe(true);
+    expect(b).toBe(true);
+
+    // navigator.locks.request was invoked with the wyrdly-push lock name.
+    const lockNames = request.mock.calls.map((args) => args[0]);
+    expect(lockNames).toContain("wyrdly-push");
+    // Both subscribe() calls were serialized (one ran at a time).
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs the action directly when navigator.locks is unavailable", async () => {
+    state = buildState();
+    installCachesMock();
+    installBrowserShims();
+    // installBrowserShims rebuilds the navigator shim; remove locks AFTER it.
+    originalLocks = Object.getOwnPropertyDescriptor(
+      (globalThis as unknown as { navigator: { locks?: unknown } }).navigator,
+      "locks",
+    );
+    delete (globalThis as unknown as { navigator: { locks?: unknown } }).navigator?.locks;
+
+    const { result } = renderHook(() => useWebPush({ enabled: true }));
+    await flushMicrotasks();
+
+    let success: boolean | undefined;
+    await act(async () => {
+      success = await result.current.subscribe();
+    });
+    if (success !== true) {
+      throw new Error(
+        `subscribe() returned ${success}; error=${
+          (result.current as unknown as { error: Error | null }).error?.message
+        }`,
+      );
+    }
+    expect(success).toBe(true);
+    expect(state.pushManager.subscribe).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("useWebPush feature detection (unsupported environment)", () => {
   afterEach(() => {
     restoreBrowserShims();
