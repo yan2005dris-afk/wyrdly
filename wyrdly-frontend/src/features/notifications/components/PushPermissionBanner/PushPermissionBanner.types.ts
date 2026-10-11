@@ -8,5 +8,6 @@ export interface PushPermissionBannerProps {
    * user so we don't just say "Enable" when the real blocker is HTTP, denied
    * permission, or a browser without the required APIs.
    */
-  readonly reason?: "unsupported" | "denied" | "insecure-context" | "missing-cache";
+  readonly reason?:
+    "unsupported" | "denied" | "insecure-context" | "missing-cache";
 }
