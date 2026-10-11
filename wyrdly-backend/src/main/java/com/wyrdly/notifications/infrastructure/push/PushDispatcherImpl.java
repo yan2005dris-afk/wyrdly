@@ -28,7 +28,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -89,6 +91,13 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   private final ConcurrentHashMap<String, AtomicLong> lastPushTimeByRecipient =
       new ConcurrentHashMap<>();
 
+  /**
+   * Dedicated scheduler for retry backoffs. Kept separate from the {@link ManagedExecutor} so a
+   * {@code Thread.sleep} between HTTP attempts never holds a thread from the Quarkus-shared pool.
+   * Daemon threads so JVM shutdown is not blocked.
+   */
+  private final ScheduledExecutorService backoffExecutor;
+
   @Inject
   public PushDispatcherImpl(
       VapidKeyProvider vapidKeyProvider,
@@ -120,6 +129,14 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     this.recipientRateIntervalMs = recipientRateIntervalMs;
     this.globalTokenBucket =
         globalRatePerSecond > 0 ? new TokenBucket(globalRatePerSecond, globalRatePerSecond) : null;
+    this.backoffExecutor =
+        Executors.newScheduledThreadPool(
+            2,
+            runnable -> {
+              Thread thread = new Thread(runnable, "push-dispatcher-backoff");
+              thread.setDaemon(true);
+              return thread;
+            });
   }
 
   @PostConstruct
@@ -152,6 +169,19 @@ public class PushDispatcherImpl implements PushDispatcherPort {
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
         }
+      } catch (IllegalStateException | UnsupportedOperationException ignored) {
+        // Container-managed executors may disallow manual lifecycle invocations
+      }
+    }
+    if (backoffExecutor != null && !backoffExecutor.isShutdown()) {
+      backoffExecutor.shutdown();
+      try {
+        if (!backoffExecutor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+          backoffExecutor.shutdownNow();
+        }
+      } catch (InterruptedException e) {
+        backoffExecutor.shutdownNow();
+        Thread.currentThread().interrupt();
       } catch (IllegalStateException | UnsupportedOperationException ignored) {
         // Container-managed executors may disallow manual lifecycle invocations
       }
@@ -270,7 +300,7 @@ public class PushDispatcherImpl implements PushDispatcherPort {
       long startNanos = System.nanoTime();
       int status;
       try {
-        status = dispatchWithRetries(subscription.endpoint(), ciphertext, headers);
+        status = dispatchWithRetries(subscription.endpoint(), ciphertext, headers).get();
       } catch (Exception ex) {
         long durationNanos = System.nanoTime() - startNanos;
         recordDuration(eventType, "network_error", durationNanos);
@@ -342,31 +372,63 @@ public class PushDispatcherImpl implements PushDispatcherPort {
         .record(byteCount);
   }
 
-  /** Returns the highest HTTP status seen (last attempt if all 5xx, else first 4xx). */
-  private int dispatchWithRetries(String endpoint, byte[] body, Map<String, String> headers)
-      throws Exception {
-    int status = 0;
-    long backoffMs = initialBackoff.toMillis();
-    for (int attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        status = gatewayClient.post(URI.create(endpoint), body, headers);
-      } catch (Exception ex) {
-        if (attempt == maxRetries) {
-          throw ex;
-        }
-        Thread.sleep(backoffMs);
-        backoffMs *= 2;
-        continue;
-      }
-      if (status < 500) {
-        return status;
-      }
-      if (attempt < maxRetries) {
-        Thread.sleep(backoffMs);
-        backoffMs *= 2;
-      }
-    }
-    return status;
+  /**
+   * Returns a future that completes with the highest HTTP status seen (last attempt if all 5xx,
+   * else first 4xx). Retries on 5xx and network errors with exponential backoff scheduled on {@link
+   * #backoffExecutor}, so a {@code Thread.sleep} between attempts never blocks a thread from the
+   * shared {@link ManagedExecutor}.
+   */
+  private CompletableFuture<Integer> dispatchWithRetries(
+      String endpoint, byte[] body, Map<String, String> headers) {
+    CompletableFuture<Integer> result = new CompletableFuture<>();
+    attempt(endpoint, body, headers, 0, initialBackoff.toMillis(), result);
+    return result;
+  }
+
+  /**
+   * One attempt, then either complete the future (terminal outcome) or schedule the next attempt
+   * after the backoff.
+   */
+  private void attempt(
+      String endpoint,
+      byte[] body,
+      Map<String, String> headers,
+      int attemptIndex,
+      long backoffMs,
+      CompletableFuture<Integer> result) {
+    backoffExecutor.execute(
+        () -> {
+          int status;
+          try {
+            status = gatewayClient.post(URI.create(endpoint), body, headers);
+          } catch (Exception ex) {
+            if (attemptIndex >= maxRetries) {
+              result.completeExceptionally(ex);
+              return;
+            }
+            scheduleNext(endpoint, body, headers, attemptIndex, backoffMs, result);
+            return;
+          }
+          if (status < 500 || attemptIndex >= maxRetries) {
+            result.complete(status);
+            return;
+          }
+          scheduleNext(endpoint, body, headers, attemptIndex, backoffMs, result);
+        });
+  }
+
+  private void scheduleNext(
+      String endpoint,
+      byte[] body,
+      Map<String, String> headers,
+      int attemptIndex,
+      long backoffMs,
+      CompletableFuture<Integer> result) {
+    long nextBackoff = backoffMs * 2;
+    backoffExecutor.schedule(
+        () -> attempt(endpoint, body, headers, attemptIndex + 1, nextBackoff, result),
+        backoffMs,
+        TimeUnit.MILLISECONDS);
   }
 
   /** Returns a cached VAPID JWT for {@code audience}, re-signing it shortly before it expires. */
