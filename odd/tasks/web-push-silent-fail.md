@@ -41,6 +41,7 @@ Autorizado por usuario: "si dentro de esta rama misma". Solo los dos archivos de
 
 ## Progress
 - 2026-10-12: T1+T2+T3 hechos. 45 tests parciales verdes, 528 totales verdes, lint limpio, prettier limpio. Pendiente commit work-unit.
+- 2026-10-12: T4 dual-auth fix commiteado (05511ca). Registro OK en Neo4j, backend ok, pero push real no entra al SW Firefox. T5: log temporal en sw.js handlePush.
 
 ## Next step
 Ejecutar T1.
