@@ -1,4 +1,5 @@
 import { useAuthStore } from "../../auth/store/useAuthStore";
+import { getAccessToken } from "../../../api/tokenStore";
 import { pushCopy } from "../copy";
 import type { PushErrorCode } from "../types";
 
@@ -9,12 +10,27 @@ export interface ActiveSession {
 
 /**
  * Reads the active session synchronously from the Zustand auth store.
+ * Falls back to the real production auth source (`tokenStore` +
+ * `localStorage wyrdly_user`) because the app logs in through
+ * `AuthContext`, which never populates the legacy Zustand store.
  * Returns `null` when signed out.
  */
 export function getActiveSession(): ActiveSession | null {
   const state = useAuthStore.getState();
-  if (!state.user || !state.token) return null;
-  return { userId: state.user.id, token: state.token };
+  if (state.user && state.token)
+    return { userId: state.user.id, token: state.token };
+  try {
+    const token = getAccessToken();
+    if (!token) return null;
+    if (typeof localStorage === "undefined") return null;
+    const saved = localStorage.getItem("wyrdly_user");
+    if (!saved) return null;
+    const user = JSON.parse(saved) as { id?: string };
+    if (!user?.id) return null;
+    return { userId: user.id, token };
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -79,7 +79,13 @@ async function broadcastPushReceived(payload) {
 }
 
 async function handlePush(event) {
+  try {
+    console.log("[push] event received", !!event, !!(event && event.data));
+  } catch (_logErr) {}
   if (!event || !event.data) {
+    try {
+      console.log("[push] no data, skipping notification");
+    } catch (_logErr) {}
     return;
   }
   let payload;

@@ -8,9 +8,11 @@ describe("PushPermissionBanner Component", () => {
     render(<PushPermissionBanner onEnable={vi.fn()} onDismiss={vi.fn()} />);
 
     expect(
-      screen.getByText(/Enable Desktop Push Notifications/),
+      screen.getByText(/¿Querés recibir notificaciones/),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Enable" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Ir a ajustes" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Not now" })).toBeInTheDocument();
   });
 

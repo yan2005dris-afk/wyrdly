@@ -1,5 +1,10 @@
-import { useCallback, useMemo, useState, type FC } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState, type FC } from "react";
+import {
+  useParams,
+  Link,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { ArrowLeft, Share2, Edit3, AlertCircle } from "lucide-react";
 import type { Post, ReactionType } from "../types/feed";
 import { mapPostApiResponseToPost } from "../types/feed";
@@ -35,12 +40,20 @@ export const ProfilePage: FC = () => {
   const { username } = useParams<{ username: string }>();
   const { user: authUser, updateUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const profileUsername = username || authUser?.username;
   const { profile, isLoading, error, updateProfile, refetch } =
     useUserProfile(profileUsername);
 
   const [activeTab, setActiveTab] = useState<ProfileTabId>("posts");
+  // Sync from ?tab=settings so the feed banner can deep-link into Settings.
+  useEffect(() => {
+    if (searchParams.get("tab") === "settings") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab("settings");
+    }
+  }, [searchParams]);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(

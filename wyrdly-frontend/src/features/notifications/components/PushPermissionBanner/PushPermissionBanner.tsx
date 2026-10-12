@@ -38,12 +38,13 @@ export const PushPermissionBanner: FC<PushPermissionBannerProps> = ({
   reason,
 }) => {
   const variant = reason ? REASON_COPY[reason] : null;
-  const title = variant?.title ?? "Enable Desktop Push Notifications";
+  const title = variant?.title ?? "¿Querés recibir notificaciones?";
   const body = variant
     ? variant.body
-    : "to get instant alerts when your network posts.";
+    : "Activá las notificaciones push para enterarte al instante de reacciones, comentarios y mensajes. Lo hacés desde los ajustes de tu perfil.";
   const enableLabel =
-    variant?.enableLabel ?? (isLoading ? "Enabling..." : "Enable");
+    variant?.enableLabel ??
+    (isLoading ? "Abriendo ajustes..." : "Ir a ajustes");
 
   return (
     <header

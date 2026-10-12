@@ -31,6 +31,7 @@ interface MockState {
   subscribe: ReturnType<typeof vi.fn>;
   unsubscribe: ReturnType<typeof vi.fn>;
   getSubscription: ReturnType<typeof vi.fn>;
+  getRegistration: ReturnType<typeof vi.fn>;
   pushManager: {
     subscribe: ReturnType<typeof vi.fn>;
     unsubscribe: ReturnType<typeof vi.fn>;
@@ -76,9 +77,10 @@ const installShims = () => {
       register: (...args: unknown[]) =>
         (state.register as (...a: unknown[]) => unknown)(...args),
       getRegistration: (...args: unknown[]) =>
-        (state.register as (...a: unknown[]) => unknown)(...args),
+        (state.getRegistration as (...a: unknown[]) => unknown)(...args),
       get ready() {
-        return Promise.resolve(state.registration);
+        const r = state.registration;
+        return Promise.resolve(r);
       },
       addEventListener: () => undefined,
       removeEventListener: () => undefined,
@@ -167,6 +169,7 @@ const buildState = (overrides: Partial<MockState> = {}): MockState => {
     subscribe: subscribeFn,
     unsubscribe: unsubscribeFn,
     getSubscription: getSubscriptionFn,
+    getRegistration: vi.fn().mockResolvedValue(registration),
     pushManager: {
       subscribe: subscribeFn,
       unsubscribe: unsubscribeFn,
@@ -273,11 +276,19 @@ describe("WebPushSettingsCard", () => {
     });
     installShims();
 
-    render(<WebPushSettingsCard />);
-    await flushMicrotasks();
-    await flushMicrotasks();
+    await act(async () => {
+      render(<WebPushSettingsCard />);
+      // The new architecture registers the SW in one effect and syncs
+      // the subscription in a separate effect. The sync waits for the
+      // SW to be ready, so we need a few rounds of microtasks plus
+      // macrotasks (setTimeout 0) to let everything settle.
+      for (let i = 0; i < 5; i += 1) {
+        await flushMicrotasks();
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    });
 
-    // The hook auto-detects the existing subscription and reports enabled.
+    // The hook auto-detected the existing subscription.
     expect(screen.getByTestId("webpush-settings-card")).toHaveAttribute(
       "data-state",
       "enabled",
