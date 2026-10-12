@@ -14,6 +14,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -153,14 +154,17 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     submit(
         typeOf(event),
         () -> {
-          PushSubscription subscription =
-              subscriptionRepository.findByUserId(event.recipientUserId());
-          if (subscription == null) {
+          List<PushSubscription> subscriptions =
+              subscriptionRepository.findAllByUserId(event.recipientUserId());
+          if (subscriptions.isEmpty()) {
             recordDispatch(typeOf(event), "skipped_no_subscription");
             LOG.log(Level.FINE, "no subscription for user {0}", event.recipientUserId());
             return;
           }
-          send(subscription, event);
+          // One device per subscription: a 410 on one endpoint must never wipe the others.
+          for (PushSubscription subscription : subscriptions) {
+            send(subscription, event);
+          }
         });
   }
 
@@ -273,7 +277,8 @@ public class PushDispatcherImpl implements PushDispatcherPort {
           if (status == 404 || status == 410) {
             recordDuration(eventType, "gone", durationNanos);
             recordDispatch(eventType, "gone");
-            subscriptionRepository.deleteByUserId(event.recipientUserId());
+            subscriptionRepository.deleteByEndpoint(
+                event.recipientUserId(), subscription.endpoint());
             LOG.log(
                 Level.INFO,
                 "subscription gone for user {0} (HTTP {1}); cleaned up",

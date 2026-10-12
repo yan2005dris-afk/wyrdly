@@ -29,6 +29,20 @@ class UnsubscribeFromPushUseCaseImplTest {
   }
 
   @Test
+  void unsubscribeEndpointClearsOnlyThatDevice() {
+    SubscribeResponseDto response =
+        useCase.unsubscribeEndpoint("usr_abc", "https://push.example.com/a");
+    assertEquals("UNSUBSCRIBED", response.status());
+    verify(repo, times(1)).deleteByEndpoint("usr_abc", "https://push.example.com/a");
+  }
+
+  @Test
+  void unsubscribeEndpointBlankFallsBackToClearAll() {
+    useCase.unsubscribeEndpoint("usr_abc", "  ");
+    verify(repo, times(1)).deleteByUserId("usr_abc");
+  }
+
+  @Test
   void unsubscribeIsSafeWhenNothingIsStored() {
     useCase.unsubscribe("usr_no_subscription");
     verify(repo, times(1)).deleteByUserId("usr_no_subscription");

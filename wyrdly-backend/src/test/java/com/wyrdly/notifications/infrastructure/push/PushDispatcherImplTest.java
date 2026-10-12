@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -38,7 +39,7 @@ class PushDispatcherImplTest {
   void incrementsOkCounterOnTwoHundredResponse() throws Exception {
     String userId = "usr_ok";
     PushSubscription sub = subscriptionFor(userId);
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(sub);
+    when(subscriptionRepository.findAllByUserId(userId)).thenReturn(java.util.List.of(sub));
     when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(201);
 
     double before = counterValue("result", "ok");
@@ -52,7 +53,8 @@ class PushDispatcherImplTest {
   @Test
   void cleansUpSubscriptionAndIncrementsGoneCounterOnFourHundredAndTen() throws Exception {
     String userId = "usr_gone";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
     when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(410);
 
     double before = counterValue("result", "gone");
@@ -60,19 +62,21 @@ class PushDispatcherImplTest {
     dispatcher.dispatch(newEvent(userId));
 
     awaitCounterIncrease("result", "gone", before, 1);
-    // The dispatcher runs on a dedicated executor; deleteByUserId is invoked
-    // immediately after the counter increment but in a separate tick of the
-    // worker. await() avoids the rare race where verify() runs before the
-    // async side effect has been recorded on the mock.
+    // Only the failed endpoint is removed; sibling devices keep working.
     await()
         .atMost(java.time.Duration.ofSeconds(5))
-        .untilAsserted(() -> verify(subscriptionRepository, times(1)).deleteByUserId(userId));
+        .untilAsserted(
+            () ->
+                verify(subscriptionRepository, times(1))
+                    .deleteByEndpoint(eq(userId), any(String.class)));
+    verify(subscriptionRepository, never()).deleteByUserId(userId);
   }
 
   @Test
   void cleansUpSubscriptionOnFourHundredFourToo() throws Exception {
     String userId = "usr_404";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
     when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(404);
 
     double before = counterValue("result", "gone");
@@ -81,13 +85,17 @@ class PushDispatcherImplTest {
     awaitCounterIncrease("result", "gone", before, 1);
     await()
         .atMost(java.time.Duration.ofSeconds(5))
-        .untilAsserted(() -> verify(subscriptionRepository, times(1)).deleteByUserId(userId));
+        .untilAsserted(
+            () ->
+                verify(subscriptionRepository, times(1))
+                    .deleteByEndpoint(eq(userId), any(String.class)));
   }
 
   @Test
   void incrementsClientErrorOnOtherFourHundred() throws Exception {
     String userId = "usr_400";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
     when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(400);
 
     double before = counterValue("result", "http_4xx");
@@ -100,7 +108,8 @@ class PushDispatcherImplTest {
   @Test
   void retriesThenIncrementsServerErrorOnFiveHundred() throws Exception {
     String userId = "usr_500";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
     AtomicInteger calls = new AtomicInteger();
     when(librarySender.send(any(PushSubscription.class), any(byte[].class)))
         .thenAnswer(
@@ -121,7 +130,7 @@ class PushDispatcherImplTest {
   @Test
   void incrementsSkippedWhenNoSubscriptionStored() throws Exception {
     String userId = "usr_nope";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(null);
+    when(subscriptionRepository.findAllByUserId(userId)).thenReturn(java.util.List.of());
 
     double before = counterValue("result", "skipped_no_subscription");
     dispatcher.dispatch(newEvent(userId));
@@ -133,7 +142,8 @@ class PushDispatcherImplTest {
   @Test
   void incrementsFailedCounterOnSenderFailure() throws Exception {
     String userId = "usr_sendfail";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
     when(librarySender.send(any(PushSubscription.class), any(byte[].class)))
         .thenThrow(new RuntimeException("library boom"));
 
@@ -154,7 +164,7 @@ class PushDispatcherImplTest {
         .get(5, java.util.concurrent.TimeUnit.SECONDS);
 
     awaitCounterIncrease("result", "ok", before, 1);
-    verify(subscriptionRepository, never()).findByUserId(userId);
+    verify(subscriptionRepository, never()).findAllByUserId(userId);
   }
 
   @Test
@@ -168,7 +178,34 @@ class PushDispatcherImplTest {
         .get(5, java.util.concurrent.TimeUnit.SECONDS);
 
     awaitCounterIncrease("result", "gone", before, 1);
-    verify(subscriptionRepository, times(1)).deleteByUserId(userId);
+    verify(subscriptionRepository, times(1)).deleteByEndpoint(eq(userId), any(String.class));
+  }
+
+  @Test
+  void dispatchFansOutToEveryDeviceAndCleansOnlyTheGoneEndpoint() throws Exception {
+    String userId = "usr_multidevice";
+    PushSubscription firefox = subscriptionFor(userId);
+    PushSubscription chrome =
+        new PushSubscription(
+            "https://fcm.googleapis.com/fcm/send/other",
+            firefox.p256dh(),
+            firefox.auth());
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(firefox, chrome));
+    // First device answers 410 (stale), second answers 201.
+    when(librarySender.send(eq(firefox), any(byte[].class))).thenReturn(410);
+    when(librarySender.send(eq(chrome), any(byte[].class))).thenReturn(201);
+
+    double beforeOk = counterValue("result", "ok");
+    double beforeGone = counterValue("result", "gone");
+    dispatcher.dispatch(newEvent(userId));
+
+    awaitCounterIncrease("result", "ok", beforeOk, 1);
+    awaitCounterIncrease("result", "gone", beforeGone, 1);
+    verify(librarySender, times(1)).send(eq(firefox), any(byte[].class));
+    verify(librarySender, times(1)).send(eq(chrome), any(byte[].class));
+    verify(subscriptionRepository, times(1)).deleteByEndpoint(userId, firefox.endpoint());
+    verify(subscriptionRepository, never()).deleteByUserId(userId);
   }
 
   @Test
@@ -195,7 +232,8 @@ class PushDispatcherImplTest {
   @Test
   void recordsDurationAndBytesMetricsOnSuccess() throws Exception {
     String userId = "usr_metrics";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
     when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(201);
 
     double beforeOk = counterValue("result", "ok");
@@ -215,7 +253,8 @@ class PushDispatcherImplTest {
   @Test
   void rateLimitsRapidPushesToSameRecipient() throws Exception {
     String userId = "usr_storm";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
     when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(201);
 
     double beforeOk = counterValue("result", "ok");
@@ -257,7 +296,8 @@ class PushDispatcherImplTest {
   @Test
   void incrementsNetworkErrorCounterOnConnectionFailure() throws Exception {
     String userId = "usr_neterr";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
     when(librarySender.send(any(PushSubscription.class), any(byte[].class)))
         .thenThrow(new java.io.IOException("Connection refused"));
 

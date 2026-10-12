@@ -149,7 +149,8 @@ class NotificationResourceTest {
   @Test
   void unsubscribeHappyPath() {
     String userId = "usr_abc";
-    when(unsubscribeUseCase.unsubscribe(userId)).thenReturn(SubscribeResponseDto.unsubscribed());
+    when(unsubscribeUseCase.unsubscribeEndpoint(userId, null))
+        .thenReturn(SubscribeResponseDto.unsubscribed());
 
     given()
         .auth()
@@ -160,7 +161,27 @@ class NotificationResourceTest {
         .statusCode(200)
         .body("status", equalTo("UNSUBSCRIBED"));
 
-    verify(unsubscribeUseCase, times(1)).unsubscribe(userId);
+    verify(unsubscribeUseCase, times(1)).unsubscribeEndpoint(userId, null);
+  }
+
+  @Test
+  void unsubscribeByEndpointClearsOnlyThatDevice() {
+    String userId = "usr_abc";
+    String endpoint = "https://fcm.googleapis.com/fcm/send/abc";
+    when(unsubscribeUseCase.unsubscribeEndpoint(userId, endpoint))
+        .thenReturn(SubscribeResponseDto.unsubscribed());
+
+    given()
+        .auth()
+        .oauth2(jwtFor(userId))
+        .queryParam("endpoint", endpoint)
+        .when()
+        .delete("/api/notifications/subscribe")
+        .then()
+        .statusCode(200)
+        .body("status", equalTo("UNSUBSCRIBED"));
+
+    verify(unsubscribeUseCase, times(1)).unsubscribeEndpoint(userId, endpoint);
   }
 
   @Test
