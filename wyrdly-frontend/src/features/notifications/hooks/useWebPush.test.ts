@@ -318,16 +318,23 @@ describe("useWebPush", () => {
     expect(state.register).toHaveBeenCalledWith("/sw.js", expect.any(Object));
   });
 
-  it("does not register the service worker when enabled=false", async () => {
-    renderHook(() => useWebPush({ enabled: false }));
+  it("registers the service worker as soon as push is supported, regardless of auth", async () => {
+    seedAuth(null, null);
+    renderHook(() => useWebPush({ enabled: true }));
 
     await flushMicrotasks();
 
-    expect(state.register).not.toHaveBeenCalled();
+    expect(state.register).toHaveBeenCalledWith("/sw.js", expect.any(Object));
   });
 
-  it("does not register the service worker when there is no active session", async () => {
-    seedAuth(null, null);
+  it("does not register the service worker when push is not supported in the browser", async () => {
+    hadNotification =
+      "Notification" in (globalThis as unknown as { Notification?: unknown });
+    hadPushManager =
+      "PushManager" in (globalThis as unknown as { PushManager?: unknown });
+    delete (globalThis as unknown as { Notification?: unknown }).Notification;
+    delete (globalThis as unknown as { PushManager?: unknown }).PushManager;
+
     renderHook(() => useWebPush({ enabled: true }));
 
     await flushMicrotasks();
@@ -573,15 +580,22 @@ describe("useWebPush", () => {
       expect(state.swMessageListeners.size).toBe(0);
     });
 
-    it("does not listen to SW messages when disabled", async () => {
-      renderHook(() => useWebPush({ enabled: false }));
+    it("does not listen to SW messages when push is not supported", async () => {
+      hadNotification =
+        "Notification" in (globalThis as unknown as { Notification?: unknown });
+      hadPushManager =
+        "PushManager" in (globalThis as unknown as { PushManager?: unknown });
+      delete (globalThis as unknown as { Notification?: unknown }).Notification;
+      delete (globalThis as unknown as { PushManager?: unknown }).PushManager;
+
+      renderHook(() => useWebPush({ enabled: true }));
       await flushMicrotasks();
 
       expect(state.swMessageListeners.size).toBe(0);
     });
   });
 
-  it("silently auto-resubscribes on mount when permission is granted but no subscription exists", async () => {
+  it("does NOT auto-subscribe on mount even when permission is granted (user must click Habilitar)", async () => {
     state = buildState({
       notificationPermission: "granted",
     });
@@ -593,14 +607,12 @@ describe("useWebPush", () => {
     await flushMicrotasks();
     await flushMicrotasks();
 
-    expect(mockedGetVapidPublicKey).toHaveBeenCalledTimes(1);
-    expect(state.pushManager.subscribe).toHaveBeenCalledTimes(1);
-    expect(mockedSubscribe).toHaveBeenCalledWith(
-      expect.objectContaining({
-        endpoint: "https://push.example.com/endpoint/abc",
-      }),
-    );
-    expect(result.current.isSubscribed).toBe(true);
+    // We do NOT call pushManager.subscribe — the user must click
+    // "Habilitar" to trigger the browser permission prompt (if it has
+    // never been shown) and the subscription creation.
+    expect(state.pushManager.subscribe).not.toHaveBeenCalled();
+    expect(mockedGetVapidPublicKey).not.toHaveBeenCalled();
+    expect(result.current.isSubscribed).toBe(false);
   });
 
   it("syncs existing browser subscription with backend on mount when permission is granted", async () => {

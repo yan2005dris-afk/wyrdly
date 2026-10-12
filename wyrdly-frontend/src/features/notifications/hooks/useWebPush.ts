@@ -248,6 +248,14 @@ export const useWebPush = (
   const [error, setError] = useState<Error | null>(null);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
+  // Re-evaluate the active session on every render so that logging in
+  // re-runs the subscription sync. The SW is registered regardless of
+  // session, but the subscription backend sync needs a token.
+  const activeSession = getActiveSession();
+  const sessionKey = activeSession
+    ? `${activeSession.userId}:${activeSession.token}`
+    : "anonymous";
+
   useEffect(() => {
     if (!enabled || !isSupported) {
       return;
@@ -256,9 +264,10 @@ export const useWebPush = (
 
     const init = async (): Promise<void> => {
       try {
-        const credentials = readActiveCredentials();
-        if (!credentials) return;
-
+        // Phase 1: register the service worker. This does NOT require
+        // a session — the SW is a notification proxy, not an authenticated
+        // resource. We register unconditionally so the user is ready to
+        // subscribe as soon as they log in / grant permission.
         const nav = navigator as Navigator & {
           serviceWorker: ServiceWorkerContainer;
         };
@@ -268,6 +277,11 @@ export const useWebPush = (
           .ready) as ServiceWorkerRegistration;
         void reg;
         registrationRef.current = ready;
+
+        // Phase 2: subscription sync. Requires a session; otherwise the
+        // user is not yet authenticated and we just wait for them to log in.
+        const credentials = readActiveCredentials();
+        if (!credentials) return;
         const existing = await ready.pushManager.getSubscription();
         if (cancelled) return;
         setIsSubscribed(Boolean(existing));
@@ -350,13 +364,11 @@ export const useWebPush = (
             return;
           }
 
-          // Cold cache, no browser subscription: subscribe from scratch.
-          try {
-            await createPushSubscription(ready, credentials);
-            if (!cancelled) setIsSubscribed(true);
-          } catch {
-            /* background sync — the user can still enable manually */
-          }
+          // Cold cache, no browser subscription: we cannot auto-subscribe
+          // (would require the browser permission prompt); the user must
+          // click "Habilitar" from the profile card to grant permission
+          // and create the subscription explicitly.
+          return;
         }
       } catch (caught) {
         if (!cancelled) {
@@ -412,7 +424,7 @@ export const useWebPush = (
         handleServiceWorkerMessage,
       );
     };
-  }, [enabled, isSupported]);
+  }, [enabled, isSupported, sessionKey]);
 
   const ensureRegistration =
     async (): Promise<ServiceWorkerRegistration | null> => {
