@@ -3,31 +3,20 @@ package com.wyrdly.notifications.infrastructure.push;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wyrdly.notifications.application.port.PushDispatcherPort;
-import com.wyrdly.notifications.application.port.PushGatewayClientPort;
 import com.wyrdly.notifications.application.port.PushSubscriptionRepositoryPort;
 import com.wyrdly.notifications.domain.model.PushEvent;
 import com.wyrdly.notifications.domain.model.PushSubscription;
-import com.wyrdly.notifications.infrastructure.crypto.MessageEncryptor;
-import com.wyrdly.notifications.infrastructure.crypto.VapidJwtSigner;
-import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.net.URI;
-import java.security.KeyFactory;
-import java.security.interfaces.ECPrivateKey;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,8 +27,9 @@ import java.util.logging.Logger;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
- * Fire-and-forget Web Push dispatcher. Encrypts the payload per RFC 8291, signs a VAPID JWT per RFC
- * 8292, POSTs to the recipient's Push Service URL, and handles the response:
+ * Fire-and-forget Web Push dispatcher. Sends the payload through {@link WebPushLibrarySender}
+ * (proven {@code nl.martijndwars:web-push} encryption + VAPID signing per RFC 8291 / RFC 8292),
+ * POSTs to the recipient's Push Service URL, and handles the response:
  *
  * <ul>
  *   <li>201 Created → success counter incremented.
@@ -57,9 +47,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * the I/O call nor the retry backoff ever holds a thread from the Quarkus-shared {@link
  * org.eclipse.microprofile.context.ManagedExecutor}. Rate limiting, backpressure protection, and
  * Micrometer telemetry are built-in.
- *
- * <p>The parsed VAPID signing key and the VAPID JWT per Push Service origin are cached: a fan-out
- * to thousands of recipients signs a handful of JWTs instead of one per push.
  */
 @ApplicationScoped
 public class PushDispatcherImpl implements PushDispatcherPort {
@@ -68,23 +55,20 @@ public class PushDispatcherImpl implements PushDispatcherPort {
 
   private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
 
-  /** Lifetime of a signed VAPID JWT (RFC 8292 caps it at 24h). */
-  static final Duration JWT_TTL = Duration.ofMinutes(10);
+  /**
+   * Synthetic status for deterministic library failures (bad keys, crypto errors): they must not
+   * be retried like network errors and they count as {@code result=failed}, never {@code
+   * result=network_error}.
+   */
+  static final int SENDER_FAILED = -1;
 
-  /** A cached JWT is re-signed once it gets this close to expiring. */
-  static final Duration JWT_REFRESH_MARGIN = Duration.ofMinutes(2);
-
-  private final VapidKeyProvider vapidKeyProvider;
   private final PushSubscriptionRepositoryPort subscriptionRepository;
-  private final PushGatewayClientPort gatewayClient;
+  private final WebPushLibrarySender librarySender;
   private final ObjectMapper objectMapper;
   private final MeterRegistry meterRegistry;
 
-  private final String subject;
   private final int maxRetries;
   private final Duration initialBackoff;
-  private final ConcurrentMap<String, CachedJwt> jwtCache = new ConcurrentHashMap<>();
-  private volatile CachedSigningKey signingKeyCache;
 
   private final long recipientRateIntervalMs;
   private final TokenBucket globalTokenBucket;
@@ -100,13 +84,10 @@ public class PushDispatcherImpl implements PushDispatcherPort {
 
   @Inject
   public PushDispatcherImpl(
-      VapidKeyProvider vapidKeyProvider,
       PushSubscriptionRepositoryPort subscriptionRepository,
-      PushGatewayClientPort gatewayClient,
+      WebPushLibrarySender librarySender,
       ObjectMapper objectMapper,
       MeterRegistry meterRegistry,
-      @ConfigProperty(name = "wyrdly.push.vapid.subject", defaultValue = "mailto:ops@wyrdly.com")
-          String subject,
       @ConfigProperty(name = "wyrdly.push.dispatch.max-retries", defaultValue = "3") int maxRetries,
       @ConfigProperty(name = "wyrdly.push.dispatch.initial-backoff-ms", defaultValue = "200")
           long initialBackoffMs,
@@ -116,12 +97,10 @@ public class PushDispatcherImpl implements PushDispatcherPort {
               name = "wyrdly.push.dispatch.recipient-rate-interval-ms",
               defaultValue = "1000")
           long recipientRateIntervalMs) {
-    this.vapidKeyProvider = vapidKeyProvider;
     this.subscriptionRepository = subscriptionRepository;
-    this.gatewayClient = gatewayClient;
+    this.librarySender = librarySender;
     this.objectMapper = objectMapper;
     this.meterRegistry = meterRegistry;
-    this.subject = subject;
     this.maxRetries = maxRetries;
     this.initialBackoff = Duration.ofMillis(initialBackoffMs);
     this.recipientRateIntervalMs = recipientRateIntervalMs;
@@ -262,23 +241,12 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     String eventType = typeOf(event);
     try {
       byte[] plaintext = encodePayload(event);
-      byte[] ciphertext =
-          MessageEncryptor.encrypt(plaintext, subscription.p256dh(), subscription.auth());
-      recordBytes(eventType, ciphertext.length);
-
-      String jwt = jwtFor(extractOrigin(subscription.endpoint()));
-
-      Map<String, String> headers = new LinkedHashMap<>();
-      headers.put("TTL", String.valueOf(60 * 60 * 24));
-      headers.put("Urgency", "high");
-      headers.put("Content-Encoding", "aes128gcm");
-      headers.put("Content-Type", "application/octet-stream");
-      headers.put("Authorization", "vapid t=" + jwt + ",k=" + vapidKeyProvider.getPublicKey());
+      recordBytes(eventType, plaintext.length);
 
       long startNanos = System.nanoTime();
       int status;
       try {
-        status = dispatchWithRetries(subscription.endpoint(), ciphertext, headers).get();
+        status = dispatchLibraryWithRetries(subscription, plaintext).get();
       } catch (Exception ex) {
         long durationNanos = System.nanoTime() - startNanos;
         recordDuration(eventType, "network_error", durationNanos);
@@ -288,6 +256,13 @@ public class PushDispatcherImpl implements PushDispatcherPort {
         return;
       }
       long durationNanos = System.nanoTime() - startNanos;
+
+      if (status == SENDER_FAILED) {
+        recordDuration(eventType, "failed", durationNanos);
+        recordDispatch(eventType, "failed");
+        LOG.log(Level.WARNING, "push dispatch failed for user " + event.recipientUserId());
+        return;
+      }
 
       switch (status / 100) {
         case 2:
@@ -353,24 +328,23 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   /**
    * Returns a future that completes with the highest HTTP status seen (last attempt if all 5xx,
    * else first 4xx). Retries on 5xx and network errors with exponential backoff scheduled on {@link
-   * #backoffExecutor}, so a {@code Thread.sleep} between attempts never blocks a thread from the
+   * #backoffExecutor}, so a blocking library send between attempts never blocks a thread from the
    * shared {@link ManagedExecutor}.
    */
-  private CompletableFuture<Integer> dispatchWithRetries(
-      String endpoint, byte[] body, Map<String, String> headers) {
+  private CompletableFuture<Integer> dispatchLibraryWithRetries(
+      PushSubscription subscription, byte[] plaintext) {
     CompletableFuture<Integer> result = new CompletableFuture<>();
-    attempt(endpoint, body, headers, 0, initialBackoff.toMillis(), result);
+    libraryAttempt(subscription, plaintext, 0, initialBackoff.toMillis(), result);
     return result;
   }
 
   /**
-   * One attempt, then either complete the future (terminal outcome) or schedule the next attempt
-   * after the backoff.
+   * One library send, then either complete the future (terminal outcome) or schedule the next
+   * attempt after the backoff.
    */
-  private void attempt(
-      String endpoint,
-      byte[] body,
-      Map<String, String> headers,
+  private void libraryAttempt(
+      PushSubscription subscription,
+      byte[] plaintext,
       int attemptIndex,
       long backoffMs,
       CompletableFuture<Integer> result) {
@@ -378,68 +352,38 @@ public class PushDispatcherImpl implements PushDispatcherPort {
         () -> {
           int status;
           try {
-            status = gatewayClient.post(URI.create(endpoint), body, headers);
-          } catch (Exception ex) {
+            status = librarySender.send(subscription, plaintext);
+          } catch (java.io.IOException | java.util.concurrent.TimeoutException ex) {
             if (attemptIndex >= maxRetries) {
               result.completeExceptionally(ex);
               return;
             }
-            scheduleNext(endpoint, body, headers, attemptIndex, backoffMs, result);
+            scheduleLibraryNext(subscription, plaintext, attemptIndex, backoffMs, result);
+            return;
+          } catch (Exception ex) {
+            result.complete(SENDER_FAILED);
             return;
           }
           if (status < 500 || attemptIndex >= maxRetries) {
             result.complete(status);
             return;
           }
-          scheduleNext(endpoint, body, headers, attemptIndex, backoffMs, result);
+          scheduleLibraryNext(subscription, plaintext, attemptIndex, backoffMs, result);
         });
   }
 
-  private void scheduleNext(
-      String endpoint,
-      byte[] body,
-      Map<String, String> headers,
+  private void scheduleLibraryNext(
+      PushSubscription subscription,
+      byte[] plaintext,
       int attemptIndex,
       long backoffMs,
       CompletableFuture<Integer> result) {
     long nextBackoff = backoffMs * 2;
     backoffExecutor.schedule(
-        () -> attempt(endpoint, body, headers, attemptIndex + 1, nextBackoff, result),
+        () -> libraryAttempt(subscription, plaintext, attemptIndex + 1, nextBackoff, result),
         backoffMs,
         TimeUnit.MILLISECONDS);
   }
-
-  /** Returns a cached VAPID JWT for {@code audience}, re-signing it shortly before it expires. */
-  private String jwtFor(String audience) throws Exception {
-    ECPrivateKey key = signingKey();
-    Instant now = Instant.now();
-    CachedJwt cached = jwtCache.get(audience);
-    if (cached != null && cached.key() == key && now.isBefore(cached.refreshAt())) {
-      return cached.token();
-    }
-    String token = VapidJwtSigner.sign(audience, subject, key, JWT_TTL);
-    jwtCache.put(audience, new CachedJwt(token, key, now.plus(JWT_TTL).minus(JWT_REFRESH_MARGIN)));
-    return token;
-  }
-
-  /** Parses the PKCS#8 VAPID private key once; re-parses only if the provider's key changes. */
-  private ECPrivateKey signingKey() throws Exception {
-    String encoded = vapidKeyProvider.getPrivateKey();
-    CachedSigningKey cached = signingKeyCache;
-    if (cached != null && cached.encoded().equals(encoded)) {
-      return cached.key();
-    }
-    ECPrivateKey key =
-        (ECPrivateKey)
-            KeyFactory.getInstance("EC")
-                .generatePrivate(new PKCS8EncodedKeySpec(Base64.getUrlDecoder().decode(encoded)));
-    signingKeyCache = new CachedSigningKey(encoded, key);
-    return key;
-  }
-
-  private record CachedSigningKey(String encoded, ECPrivateKey key) {}
-
-  private record CachedJwt(String token, ECPrivateKey key, Instant refreshAt) {}
 
   private byte[] encodePayload(PushEvent event) throws JsonProcessingException {
     Map<String, Object> payload = new LinkedHashMap<>();
@@ -453,16 +397,6 @@ public class PushDispatcherImpl implements PushDispatcherPort {
     event.data().forEach(data::putIfAbsent);
     payload.put("data", data);
     return objectMapper.writeValueAsBytes(payload);
-  }
-
-  /** Extracts scheme + host (+ optional port) from a Push Service URL for the JWT {@code aud}. */
-  private static String extractOrigin(String url) {
-    URI uri = URI.create(url);
-    String origin = uri.getScheme() + "://" + uri.getHost();
-    if (uri.getPort() != -1) {
-      origin += ":" + uri.getPort();
-    }
-    return origin;
   }
 
   static class TokenBucket {
