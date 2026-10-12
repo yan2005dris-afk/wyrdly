@@ -1,7 +1,8 @@
-import { useCallback, useState, type FC } from "react";
+import { useCallback, useContext, useState, type FC } from "react";
 import { Bell, BellOff } from "lucide-react";
 import { pushCopy } from "../../../notifications/copy";
 import { useAuthStore } from "../../../auth/store/useAuthStore";
+import { AuthContext } from "../../../auth/context/authContextInstance";
 import { useWebPush } from "../../../notifications/hooks/useWebPush";
 import type { PushErrorCode } from "../../../notifications/types";
 import { Button } from "../../../../components/ui/Button";
@@ -85,6 +86,9 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
   // the user logs in/out; the support status will be re-evaluated on each
   // render and the badge / CTA will reflect the live session.
   useAuthStore((s) => Boolean(s.user && s.token));
+  // The app logs in through AuthContext, not the legacy Zustand store —
+  // subscribe to it too so a login refreshes sessionKey and re-runs sync.
+  useContext(AuthContext);
 
   const supportReason: PushErrorCode | undefined = (() => {
     if (!isSupported) {
