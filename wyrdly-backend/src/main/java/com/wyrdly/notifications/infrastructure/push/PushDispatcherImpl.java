@@ -57,8 +57,8 @@ public class PushDispatcherImpl implements PushDispatcherPort {
   private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
 
   /**
-   * Synthetic status for deterministic library failures (bad keys, crypto errors): they must not
-   * be retried like network errors and they count as {@code result=failed}, never {@code
+   * Synthetic status for deterministic library failures (bad keys, crypto errors): they must not be
+   * retried like network errors and they count as {@code result=failed}, never {@code
    * result=network_error}.
    */
   static final int SENDER_FAILED = -1;

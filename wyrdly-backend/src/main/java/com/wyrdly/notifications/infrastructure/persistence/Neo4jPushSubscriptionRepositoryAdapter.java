@@ -16,8 +16,8 @@ import org.neo4j.driver.Values;
  * Neo4j-backed implementation of {@link PushSubscriptionRepositoryPort}.
  *
  * <p>Each browser subscription is a {@code :SuscripcionPush} node linked from {@code :Usuario} via
- * {@code :TIENE_SUSCRIPCION}. Nodes are keyed by {@code endpoint} (one node per device, shared
- * when two users impossibly share an endpoint) and capped at {@link
+ * {@code :TIENE_SUSCRIPCION}. Nodes are keyed by {@code endpoint} (one node per device, shared when
+ * two users impossibly share an endpoint) and capped at {@link
  * PushSubscriptionRepositoryPort#MAX_SUBSCRIPTIONS_PER_USER} per user with oldest-first eviction.
  */
 @ApplicationScoped
@@ -123,8 +123,7 @@ public class Neo4jPushSubscriptionRepositoryAdapter implements PushSubscriptionR
   @Override
   public void deleteByEndpoint(String userId, String endpoint) {
     try (Session session = driver.session()) {
-      session.run(
-          CYPHER_DELETE_ONE, Values.parameters("userId", userId, "endpoint", endpoint));
+      session.run(CYPHER_DELETE_ONE, Values.parameters("userId", userId, "endpoint", endpoint));
     }
   }
 

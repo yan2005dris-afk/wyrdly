@@ -187,9 +187,7 @@ class PushDispatcherImplTest {
     PushSubscription firefox = subscriptionFor(userId);
     PushSubscription chrome =
         new PushSubscription(
-            "https://fcm.googleapis.com/fcm/send/other",
-            firefox.p256dh(),
-            firefox.auth());
+            "https://fcm.googleapis.com/fcm/send/other", firefox.p256dh(), firefox.auth());
     when(subscriptionRepository.findAllByUserId(userId))
         .thenReturn(java.util.List.of(firefox, chrome));
     // First device answers 410 (stale), second answers 201.

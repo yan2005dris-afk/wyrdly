@@ -68,7 +68,10 @@ public class WebPushLibrarySender {
             new String(plaintext, StandardCharsets.UTF_8));
     Future<HttpResponse> response = service().sendAsync(notification, Encoding.AES128GCM);
     try {
-      return response.get(timeout.toMillis(), TimeUnit.MILLISECONDS).getStatusLine().getStatusCode();
+      return response
+          .get(timeout.toMillis(), TimeUnit.MILLISECONDS)
+          .getStatusLine()
+          .getStatusCode();
     } catch (TimeoutException timedOut) {
       response.cancel(true);
       throw timedOut;
@@ -89,7 +92,9 @@ public class WebPushLibrarySender {
       }
       PushService built =
           new PushService(
-              vapidKeyProvider.getPublicKey(), rawPrivateScalar(vapidKeyProvider.getPrivateKey()), subject);
+              vapidKeyProvider.getPublicKey(),
+              rawPrivateScalar(vapidKeyProvider.getPrivateKey()),
+              subject);
       service = built;
       cachedKeysFingerprint = fingerprint;
       return built;
@@ -103,8 +108,7 @@ public class WebPushLibrarySender {
   static String rawPrivateScalar(String pkcs8Base64Url) throws Exception {
     byte[] pkcs8 = Base64.getUrlDecoder().decode(pkcs8Base64Url);
     ECPrivateKey key =
-        (ECPrivateKey)
-            KeyFactory.getInstance("EC").generatePrivate(new PKCS8EncodedKeySpec(pkcs8));
+        (ECPrivateKey) KeyFactory.getInstance("EC").generatePrivate(new PKCS8EncodedKeySpec(pkcs8));
     byte[] scalar = toFixed32(key.getS().toByteArray());
     return Base64.getUrlEncoder().withoutPadding().encodeToString(scalar);
   }
