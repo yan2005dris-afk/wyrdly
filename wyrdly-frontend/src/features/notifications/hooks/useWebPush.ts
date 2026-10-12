@@ -58,6 +58,14 @@ export const base64UrlToUint8Array = (input: string): Uint8Array => {
   for (let i = 0; i < raw.length; i += 1) {
     out[i] = raw.charCodeAt(i);
   }
+  // ANSI X9.62 uncompressed EC point: 1 byte 0x04 + 32 bytes X + 32 bytes Y
+  // = 65 bytes. base64url-encoded keys without trailing `=` may decode to
+  // 66 bytes when we add the padding back; in that case the last byte is
+  // a 0 from the padding and should be dropped before passing to
+  // `pushManager.subscribe`.
+  if (out.length === 66 && out[65] === 0) {
+    return out.slice(0, 65);
+  }
   if (out.length !== 65 || out[0] !== 0x04) {
     throw makePushError("invalidVapidKey");
   }
