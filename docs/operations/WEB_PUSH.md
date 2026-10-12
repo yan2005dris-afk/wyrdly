@@ -40,6 +40,18 @@ sequenceDiagram
     Frontend-)Bob: self.registration.showNotification(...)
 ```
 
+> **Multi-device (desde refactor `web-push-library-multidevice`):** cada navegador es un
+> nodo `(:SuscripcionPush)` colgado de `(:Usuario)` vía `[:TIENE_SUSCRIPCION]`
+> (tope 10 por usuario, evicción oldest-first). La migración `V104` convierte la triple
+> única anterior sin re-suscribir a nadie. El despacho abanica a todos los dispositivos;
+> un `410/404` borra solo ese endpoint. `DELETE /subscribe?endpoint=` borra un
+> dispositivo; sin `endpoint` borra todos (compat con clientes viejos). El fan-out a
+> seguidores notifica un dispositivo por follower (el más reciente).
+
+> **Librería:** el despacho usa `nl.martijndwars:web-push` (AES128GCM). La privada
+> sigue guardada en PKCS#8 y se convierte a scalar crudo en runtime: esta migración
+> **no** requiere rotar VAPID ni re-suscribir.
+
 ---
 
 ## 2. Procedimiento de Rotación de Claves VAPID
@@ -103,10 +115,9 @@ curl -s http://localhost:8080/q/health/ready | jq .
 #### Paso 6: Limpieza opcional de suscripciones obsoletas en Neo4j
 Para evitar despachos fallidos con la clave antigua, se pueden restablecer las suscripciones existentes para forzar su renovación transparente:
 ```cypher
-MATCH (u:Usuario)
-WHERE u.pushEndpoint IS NOT NULL
-SET u.pushEndpoint = null, u.pushP256dh = null, u.pushAuth = null
-RETURN count(u) AS suscripciones_reseteadas;
+MATCH (:Usuario)-[r:TIENE_SUSCRIPCION]->(s:SuscripcionPush)
+DETACH DELETE s
+RETURN count(s) AS suscripciones_reseteadas;
 ```
 
 ---
@@ -126,28 +137,39 @@ El despachador `PushDispatcherImpl` implementa **auto-cleanup automático**:
    ```text
    subscription gone for user usr_123 (HTTP 410); cleaned up
    ```
-3. Ejecuta inmediatamente `subscriptionRepository.deleteByUserId(recipientUserId)` para poner a `null` los campos `pushEndpoint`, `pushP256dh` y `pushAuth` en Neo4j.
+3. Ejecuta inmediatamente `subscriptionRepository.deleteByEndpoint(recipientUserId, endpoint)`: borra solo ese dispositivo, los demás siguen recibiendo.
 
 ### 3.3 Verificación y Mantenimiento Manual en Neo4j
 
 #### Consultar cuántas suscripciones activas existen:
 ```cypher
-MATCH (u:Usuario)
-WHERE u.pushEndpoint IS NOT NULL AND u.pushEndpoint <> ''
-RETURN count(u) AS total_activas;
+MATCH (:Usuario)-[:TIENE_SUSCRIPCION]->(s:SuscripcionPush)
+RETURN count(s) AS total_activas;
+```
+
+#### Suscripciones por usuario:
+```cypher
+MATCH (u:Usuario {id: $userId})-[:TIENE_SUSCRIPCION]->(s:SuscripcionPush)
+RETURN s.endpoint, s.createdAt ORDER BY s.createdAt DESC;
 ```
 
 #### Identificar registros que requieren saneamiento:
 ```cypher
-MATCH (u:Usuario)
-WHERE u.pushEndpoint IS NOT NULL AND (u.pushP256dh IS NULL OR u.pushAuth IS NULL)
-RETURN u.id, u.username, u.pushEndpoint;
+MATCH (u:Usuario)-[:TIENE_SUSCRIPCION]->(s:SuscripcionPush)
+WHERE s.p256dh IS NULL OR s.auth IS NULL
+RETURN u.id, u.username, s.endpoint;
 ```
 
-#### Limpiar manualmente la suscripción de un usuario específico:
+#### Limpiar manualmente un dispositivo específico:
 ```cypher
-MATCH (u:Usuario {id: $userId})
-SET u.pushEndpoint = null, u.pushP256dh = null, u.pushAuth = null;
+MATCH (:Usuario {id: $userId})-[r:TIENE_SUSCRIPCION]->(s:SuscripcionPush {endpoint: $endpoint})
+DELETE r WITH s WHERE NOT ()-[:TIENE_SUSCRIPCION]->(s) DETACH DELETE s;
+```
+
+#### Limpiar todos los dispositivos de un usuario:
+```cypher
+MATCH (:Usuario {id: $userId})-[r:TIENE_SUSCRIPCION]->(s:SuscripcionPush)
+DELETE r WITH s WHERE NOT ()-[:TIENE_SUSCRIPCION]->(s) DETACH DELETE s;
 ```
 
 ---
@@ -222,8 +244,9 @@ Sigue este checklist de diagnóstico paso a paso si los usuarios reportan que no
     └── Si es 'denied', el usuario debe habilitarlo manualmente en el candado de la barra de direcciones.
 
 [4] ¿La suscripción existe en Neo4j?
-    ├── Cypher: MATCH (u:Usuario {id: $userId}) RETURN u.pushEndpoint, u.pushP256dh;
-    └── Si es null: El usuario no ha completado el flujo de suscripción en el navegador.
+    ├── Cypher: MATCH (:Usuario {id: $userId})-[:TIENE_SUSCRIPCION]->(s:SuscripcionPush) RETURN s.endpoint;
+    ├── Si está vacía: el usuario no completó el flujo en ESE navegador (cada dispositivo tiene su nodo).
+    └── Si el endpoint del browser no coincide con ninguno guardado: re-habilitar en ese browser (el viejo hará 410 y se limpia solo).
 
 [5] ¿Hay despachos siendo rechazados o limitados?
     ├── Revisar Prometheus: curl -s http://localhost:8080/q/metrics | grep wyrdly_push_dispatch

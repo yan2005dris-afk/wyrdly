@@ -22,7 +22,7 @@ Crypto propia = riesgo de mantenimiento; triple único por usuario = un disposit
 - [x] T2: Adapter con librería + tests backend (route: inline)
 - [x] T3: Modelo multi-device Neo4j + migración de la triple actual (route: inline)
 - [x] T4: Frontend por endpoint + tests (528 base) (route: inline)
-- [ ] T5: Runbook rotación + verificación E2E (route: inline)
+- [x] T5: Runbook rotación + verificación E2E (route: inline)
 
 ## Authorized scope
 Autorizado por usuario: rama nueva para el refactor. Sin cambios de producto fuera de push.
@@ -37,6 +37,7 @@ Autorizado por usuario: rama nueva para el refactor. Sin cambios de producto fue
 - 2026-10-12: T1+T2 hechos. web-push 5.1.1 + bcprov. WebPushLibrarySender convierte PKCS#8->scalar en runtime (sin rotación). Dispatcher conserva rate-limit/métricas/retry; `failed` vs `network_error` clasificados. 174 tests notificaciones verdes.
 - 2026-10-12: T3 hecho. Nodos :SuscripcionPush + V104 (validada en IT), fan-out por dispositivo, gone limpia solo el endpoint, DELETE ?endpoint=. Fanout conserva 1 sub por follower. 182 tests verdes.
 - 2026-10-12: T4 hecho. unsubscribe manda ?endpoint=, siblings sobreviven. 529 vitest verdes, lint+prettier limpios.
+- 2026-10-12: T5 hecho. Runbook con modelo por nodo + notas de librería. E2E push-delivery 1/1 verde; suite completa 5/7 (2 fallas preexistentes en in-app-feed por username reservado, fuera de scope).
 
 ## Next step
 T1 inventario.
