@@ -69,10 +69,18 @@ const describeState = (
 export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
   className = "",
 }) => {
-  const { isSupported, permission, isSubscribed, subscribe, unsubscribe } =
-    useWebPush({ enabled: true });
+  const {
+    isSupported,
+    permission,
+    isSubscribed,
+    subscribe,
+    unsubscribe,
+    error,
+  } = useWebPush({ enabled: true });
 
-  // We intentionally do NOT read `error` from the hook. See UX note above.
+  // Surface every push failure except `changedSession` (auth layer owns
+  // that signal). The hook always logs `[push]` to the console, so even a
+  // hidden `changedSession` stays debuggable in DevTools.
   // Subscribe to the auth store so the auth store re-renders this card when
   // the user logs in/out; the support status will be re-evaluated on each
   // render and the badge / CTA will reflect the live session.
@@ -98,10 +106,20 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
 
   const [busy, setBusy] = useState<"enable" | "disable" | null>(null);
 
+  const visibleError =
+    error && (error as Error & { name?: string }).name !== "changedSession"
+      ? error
+      : null;
+
   const handleEnable = useCallback(async () => {
     setBusy("enable");
     try {
-      await subscribe();
+      const ok = await subscribe();
+      if (!ok) {
+        console.error("[push] subscribe returned false in card");
+      }
+    } catch (e) {
+      console.error("[push] subscribe failed in card:", e);
     } finally {
       setBusy(null);
     }
@@ -110,7 +128,12 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
   const handleDisable = useCallback(async () => {
     setBusy("disable");
     try {
-      await unsubscribe();
+      const ok = await unsubscribe();
+      if (!ok) {
+        console.error("[push] unsubscribe returned false in card");
+      }
+    } catch (e) {
+      console.error("[push] unsubscribe failed in card:", e);
     } finally {
       setBusy(null);
     }
@@ -153,6 +176,11 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
 
       <div className={styles.body}>
         <p className={styles.description}>{state.body}</p>
+        {visibleError ? (
+          <p className={styles.errorBox} data-testid="webpush-settings-error">
+            {visibleError.message}
+          </p>
+        ) : null}
         <p className={styles.helperText}>
           El cambio se aplica solo a este navegador. Si usás la app en varios
           dispositivos, activalas en cada uno.

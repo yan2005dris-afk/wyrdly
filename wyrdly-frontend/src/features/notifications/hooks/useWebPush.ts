@@ -380,6 +380,7 @@ export const useWebPush = (
         }
       } catch (caught) {
         if (!cancelled) {
+          console.error("[push] init failed:", caught);
           setError(pushError(caught));
         }
       }
@@ -490,6 +491,7 @@ export const useWebPush = (
         return true;
       });
     } catch (caught) {
+      console.error("[push] subscribe failed:", caught);
       setError(pushError(caught));
       return false;
     }
@@ -548,6 +550,7 @@ export const useWebPush = (
         return true;
       });
     } catch (caught) {
+      console.error("[push] unsubscribe failed:", caught);
       setError(pushError(caught));
       return false;
     }
