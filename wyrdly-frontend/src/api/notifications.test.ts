@@ -84,5 +84,18 @@ describe("notificationsApi", () => {
 
       expect(mockedDelete).toHaveBeenCalledWith("/api/notifications/subscribe");
     });
+
+    it("sends the endpoint as a query param so sibling devices survive", async () => {
+      mockedDelete.mockResolvedValueOnce({ data: {} });
+
+      await notificationsApi.unsubscribe("https://push.example.com/abc");
+
+      expect(mockedDelete).toHaveBeenCalledWith(
+        "/api/notifications/subscribe",
+        {
+          params: { endpoint: "https://push.example.com/abc" },
+        },
+      );
+    });
   });
 });

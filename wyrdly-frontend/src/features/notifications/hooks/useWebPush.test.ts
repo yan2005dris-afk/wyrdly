@@ -438,6 +438,9 @@ describe("useWebPush", () => {
     expect(success).toBe(true);
     expect(state.pushManager.unsubscribe).toHaveBeenCalledTimes(1);
     expect(mockedUnsubscribe).toHaveBeenCalledTimes(1);
+    expect(mockedUnsubscribe).toHaveBeenCalledWith(
+      "https://push.example.com/endpoint/abc",
+    );
     expect(result.current.error).toBeNull();
   });
 

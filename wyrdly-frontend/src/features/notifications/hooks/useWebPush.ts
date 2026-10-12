@@ -540,7 +540,9 @@ export const useWebPush = (
           return true;
         }
 
-        await notificationsApi.unsubscribe();
+        // Multi-device backend: remove only this browser's endpoint so
+        // sibling devices keep receiving pushes.
+        await notificationsApi.unsubscribe(sub.endpoint ?? undefined);
         const pm = reg.pushManager as PushManager & {
           unsubscribe: () => Promise<boolean>;
         };
