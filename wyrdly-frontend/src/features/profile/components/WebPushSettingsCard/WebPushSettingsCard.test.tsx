@@ -247,6 +247,7 @@ describe("WebPushSettingsCard", () => {
   it("calls notificationsApi.unsubscribe when disabling an active subscription", async () => {
     const existingSub = {
       endpoint: "https://push.example.com/endpoint/abc",
+      unsubscribe: vi.fn().mockResolvedValue(true),
       toJSON: () => ({
         endpoint: "https://push.example.com/endpoint/abc",
         keys: { p256dh: "p256dh-key", auth: "auth-key" },

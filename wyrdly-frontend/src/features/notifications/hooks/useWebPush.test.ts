@@ -419,10 +419,12 @@ describe("useWebPush", () => {
     expect(mockedSubscribe).not.toHaveBeenCalled();
   });
 
-  it("unsubscribe() calls pushManager.unsubscribe() and DELETE /api/notifications/subscribe", async () => {
+  it("unsubscribe() calls subscription.unsubscribe() and DELETE with the endpoint", async () => {
     state = buildState();
+    const browserUnsubscribe = vi.fn().mockResolvedValue(true);
     state.pushManager.getSubscription = vi.fn().mockResolvedValue({
       endpoint: "https://push.example.com/endpoint/abc",
+      unsubscribe: browserUnsubscribe,
     });
     installBrowserShims();
 
@@ -436,7 +438,7 @@ describe("useWebPush", () => {
     });
 
     expect(success).toBe(true);
-    expect(state.pushManager.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(browserUnsubscribe).toHaveBeenCalledTimes(1);
     expect(mockedUnsubscribe).toHaveBeenCalledTimes(1);
     expect(mockedUnsubscribe).toHaveBeenCalledWith(
       "https://push.example.com/endpoint/abc",
@@ -675,6 +677,7 @@ describe("useWebPush", () => {
     });
     state.pushManager.getSubscription = vi.fn().mockResolvedValue({
       endpoint: "https://push.example.com/endpoint/abc",
+      unsubscribe: vi.fn().mockResolvedValue(true),
     });
     installBrowserShims();
 
