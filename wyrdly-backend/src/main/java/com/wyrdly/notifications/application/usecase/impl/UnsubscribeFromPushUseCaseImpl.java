@@ -21,4 +21,14 @@ public class UnsubscribeFromPushUseCaseImpl implements UnsubscribeFromPushUseCas
     repository.deleteByUserId(userId);
     return SubscribeResponseDto.unsubscribed();
   }
+
+  @Override
+  public SubscribeResponseDto unsubscribeEndpoint(String userId, String endpoint) {
+    if (endpoint != null && !endpoint.isBlank()) {
+      repository.deleteByEndpoint(userId, endpoint.trim());
+    } else {
+      repository.deleteByUserId(userId);
+    }
+    return SubscribeResponseDto.unsubscribed();
+  }
 }

@@ -27,9 +27,7 @@ class Neo4jPushAudienceQueryAdapterIT {
     adapter = new Neo4jPushAudienceQueryAdapter(driver);
     Neo4jTestContainer.deleteAllData();
     try (Session session = driver.session()) {
-      session.run(
-          "CREATE (:Usuario {id: 'author', pushEndpoint: 'https://push/a', "
-              + "pushP256dh: 'k', pushAuth: 'a'})");
+      session.run("CREATE (:Usuario {id: 'author'})");
     }
   }
 
@@ -38,10 +36,11 @@ class Neo4jPushAudienceQueryAdapterIT {
       session.run(
           "MATCH (author:Usuario {id: 'author'}) "
               + "CREATE (f:Usuario {id: $id}) "
-              + "SET f.pushEndpoint = CASE WHEN $sub THEN 'https://push/' + $id END, "
-              + "f.pushP256dh = CASE WHEN $sub THEN 'p256dh-' + $id END, "
-              + "f.pushAuth = CASE WHEN $sub THEN 'auth-' + $id END "
-              + "CREATE (f)-[:SIGUE]->(author)",
+              + "CREATE (f)-[:SIGUE]->(author) "
+              + "FOREACH (_ IN CASE WHEN $sub THEN [1] ELSE [] END | "
+              + "CREATE (s:SuscripcionPush {endpoint: 'https://push/' + $id, "
+              + "p256dh: 'p256dh-' + $id, auth: 'auth-' + $id, createdAt: datetime()}) "
+              + "CREATE (f)-[:TIENE_SUSCRIPCION]->(s))",
           org.neo4j.driver.Values.parameters("id", id, "sub", subscribed));
     }
   }
@@ -53,8 +52,8 @@ class Neo4jPushAudienceQueryAdapterIT {
     try (Session session = driver.session()) {
       // Subscribed, but does not follow the author.
       session.run(
-          "CREATE (:Usuario {id: 'stranger', pushEndpoint: 'https://push/s', "
-              + "pushP256dh: 'k', pushAuth: 'a'})");
+          "CREATE (:Usuario {id: 'stranger'})-[:TIENE_SUSCRIPCION]->"
+              + "(:SuscripcionPush {endpoint: 'https://push/s', p256dh: 'k', auth: 'a', createdAt: datetime()})");
       // Author following themselves must never be part of their audience.
       session.run("MATCH (a:Usuario {id: 'author'}) CREATE (a)-[:SIGUE]->(a)");
     }
@@ -69,6 +68,25 @@ class Neo4jPushAudienceQueryAdapterIT {
 
     PushTarget u2 = result.stream().filter(t -> t.userId().equals("u2")).findFirst().orElseThrow();
     org.junit.jupiter.api.Assertions.assertNull(u2.subscription());
+  }
+
+  @Test
+  void followerWithTwoDevicesSurfacesOnceWithTheMostRecentSubscription() {
+    follower("multi", true);
+    try (Session session = driver.session()) {
+      session.run(
+          "MATCH (f:Usuario {id: 'multi'}) "
+              + "CREATE (s:SuscripcionPush {endpoint: 'https://push/multi-new', "
+              + "p256dh: 'p256dh-new', auth: 'auth-new', "
+              + "createdAt: datetime() + duration('PT1H')}) "
+              + "CREATE (f)-[:TIENE_SUSCRIPCION]->(s)");
+    }
+
+    List<PushTarget> result = adapter.findAllFollowers("author", "", 100);
+
+    PushTarget multi =
+        result.stream().filter(t -> t.userId().equals("multi")).findFirst().orElseThrow();
+    assertEquals("https://push/multi-new", multi.subscription().endpoint());
   }
 
   @Test

@@ -6,51 +6,41 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wyrdly.notifications.application.port.PushGatewayClientPort;
 import com.wyrdly.notifications.application.port.PushSubscriptionRepositoryPort;
 import com.wyrdly.notifications.domain.model.PushEvent;
 import com.wyrdly.notifications.domain.model.PushSubscription;
-import com.wyrdly.notifications.infrastructure.crypto.VapidKeyProvider;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
 class PushDispatcherImplTest {
 
   @InjectMock PushSubscriptionRepositoryPort subscriptionRepository;
-  @InjectMock PushGatewayClientPort gatewayClient;
+  @InjectMock WebPushLibrarySender librarySender;
 
   @Inject PushDispatcherImpl dispatcher;
-  @Inject VapidKeyProvider vapidKeyProvider;
   @Inject MeterRegistry meterRegistry;
   @Inject org.eclipse.microprofile.context.ManagedExecutor managedExecutor;
-
-  @BeforeEach
-  void resetThreadLocal() {
-    headersHolder.remove();
-  }
 
   @Test
   void incrementsOkCounterOnTwoHundredResponse() throws Exception {
     String userId = "usr_ok";
     PushSubscription sub = subscriptionFor(userId);
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(sub);
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(201);
+    when(subscriptionRepository.findAllByUserId(userId)).thenReturn(java.util.List.of(sub));
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(201);
 
     double before = counterValue("result", "ok");
 
@@ -63,28 +53,31 @@ class PushDispatcherImplTest {
   @Test
   void cleansUpSubscriptionAndIncrementsGoneCounterOnFourHundredAndTen() throws Exception {
     String userId = "usr_gone";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(410);
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(410);
 
     double before = counterValue("result", "gone");
 
     dispatcher.dispatch(newEvent(userId));
 
     awaitCounterIncrease("result", "gone", before, 1);
-    // The dispatcher runs on a dedicated executor; deleteByUserId is invoked
-    // immediately after the counter increment but in a separate tick of the
-    // worker. await() avoids the rare race where verify() runs before the
-    // async side effect has been recorded on the mock.
+    // Only the failed endpoint is removed; sibling devices keep working.
     await()
         .atMost(java.time.Duration.ofSeconds(5))
-        .untilAsserted(() -> verify(subscriptionRepository, times(1)).deleteByUserId(userId));
+        .untilAsserted(
+            () ->
+                verify(subscriptionRepository, times(1))
+                    .deleteByEndpoint(eq(userId), any(String.class)));
+    verify(subscriptionRepository, never()).deleteByUserId(userId);
   }
 
   @Test
   void cleansUpSubscriptionOnFourHundredFourToo() throws Exception {
     String userId = "usr_404";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(404);
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(404);
 
     double before = counterValue("result", "gone");
     dispatcher.dispatch(newEvent(userId));
@@ -92,14 +85,18 @@ class PushDispatcherImplTest {
     awaitCounterIncrease("result", "gone", before, 1);
     await()
         .atMost(java.time.Duration.ofSeconds(5))
-        .untilAsserted(() -> verify(subscriptionRepository, times(1)).deleteByUserId(userId));
+        .untilAsserted(
+            () ->
+                verify(subscriptionRepository, times(1))
+                    .deleteByEndpoint(eq(userId), any(String.class)));
   }
 
   @Test
   void incrementsClientErrorOnOtherFourHundred() throws Exception {
     String userId = "usr_400";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(400);
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(400);
 
     double before = counterValue("result", "http_4xx");
     dispatcher.dispatch(newEvent(userId));
@@ -111,9 +108,10 @@ class PushDispatcherImplTest {
   @Test
   void retriesThenIncrementsServerErrorOnFiveHundred() throws Exception {
     String userId = "usr_500";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
     AtomicInteger calls = new AtomicInteger();
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap()))
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class)))
         .thenAnswer(
             inv -> {
               calls.incrementAndGet();
@@ -132,36 +130,33 @@ class PushDispatcherImplTest {
   @Test
   void incrementsSkippedWhenNoSubscriptionStored() throws Exception {
     String userId = "usr_nope";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(null);
+    when(subscriptionRepository.findAllByUserId(userId)).thenReturn(java.util.List.of());
 
     double before = counterValue("result", "skipped_no_subscription");
     dispatcher.dispatch(newEvent(userId));
 
     awaitCounterIncrease("result", "skipped_no_subscription", before, 1);
-    verify(gatewayClient, never()).post(any(URI.class), any(byte[].class), anyMap());
+    verify(librarySender, never()).send(any(PushSubscription.class), any(byte[].class));
   }
 
   @Test
-  void incrementsFailedCounterOnEncryptionFailure() throws Exception {
-    String userId = "usr_encfail";
-    when(subscriptionRepository.findByUserId(userId))
-        .thenReturn(
-            new PushSubscription(
-                "https://fcm.googleapis.com/fcm/send/abc",
-                "$$not-base64$$",
-                Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[16])));
+  void incrementsFailedCounterOnSenderFailure() throws Exception {
+    String userId = "usr_sendfail";
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class)))
+        .thenThrow(new RuntimeException("library boom"));
 
     double before = counterValue("result", "failed");
     dispatcher.dispatch(newEvent(userId));
 
     awaitCounterIncrease("result", "failed", before, 1);
-    verify(gatewayClient, never()).post(any(URI.class), any(byte[].class), anyMap());
   }
 
   @Test
   void dispatchToUsesResolvedSubscriptionWithoutLookup() throws Exception {
     String userId = "usr_fanout";
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(201);
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(201);
 
     double before = counterValue("result", "ok");
     dispatcher
@@ -169,13 +164,13 @@ class PushDispatcherImplTest {
         .get(5, java.util.concurrent.TimeUnit.SECONDS);
 
     awaitCounterIncrease("result", "ok", before, 1);
-    verify(subscriptionRepository, never()).findByUserId(userId);
+    verify(subscriptionRepository, never()).findAllByUserId(userId);
   }
 
   @Test
   void dispatchToFutureCompletesNormallyEvenWhenPushFails() throws Exception {
     String userId = "usr_fanout_fail";
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(410);
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(410);
 
     double before = counterValue("result", "gone");
     dispatcher
@@ -183,61 +178,47 @@ class PushDispatcherImplTest {
         .get(5, java.util.concurrent.TimeUnit.SECONDS);
 
     awaitCounterIncrease("result", "gone", before, 1);
-    verify(subscriptionRepository, times(1)).deleteByUserId(userId);
+    verify(subscriptionRepository, times(1)).deleteByEndpoint(eq(userId), any(String.class));
   }
 
   @Test
-  void reusesCachedVapidJwtForTheSamePushServiceOrigin() throws Exception {
-    java.util.concurrent.BlockingQueue<java.util.Map<String, String>> captured =
-        new java.util.concurrent.LinkedBlockingQueue<>();
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap()))
-        .thenAnswer(
-            inv -> {
-              captured.add(inv.getArgument(2));
-              return 201;
-            });
+  void dispatchFansOutToEveryDeviceAndCleansOnlyTheGoneEndpoint() throws Exception {
+    String userId = "usr_multidevice";
+    PushSubscription firefox = subscriptionFor(userId);
+    PushSubscription chrome =
+        new PushSubscription(
+            "https://fcm.googleapis.com/fcm/send/other", firefox.p256dh(), firefox.auth());
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(firefox, chrome));
+    // First device answers 410 (stale), second answers 201.
+    when(librarySender.send(eq(firefox), any(byte[].class))).thenReturn(410);
+    when(librarySender.send(eq(chrome), any(byte[].class))).thenReturn(201);
 
-    dispatcher
-        .dispatchTo(subscriptionFor("usr_jwt_1"), newEvent("usr_jwt_1"))
-        .get(5, java.util.concurrent.TimeUnit.SECONDS);
-    dispatcher
-        .dispatchTo(subscriptionFor("usr_jwt_2"), newEvent("usr_jwt_2"))
-        .get(5, java.util.concurrent.TimeUnit.SECONDS);
-
-    java.util.Map<String, String> first = captured.poll(5, java.util.concurrent.TimeUnit.SECONDS);
-    java.util.Map<String, String> second = captured.poll(5, java.util.concurrent.TimeUnit.SECONDS);
-    assertNotNull(first);
-    assertNotNull(second);
-    assertEquals(first.get("Authorization"), second.get("Authorization"));
-  }
-
-  @Test
-  void payloadContainsVapidAuthorizationHeaderOnSuccess() throws Exception {
-    String userId = "usr_hdr";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
-
-    java.util.concurrent.BlockingQueue<java.util.Map<String, String>> captured =
-        new java.util.concurrent.LinkedBlockingQueue<>();
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap()))
-        .thenAnswer(
-            inv -> {
-              captured.add(inv.getArgument(2));
-              return 201;
-            });
-
+    double beforeOk = counterValue("result", "ok");
+    double beforeGone = counterValue("result", "gone");
     dispatcher.dispatch(newEvent(userId));
 
-    // Block until the dispatcher posts (this is what proves the async path actually
-    // went through the gateway client with the right payload).
-    java.util.Map<String, String> headers = captured.poll(5, java.util.concurrent.TimeUnit.SECONDS);
-    assertNotNull(headers, "headers should have been captured by the gateway mock");
-    assertEquals("high", headers.get("Urgency"));
-    assertEquals("aes128gcm", headers.get("Content-Encoding"));
-    String authz = headers.get("Authorization");
-    assertTrue(
-        authz.startsWith("vapid t="), "Authorization must start with 'vapid t=', got " + authz);
-    assertTrue(
-        authz.contains(",k="), "Authorization must include the public key ',k=' got: " + authz);
+    awaitCounterIncrease("result", "ok", beforeOk, 1);
+    awaitCounterIncrease("result", "gone", beforeGone, 1);
+    verify(librarySender, times(1)).send(eq(firefox), any(byte[].class));
+    verify(librarySender, times(1)).send(eq(chrome), any(byte[].class));
+    verify(subscriptionRepository, times(1)).deleteByEndpoint(userId, firefox.endpoint());
+    verify(subscriptionRepository, never()).deleteByUserId(userId);
+  }
+
+  @Test
+  void forwardsEncodedPayloadToLibrarySender() throws Exception {
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(201);
+
+    dispatcher
+        .dispatchTo(subscriptionFor("usr_payload"), newEvent("usr_payload"))
+        .get(5, java.util.concurrent.TimeUnit.SECONDS);
+
+    var captor = org.mockito.ArgumentCaptor.forClass(byte[].class);
+    verify(librarySender, times(1)).send(any(PushSubscription.class), captor.capture());
+    String json = new String(captor.getValue(), StandardCharsets.UTF_8);
+    assertTrue(json.contains("Alice le dio Like"), "payload must carry the title, got: " + json);
+    assertTrue(json.contains("POST_LIKE"), "payload must carry the type, got: " + json);
   }
 
   @Test
@@ -249,8 +230,9 @@ class PushDispatcherImplTest {
   @Test
   void recordsDurationAndBytesMetricsOnSuccess() throws Exception {
     String userId = "usr_metrics";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(201);
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(201);
 
     double beforeOk = counterValue("result", "ok");
     dispatcher.dispatch(newEvent(userId));
@@ -269,8 +251,9 @@ class PushDispatcherImplTest {
   @Test
   void rateLimitsRapidPushesToSameRecipient() throws Exception {
     String userId = "usr_storm";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap())).thenReturn(201);
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class))).thenReturn(201);
 
     double beforeOk = counterValue("result", "ok");
     double beforeRateLimited = counterValue("result", "rate_limited");
@@ -283,20 +266,18 @@ class PushDispatcherImplTest {
     awaitCounterIncrease("result", "ok", beforeOk, 1);
     awaitCounterIncrease("result", "rate_limited", beforeRateLimited, 99);
 
-    // Verify gateway client was only invoked once for this recipient
-    verify(gatewayClient, times(1)).post(any(URI.class), any(byte[].class), anyMap());
+    // Verify library sender was only invoked once for this recipient
+    verify(librarySender, times(1)).send(any(PushSubscription.class), any(byte[].class));
   }
 
   @Test
   void rateLimitsWhenGlobalCapacityExceeded() {
     PushDispatcherImpl customDispatcher =
         new PushDispatcherImpl(
-            vapidKeyProvider,
             subscriptionRepository,
-            gatewayClient,
+            librarySender,
             new com.fasterxml.jackson.databind.ObjectMapper(),
             meterRegistry,
-            "mailto:ops@wyrdly.com",
             1,
             10,
             10, // global rate limit = 10
@@ -313,8 +294,9 @@ class PushDispatcherImplTest {
   @Test
   void incrementsNetworkErrorCounterOnConnectionFailure() throws Exception {
     String userId = "usr_neterr";
-    when(subscriptionRepository.findByUserId(userId)).thenReturn(subscriptionFor(userId));
-    when(gatewayClient.post(any(URI.class), any(byte[].class), anyMap()))
+    when(subscriptionRepository.findAllByUserId(userId))
+        .thenReturn(java.util.List.of(subscriptionFor(userId)));
+    when(librarySender.send(any(PushSubscription.class), any(byte[].class)))
         .thenThrow(new java.io.IOException("Connection refused"));
 
     double before = counterValue("result", "network_error");
@@ -332,12 +314,10 @@ class PushDispatcherImplTest {
     // backoff scheduler for every subsequent test.
     PushDispatcherImpl localDispatcher =
         new PushDispatcherImpl(
-            vapidKeyProvider,
             subscriptionRepository,
-            gatewayClient,
+            librarySender,
             new com.fasterxml.jackson.databind.ObjectMapper(),
             meterRegistry,
-            "mailto:ops@wyrdly.com",
             1,
             10,
             1000,
@@ -414,8 +394,4 @@ class PushDispatcherImplTest {
             + counterValue(tag, value)
             + ")");
   }
-
-  /** Holds the headers captured by the last gateway call so tests can assert them. */
-  private static final ThreadLocal<java.util.Map<String, String>> headersHolder =
-      new ThreadLocal<>();
 }

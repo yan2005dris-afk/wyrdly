@@ -27,7 +27,13 @@ export const notificationsApi = {
     await apiClient.post(SUBSCRIBE_URL, subscription);
   },
 
-  async unsubscribe(): Promise<void> {
+  async unsubscribe(endpoint?: string): Promise<void> {
+    if (endpoint && endpoint.trim() !== "") {
+      await apiClient.delete(SUBSCRIBE_URL, {
+        params: { endpoint: endpoint.trim() },
+      });
+      return;
+    }
     await apiClient.delete(SUBSCRIBE_URL);
   },
 };

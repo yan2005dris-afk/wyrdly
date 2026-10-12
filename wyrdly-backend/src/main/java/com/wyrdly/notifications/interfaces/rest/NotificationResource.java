@@ -103,9 +103,9 @@ public class NotificationResource {
   @DELETE
   @Path("/subscribe")
   @Authenticated
-  public Response unsubscribe() {
+  public Response unsubscribe(@QueryParam("endpoint") String endpoint) {
     String userId = currentUserId();
-    SubscribeResponseDto response = unsubscribeUseCase.unsubscribe(userId);
+    SubscribeResponseDto response = unsubscribeUseCase.unsubscribeEndpoint(userId, endpoint);
     return Response.ok(response).build();
   }
 

@@ -26,8 +26,11 @@ public class Neo4jPushAudienceQueryAdapter implements PushAudienceQueryPort {
   static final String CYPHER_ALL_FOLLOWERS =
       "MATCH (author:Usuario {id: $authorId})<-[:SIGUE]-(f:Usuario) "
           + "WHERE f.id > $afterUserId AND f <> author "
-          + "RETURN f.id AS userId, f.pushEndpoint AS endpoint, "
-          + "f.pushP256dh AS p256dh, f.pushAuth AS auth "
+          + "OPTIONAL MATCH (f)-[:TIENE_SUSCRIPCION]->(s:SuscripcionPush) "
+          + "WITH f, s ORDER BY s.createdAt DESC "
+          + "WITH f, head(collect(s)) AS sub "
+          + "RETURN f.id AS userId, sub.endpoint AS endpoint, "
+          + "sub.p256dh AS p256dh, sub.auth AS auth "
           + "ORDER BY f.id "
           + "LIMIT $limit";
 
