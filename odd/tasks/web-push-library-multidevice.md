@@ -38,6 +38,7 @@ Autorizado por usuario: rama nueva para el refactor. Sin cambios de producto fue
 - 2026-10-12: T3 hecho. Nodos :SuscripcionPush + V104 (validada en IT), fan-out por dispositivo, gone limpia solo el endpoint, DELETE ?endpoint=. Fanout conserva 1 sub por follower. 182 tests verdes.
 - 2026-10-12: T4 hecho. unsubscribe manda ?endpoint=, siblings sobreviven. 529 vitest verdes, lint+prettier limpios.
 - 2026-10-12: T5 hecho. Runbook con modelo por nodo + notas de librería. E2E push-delivery 1/1 verde; suite completa 5/7 (2 fallas preexistentes en in-app-feed por username reservado, fuera de scope).
+- 2026-10-12: fix BC provider. `quarkus.security.security-providers=BC` faltante -> `NoSuchProviderException` en prod (todos los envíos `failed`). Verificado E2E real contra FCM (201 Created). 182 tests verdes.
 
 ## Next step
 T1 inventario.
