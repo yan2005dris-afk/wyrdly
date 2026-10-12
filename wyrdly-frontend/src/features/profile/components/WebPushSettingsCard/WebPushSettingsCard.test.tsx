@@ -340,8 +340,9 @@ describe("WebPushSettingsCard", () => {
     it("does NOT render the error box on first mount with a valid session", () => {
       render(<WebPushSettingsCard />);
       expect(screen.queryByTestId("webpush-settings-error")).toBeNull();
-      expect(screen.queryByText(pushCopy.changedSession, { exact: false }))
-        .toBeNull();
+      expect(
+        screen.queryByText(pushCopy.changedSession, { exact: false }),
+      ).toBeNull();
     });
 
     it("shows the changedSession error AFTER a Habilitar click that fails because the session was cleared mid-flight", async () => {
@@ -360,43 +361,40 @@ describe("WebPushSettingsCard", () => {
       expect(result.current.error?.name).toBe("changedSession");
     });
 
-    it(
-      "BUG: error from a previous failed Habilitar persists after the user logs back in",
-      async () => {
-        state = buildState();
-        installShims();
+    it("BUG: error from a previous failed Habilitar persists after the user logs back in", async () => {
+      state = buildState();
+      installShims();
 
-        render(<WebPushSettingsCard />);
-        await flushMicrotasks();
+      render(<WebPushSettingsCard />);
+      await flushMicrotasks();
 
-        // Step 1: simulate logout (token expired between mount and click)
-        await act(async () => {
-          seedAuth(null, null);
-        });
+      // Step 1: simulate logout (token expired between mount and click)
+      await act(async () => {
+        seedAuth(null, null);
+      });
 
-        // Step 2: user clicks Habilitar — fails with changedSession
-        await act(async () => {
-          screen.getByRole("button", { name: "Habilitar" }).click();
-        });
-        await flushMicrotasks();
+      // Step 2: user clicks Habilitar — fails with changedSession
+      await act(async () => {
+        screen.getByRole("button", { name: "Habilitar" }).click();
+      });
+      await flushMicrotasks();
 
-        // The error is now visible (this is expected)
-        expect(screen.getByTestId("webpush-settings-error")).toBeInTheDocument();
-        expect(
-          screen.getByText(pushCopy.changedSession, { exact: false }),
-        ).toBeInTheDocument();
+      // The error is now visible (this is expected)
+      expect(screen.getByTestId("webpush-settings-error")).toBeInTheDocument();
+      expect(
+        screen.getByText(pushCopy.changedSession, { exact: false }),
+      ).toBeInTheDocument();
 
-        // Step 3: user logs back in
-        await act(async () => {
-          seedAuth("usr_test", "token_test");
-        });
-        await flushMicrotasks();
+      // Step 3: user logs back in
+      await act(async () => {
+        seedAuth("usr_test", "token_test");
+      });
+      await flushMicrotasks();
 
-        // BUG: even with a valid session, the stale error is still shown
-        expect(
-          screen.queryByText(pushCopy.changedSession, { exact: false }),
-        ).toBeNull();
-      },
-    );
+      // BUG: even with a valid session, the stale error is still shown
+      expect(
+        screen.queryByText(pushCopy.changedSession, { exact: false }),
+      ).toBeNull();
+    });
   });
 });
