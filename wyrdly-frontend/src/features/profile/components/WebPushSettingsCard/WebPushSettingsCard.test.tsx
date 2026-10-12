@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, renderHook, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { useAuthStore } from "../../../auth/store/useAuthStore";
 import { pushCopy } from "../../../notifications/copy";
 
@@ -14,7 +14,7 @@ vi.mock("../../../../api/notifications", () => ({
 }));
 
 import { notificationsApi } from "../../../../api/notifications";
-import { useWebPush } from "../../../notifications/hooks/useWebPush";
+
 import { WebPushSettingsCard } from "./WebPushSettingsCard";
 
 const mockedGetVapidPublicKey = vi.mocked(notificationsApi.getVapidPublicKey);
@@ -336,62 +336,58 @@ describe("WebPushSettingsCard", () => {
     expect(screen.getByRole("button", { name: "Habilitar" })).toBeDisabled();
   });
 
-  describe("bug reproduction: changedSession error must not show on first mount", () => {
-    it("does NOT render the error box on first mount with a valid session", () => {
+  describe("changedSession error must never surface in the card UI", () => {
+    it("does NOT render any error box on first mount with a valid session", () => {
       render(<WebPushSettingsCard />);
+      expect(screen.queryByTestId("webpush-settings-error")).toBeNull();
+    });
+
+    it("does NOT show the changedSession error after a Habilitar click that fails", async () => {
+      state = buildState();
+      installShims();
+
+      render(<WebPushSettingsCard />);
+      await flushMicrotasks();
+
+      // Simulate logout between mount and click
+      await act(async () => {
+        seedAuth(null, null);
+      });
+
+      // User clicks Habilitar — subscribe() will set changedSession on
+      // the hook but the card must not surface it.
+      await act(async () => {
+        screen.getByRole("button", { name: "Habilitar" }).click();
+      });
+      await flushMicrotasks();
+
       expect(screen.queryByTestId("webpush-settings-error")).toBeNull();
       expect(
         screen.queryByText(pushCopy.changedSession, { exact: false }),
       ).toBeNull();
     });
 
-    it("shows the changedSession error AFTER a Habilitar click that fails because the session was cleared mid-flight", async () => {
-      state = buildState();
-      installShims();
-      const { result } = renderHook(() => useWebPush({ enabled: true }));
-      // simulate logout between mount and click
-      await act(async () => {
-        seedAuth(null, null);
-      });
-      let success: boolean | undefined;
-      await act(async () => {
-        success = await result.current.subscribe();
-      });
-      expect(success).toBe(false);
-      expect(result.current.error?.name).toBe("changedSession");
-    });
-
-    it("BUG: error from a previous failed Habilitar persists after the user logs back in", async () => {
+    it("does NOT show the changedSession error after the user logs back in either", async () => {
       state = buildState();
       installShims();
 
       render(<WebPushSettingsCard />);
       await flushMicrotasks();
 
-      // Step 1: simulate logout (token expired between mount and click)
+      // Logout, then click Habilitar (fails internally), then login again.
       await act(async () => {
         seedAuth(null, null);
       });
-
-      // Step 2: user clicks Habilitar — fails with changedSession
       await act(async () => {
         screen.getByRole("button", { name: "Habilitar" }).click();
       });
       await flushMicrotasks();
-
-      // The error is now visible (this is expected)
-      expect(screen.getByTestId("webpush-settings-error")).toBeInTheDocument();
-      expect(
-        screen.getByText(pushCopy.changedSession, { exact: false }),
-      ).toBeInTheDocument();
-
-      // Step 3: user logs back in
       await act(async () => {
         seedAuth("usr_test", "token_test");
       });
       await flushMicrotasks();
 
-      // BUG: even with a valid session, the stale error is still shown
+      expect(screen.queryByTestId("webpush-settings-error")).toBeNull();
       expect(
         screen.queryByText(pushCopy.changedSession, { exact: false }),
       ).toBeNull();

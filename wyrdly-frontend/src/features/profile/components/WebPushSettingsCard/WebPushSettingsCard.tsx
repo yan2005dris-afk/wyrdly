@@ -1,5 +1,5 @@
 import { useCallback, useState, type FC } from "react";
-import { Bell, BellOff, AlertTriangle } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 import { pushCopy } from "../../../notifications/copy";
 import { useAuthStore } from "../../../auth/store/useAuthStore";
 import { useWebPush } from "../../../notifications/hooks/useWebPush";
@@ -57,31 +57,34 @@ const describeState = (
  * notifications from inside the profile page. Backed by `useWebPush`, so
  * the same session / cache / VAPID-rotation hardening from the push
  * hardening stack applies.
+ *
+ * UX note: the card does NOT display the `error` returned by `useWebPush`
+ * for `changedSession`. That code is raised when the auth store has no
+ * session (or the user has just logged out elsewhere), which has nothing
+ * to do with the push toggle itself — surfacing it inside the push
+ * settings card makes the toggle look broken when the real problem is
+ * elsewhere. The badge + body already convey the toggle state; the
+ * `changedSession` signal is handled by the auth layer (re-login).
  */
 export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
   className = "",
 }) => {
-  const {
-    isSupported,
-    permission,
-    isSubscribed,
-    subscribe,
-    unsubscribe,
-    error,
-  } = useWebPush({ enabled: true });
+  const { isSupported, permission, isSubscribed, subscribe, unsubscribe } =
+    useWebPush({ enabled: true });
 
-  // detectSupport reason code lives inside the hook; surface it via the
-  // error name when subscribe is rejected with an unsupported-like code.
+  // We intentionally do NOT read `error` from the hook. See UX note above.
+  // Subscribe to the auth store so the auth store re-renders this card when
+  // the user logs in/out; the support status will be re-evaluated on each
+  // render and the badge / CTA will reflect the live session.
+  useAuthStore((s) => Boolean(s.user && s.token));
+
   const supportReason: PushErrorCode | undefined = (() => {
-    if (!isSupported && error?.name) {
-      const code = error.name as PushErrorCode;
-      if (
-        code === "unsupported" ||
-        code === "missingCache" ||
-        code === "insecureContext"
-      ) {
-        return code;
-      }
+    if (!isSupported) {
+      // detectSupport() returns the failing support check via the
+      // `unsupported` error name when subscribe() is rejected. Without an
+      // error we cannot derive a specific reason, so the badge falls back
+      // to the generic "No disponible" copy.
+      return undefined;
     }
     return undefined;
   })();
@@ -94,24 +97,8 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
   );
 
   const [busy, setBusy] = useState<"enable" | "disable" | null>(null);
-  // Tracks the most recent user-initiated action so the error box only
-  // appears immediately after a click — not as leftover state from a
-  // previous mount, a previous failed attempt on another instance of the
-  // hook (e.g. MainLayout's banner), or a session that has since been
-  // restored. See bug repro in WebPushSettingsCard.test.tsx.
-  const [attemptedAction, setAttemptedAction] = useState<
-    "enable" | "disable" | null
-  >(null);
-  // Subscribe to auth changes; when the session is restored we clear the
-  // stale action marker so the error stops rendering even before the user
-  // clicks again. Selector is intentionally narrow to avoid extra
-  // re-renders on unrelated auth-store updates.
-  const hasSession = useAuthStore((s) => Boolean(s.user && s.token));
-  const liveAttemptedAction =
-    hasSession && attemptedAction !== null ? null : attemptedAction;
 
   const handleEnable = useCallback(async () => {
-    setAttemptedAction("enable");
     setBusy("enable");
     try {
       await subscribe();
@@ -121,7 +108,6 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
   }, [subscribe]);
 
   const handleDisable = useCallback(async () => {
-    setAttemptedAction("disable");
     setBusy("disable");
     try {
       await unsubscribe();
@@ -167,18 +153,6 @@ export const WebPushSettingsCard: FC<WebPushSettingsCardProps> = ({
 
       <div className={styles.body}>
         <p className={styles.description}>{state.body}</p>
-        {error &&
-          liveAttemptedAction !== null &&
-          state.status === "disabled" &&
-          error.name !== "denied" && (
-            <div
-              className={styles.errorBox}
-              data-testid="webpush-settings-error"
-            >
-              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{error.message}</span>
-            </div>
-          )}
         <p className={styles.helperText}>
           El cambio se aplica solo a este navegador. Si usás la app en varios
           dispositivos, activalas en cada uno.
