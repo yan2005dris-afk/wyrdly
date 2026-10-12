@@ -25,6 +25,7 @@ Usuario en docker con perm granted + SW registrado sigue bloqueado sin diagnóst
 - [x] T2: Hook loguea `[push]` en catches de `subscribe`/`unsubscribe`/`init` sin cambiar retorno (route: inline)
 - [x] T3: Verificación proporcional: `pnpm vitest run` notificaciones + profile card, `pnpm lint`, `prettier --check` (route: inline per-action permitida)
 - [x] T4: Fix causa raíz dual-auth: `getActiveSession` lee Zustand y hace fallback a `tokenStore + wyrdly_user` (AuthContext real); card se suscribe a `AuthContext` para re-render (route: inline)
+- [x] T5: Banner del feed como invitación a Settings (?tab=settings) en vez de suscripción directa (route: inline)
 
 ## Authorized scope
 Autorizado por usuario: "si dentro de esta rama misma". Solo los dos archivos de arriba + updates mínimos de tests si rompen por el errorBox.

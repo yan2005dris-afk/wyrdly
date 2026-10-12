@@ -69,23 +69,21 @@ export const MainLayout: FC<MainLayoutProps> = ({
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
-  const [isSubscribing, setIsSubscribing] = useState(false);
 
   const { profile: apiProfile } = useUserProfile(user?.username);
 
-  const { isSupported, permission, subscribe } = useWebPush({
+  const { isSupported, permission } = useWebPush({
     enabled: Boolean(user),
   });
   const showPushBanner =
     !pushBannerDismissed && isSupported && permission === "default";
 
-  const handleEnablePush = async () => {
-    setIsSubscribing(true);
-    try {
-      await subscribe();
-    } finally {
-      setIsSubscribing(false);
-    }
+  const handleGoToPushSettings = () => {
+    setPushBannerDismissed(true);
+    const base = user?.username
+      ? `/profile/${encodeURIComponent(user.username)}`
+      : "/profile";
+    navigate(`${base}?tab=settings`);
   };
 
   const {
@@ -195,9 +193,8 @@ export const MainLayout: FC<MainLayoutProps> = ({
           />
           {showPushBanner ? (
             <PushPermissionBanner
-              onEnable={handleEnablePush}
+              onEnable={handleGoToPushSettings}
               onDismiss={() => setPushBannerDismissed(true)}
-              isLoading={isSubscribing}
               className={styles.pushBanner}
             />
           ) : null}
