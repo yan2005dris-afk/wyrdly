@@ -1,0 +1,27 @@
+Red Team vs Blue Team - Fase 3 (Cierre de Auditoría)
+
+Cierre de Auditoría del Red Team G02 al Blue Team G05
+Respondimos a la fase de réplica sobre los 7 hallazgos registrados en GitHub, verificados sobre la versión congelada develop @ 8c062a6.
+
+Los resultados finales tras nuestra contrarréplica técnica son:
+
+Mantenidos: 3 Modificados (Aceptados con obs): 3 Retirados: 1
+Resumen Final de Hallazgos y Contrarréplicas
+Hallazgo	Estado Final	Conclusión de la Auditoría
+REP-001 · Backend unhealthy en Windows	MANTENIDO
+(Crítica)	Aunque la falla sea de pre-configuración en el host, incumple la "Reproducibilidad From Zero" en Windows al dejar la API inoperable por la falta del JWT.
+SEC-001 · El Rate Limiting es Falso	RETIRADO	El Blue Team demostró empíricamente que la prueba inicial chocó contra el filtro de Idempotencia. El limitador sí devuelve HTTP 429 al alcanzar la cuota real.
+REQ-002 · Soporte de video roto	MODIFICADO
+(Baja)	Se comprobó que el soporte multimedia de imágenes cumple los requisitos base. El hallazgo se degrada a un defecto de UX por un selector de archivos engañoso.
+QUA-003 · Falla crítica en notificaciones	MODIFICADO
+(Media)	El backend opera correctamente (rechaza 401), pero el canal SSE del frontend hace bucles infinitos. Se degrada a falla de gestión de sesión en cliente.
+UX-004 · Botón de opciones fantasma	MANTENIDO
+(Baja)	El Blue Team reconoce que dejar componentes inoperativos (Dead Clicks) expuestos es un defecto de interfaz. Confirmaron su futura eliminación.
+RES-005 · Colapso del frontend ante Neo4j	MODIFICADO
+(Media)	Severidad degradada por no existir corrupción de datos. La falla radica en propagar un código 500 no controlado en lugar de un manejo semántico 503 (Mantenimiento).
+RES-006 · Degradación por timeout en Redis	MANTENIDO
+(Media)	Se confirma la latencia en cascada ante la caída de su capa de optimización. El Blue Team acepta que sus filtros carecen de Fail-fast / Circuit Breaker.
+Notas Adicionales del Equipo Auditor:
+Queremos destacar el excelente nivel arquitectónico del Grupo 05. La inclusión de un mecanismo de Idempotencia (Anti Rage-Click) previo al Rate Limiting es una solución robusta y de nivel empresarial que mitigó exitosamente uno de nuestros vectores de ataque principales.
+La disposición a utilizar patrones de resiliencia como Circuit Breaker y ServerExceptionMapper en su plan de acciones correctivas demuestra una madurez técnica notable y una rápida capacidad de iteración.
+Firma: Red Team Grupo 02

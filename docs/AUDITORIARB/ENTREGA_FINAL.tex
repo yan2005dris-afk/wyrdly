@@ -1,0 +1,451 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{geometry}
+\geometry{top=2cm,bottom=2cm,left=2cm,right=2cm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{multicol}
+
+\emergencystretch=3em
+\tolerance=2000
+\newcommand{\code}[1]{\nolinkurl{#1}}
+
+% Colores
+\definecolor{upseblue}{RGB}{15, 45, 95}
+\definecolor{sectionblue}{RGB}{20, 60, 120}
+\definecolor{tableheader}{RGB}{235, 240, 248}
+\definecolor{lightgray}{RGB}{248, 250, 252}
+\definecolor{redteamcolor}{RGB}{180, 30, 30}
+\definecolor{blueteamcolor}{RGB}{20, 60, 140}
+\definecolor{acceptedgreen}{RGB}{30, 120, 60}
+
+% Badges de severidad
+\newcommand{\badgeCritica}{\colorbox{red!20}{\textcolor{red!80!black}{\textbf{\footnotesize Crítica}}}}
+\newcommand{\badgeAlta}{\colorbox{orange!20}{\textcolor{orange!90!black}{\textbf{\footnotesize Alta}}}}
+\newcommand{\badgeMedia}{\colorbox{yellow!35}{\textcolor{brown!90!black}{\textbf{\footnotesize Media}}}}
+\newcommand{\badgeBaja}{\colorbox{blue!15}{\textcolor{blue!80!black}{\textbf{\footnotesize Baja}}}}
+
+% Badges de estado
+\newcommand{\badgeMantenido}{\colorbox{red!15}{\textcolor{red!70!black}{\textbf{\footnotesize Mantenido}}}}
+\newcommand{\badgeModificado}{\colorbox{yellow!30}{\textcolor{brown!80!black}{\textbf{\footnotesize Modificado}}}}
+\newcommand{\badgeRetirado}{\colorbox{green!20}{\textcolor{green!60!black}{\textbf{\footnotesize Retirado}}}}
+\newcommand{\badgeAceptado}{\colorbox{green!20}{\textcolor{green!60!black}{\textbf{\footnotesize Aceptado}}}}
+\newcommand{\badgeAceptadoObs}{\colorbox{yellow!30}{\textcolor{brown!80!black}{\textbf{\footnotesize Acept. c/Obs.}}}}
+\newcommand{\badgeImpugnado}{\colorbox{red!15}{\textcolor{red!70!black}{\textbf{\footnotesize Impugnado}}}}
+\newcommand{\badgeReproducible}{\colorbox{green!20}{\textcolor{green!60!black}{\textbf{\footnotesize Reproducible}}}}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=sectionblue,
+    urlcolor=sectionblue,
+    citecolor=sectionblue
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{sectionblue}{\textbf{Entrega Final — Auditoría Cruzada (2026)}}}
+\fancyhead[R]{\small\textcolor{gray}{Grupo 05 · UPSE Software 7/1}}
+\fancyfoot[C]{\small Página \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\titleformat{\section}{\color{sectionblue}\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\color{upseblue}\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\color{black}\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+\begin{document}
+
+% ------------------- PORTADA -------------------
+\begin{titlepage}
+\centering
+\vspace*{0.5cm}
+\includegraphics[width=3.2cm]{RedTeam/Picture.png}\\[0.8cm]
+
+{\Large \textbf{UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA}}\\[0.2cm]
+{\large \textbf{FACULTAD DE SISTEMAS Y TELECOMUNICACIONES}}\\[0.2cm]
+{\large \textbf{CARRERA DE INGENIERÍA EN SOFTWARE}}\\[1.2cm]
+
+{\normalsize \textbf{ASIGNATURA:}}\\[0.1cm]
+{\large SISTEMAS DISTRIBUIDOS Y CLOUD COMPUTING}\\[0.8cm]
+
+{\normalsize \textbf{TEMA:}}\\[0.1cm]
+{\Large \textbf{\textcolor{sectionblue}{ENTREGA FINAL — AUDITORÍA CRUZADA (2026)}}}\\[0.2cm]
+{\normalsize Expediente Final · Red Team + Blue Team}\\[1.2cm]
+
+\begin{tcolorbox}[colback=lightgray,colframe=upseblue!40,width=0.9\textwidth,arc=2mm]
+\centering
+\textbf{ELABORADO POR (GRUPO 05 — Wyrdly):}\\[0.3cm]
+\begin{tabular}{ll}
+Andy Bryan Alejandro Vera & Alisson Yamel Reyes Ricardo \\
+Gino Maximiliano Bermúdez Santos & Yandris Miguel Rivera Torres \\
+\end{tabular}
+\end{tcolorbox}
+\vspace{0.8cm}
+
+\textbf{CURSO Y PARALELO:} SOFTWARE 7/1\\[0.2cm]
+\textbf{DOCENTE:} ING. ANTHONY ABRAHAN PACHAY ESPINOZA\\[1.5cm]
+
+\vfill
+{\normalsize \textbf{LA LIBERTAD -- ECUADOR}}\\[0.1cm]
+{\small Octubre 2026}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ============================================================
+%  RESUMEN EJECUTIVO DE PORTADA
+% ============================================================
+\begin{tcolorbox}[colback=lightgray!50,colframe=upseblue!35,arc=2mm]
+\small
+\textbf{Asignatura:} Sistemas Distribuidos y Cloud Computing \quad$\cdot$\quad \textbf{Curso:} Software 7/1\\
+\textbf{Docente:} ING. ANTHONY ABRAHAN PACHAY ESPINOZA\\
+\textbf{Grupo:} 05 — Wyrdly (red social distribuida en Quarkus 3 · React 19 · Neo4j · Redis · RustFS)\\[0.2cm]
+\begin{tabular}{@{}ll@{\qquad}ll@{}}
+\textbf{Rol Red Team:} auditor del Grupo 03 &
+\textbf{Rol Blue Team:} auditado por el Grupo 02 \\
+\textbf{Hallazgos emitidos (GitHub Issues):} 9 &
+\textbf{Hallazgos recibidos:} 7 \\
+\end{tabular}
+\end{tcolorbox}
+\vspace{1em}
+
+% ============================================================
+%  PARTE A — RED TEAM
+% ============================================================
+\section{\textcolor{redteamcolor}{Parte A — Evidencia como Red Team}}
+
+\subsection{Identificación del equipo auditado}
+
+\begin{tcolorbox}[colback=red!4,colframe=redteamcolor!40,arc=2mm]
+\begin{tabular}{@{}p{4cm}p{10.5cm}@{}}
+\textbf{Equipo auditado:} & Grupo 03 — \textit{red-social-distribuida} \\
+\textbf{Tecnologías:} & Frontend React 19 · Backend Quarkus 3.33 LTS (Java 21) · Neo4j 5 · Redis 7 · MinIO \\
+\textbf{Repositorio auditado:} & \url{https://github.com/Joseepc18/red-social-distribuida.git} \\
+\textbf{Rama auditada:} & \code{main} \\
+\textbf{SHA del commit congelado:} & \code{454d3f26141f279f1babb349858506dc679aef83} \\
+\textbf{Hilo de auditoría en Moodle:} & \url{https://eva.upse.edu.ec/mod/forum/discuss.php?d=47712} \\
+\textbf{GitHub Issues generados:} & \url{https://github.com/Joseepc18/red-social-distribuida/issues} \\
+\end{tabular}
+\end{tcolorbox}
+
+\subsection{Reproducibilidad}
+
+\noindent\badgeReproducible\ \textbf{Reproducible (From Zero)}
+
+\noindent El entorno se levantó con éxito ejecutando \code{git clone} + \code{docker compose up -d --build} sin asistencia del equipo propietario. El primer arranque requirió tiempo adicional porque el servicio MinIO se compilaba desde código fuente dentro del build de Docker. Los arranques subsecuentes fueron fluidos. La documentación (\code{README.md}) fue la mejor observada en la cohorte: explica arquitectura, variables de entorno, modelo de grafo Cypher, endpoints, respaldo y restauración.
+
+\noindent\textbf{Observación:} El tiempo de compilación inicial no estaba advertido en el \code{README.md}; se documentó como hallazgo H-01 (severidad Media).
+
+\subsection{Hallazgos emitidos}
+
+\subsubsection{Resumen cuantitativo}
+
+\begin{tcolorbox}[colback=lightgray!50,colframe=upseblue!30,arc=2mm]
+\centering
+\begin{tabular}{cccccc}
+\textbf{Total (fase 1)} & \badgeCritica & \badgeAlta & \badgeMedia & \badgeBaja & \textbf{Obs.}\\[4pt]
+\textbf{9} & 1 & 8 & 0 & 0 & 0 \\[0.6em]
+\end{tabular}\\[0.3em]
+\textbf{Distribución final} (post-contrarréplica)\\[0.3em]
+\begin{tabular}{cccccc}
+\textbf{Total} & \badgeCritica & \badgeAlta & \badgeMedia & \badgeBaja & \textbf{Retirados}\\[4pt]
+\textbf{9} & 0 & 2 & 4 & 3 & 0 \\
+\end{tabular}\\[0.4em]
+\small GitHub Issues \#112--\#120 en \url{https://github.com/Joseepc18/red-social-distribuida/issues}
+\end{tcolorbox}
+
+\subsubsection{Tabla de GitHub Issues (Issues \#112–\#120)}
+
+\begin{tabularx}{\textwidth}{p{0.9cm} p{0.8cm} p{1.7cm} p{1.8cm} X}
+\rowcolor{tableheader}\toprule
+ID & Issue & Sev. inicial & Sev. final & Hallazgo \\ \midrule
+H-10 & \#112 & \badgeCritica & \badgeMedia & Clave privada RSA con \code{chmod 644} en \code{docker-compose.yml:102}: el volumen \code{app\_keys} expone \code{privateKey.pem} y \code{vapid-private.txt} con permisos world-readable. Permite falsificar JWT y suplantar el servidor VAPID si hay lectura arbitraria de archivos. \\ \midrule
+H-11 & \#113 & \badgeAlta & \badgeAlta & Timing attack y enumeración de usuarios en login: rama «usuario inexistente» retorna en 5--15~ms; rama «contraseña incorrecta» tarda 80--120~ms por \code{BcryptUtil.matches}. Diferencia de $\sim$5$\times$ demostrada por ambos equipos. \\ \midrule
+H-12 & \#114 & \badgeAlta & \badgeMedia & Ausencia de \code{Content-Security-Policy} en \code{frontend/nginx.conf}: sesión JWT almacenada en \code{localStorage} queda expuesta ante cualquier XSS futuro; no existe barrera de navegador. \\ \midrule
+H-28 & \#115 & \badgeAlta & \badgeAlta & Credencial inmutable: sin endpoint de cambio de contraseña ni lista negra de tokens. Cierre de sesión solo purga \code{localStorage}; el JWT sigue válido 24h y la contraseña no puede cambiarse. \\ \midrule
+H-05 & \#117 & \badgeAlta & \badgeMedia & \code{PostService} con 5 dependencias directas: \code{create()} orquesta validación, upload S3, commit Neo4j, evento CDI y ensamblado en 46 líneas con 4 bloques \code{try/catch} de compensación. \\ \midrule
+H-07 & \#116 & \badgeMedia & \badgeBaja & \code{AuthService} depende de \code{UserService} en lugar de \code{UserRepository}: acoplamiento transitivo sin impacto funcional. Degradado a Baja. \\ \midrule
+H-09 & \#118 & \badgeMedia & \badgeBaja & Mezcla de idiomas: paquetes en español (\code{comentarios}, \code{notificaciones}) + métodos en inglés (\code{create}, \code{thread}) + tipo duplicado \code{UsuarioResumen}/\code{UserSummary}. Aceptado y degradado a Baja. \\ \midrule
+H-22 & \#119 & \badgeAlta & \badgeBaja & WSOD en comentarios: \code{CommentThread.tsx} accede a \code{comment.autor.id} sin \code{?}; sin \code{<ErrorBoundary>} un nulo desmonta toda la app. G03 demostró que \code{MATCH (autor:Usuario)} excluye nulos. Degradado a Baja. \\ \midrule
+H-24 & \#120 & \badgeAlta & \badgeMedia & Sin timeout ni Circuit Breaker hacia Neo4j: las consultas bloquean el pool de workers hasta que Nginx corta a los 60~s (valor por defecto de \code{proxy\_read\_timeout}); \code{/q/health/live} sigue en 200 aunque el servicio sea inoperable. \\ \bottomrule
+\end{tabularx}
+
+\subsection{Resultado posterior a la réplica del Blue Team auditado}
+
+\begin{tabularx}{\textwidth}{p{0.8cm} p{3.5cm} p{1.8cm} p{1.5cm} X}
+\rowcolor{tableheader}\toprule
+ID & Hallazgo & Réplica G03 & Estado final & Síntesis de la contrarréplica \\ \midrule
+H-11 & Timing attack en login & Aceptado & \badgeMantenido\ \badgeAlta & G03 aportó medición propia (22~ms vs 116~ms) que confirma el hallazgo. Rate limit de Nginx no impide enumeración distribuida por IP. \\ \midrule
+H-28 & Sin cambio de clave ni revocación & Acept. c/obs. & \badgeMantenido\ \badgeAlta & Corregimos ruta (\code{/me} no \code{/yo}) y retiramos «secuestro definitivo» del token; la falla real persiste: contraseña sin vía de cambio. \\ \midrule
+H-09 & Mezcla de idiomas y tipo duplicado & Aceptado & \badgeMantenido\ \badgeBaja & Unificamos severidad (era Media en el foro, Baja en el Issue). \\ \midrule
+H-10 & Clave privada JWT \code{chmod 644} & Acept. c/obs. & \badgeModificado\ \badgeMedia & Aceptamos: solo los backends montan \code{app\_keys}; UID correcto es 185, no 1001. Mantenemos Media porque el mismo chmod afecta también \code{vapid-private.txt}. \\ \midrule
+H-12 & Sin Content-Security-Policy & Acept. c/obs. & \badgeModificado\ \badgeMedia & Ningún XSS demostrado; no hay \code{dangerouslySetInnerHTML}. Mantenemos Media: JWT en \code{localStorage} queda sin barrera si aparece un XSS futuro. \\ \midrule
+H-24 & Sin timeout/Circuit Breaker Neo4j & Acept. c/obs. & \badgeModificado\ \badgeMedia & Retiramos «caída en cascada»; no es Netty sino worker pool. Media: 60~s de degradación total sin señal al balanceador es un defecto de resiliencia medible. \\ \midrule
+H-05 & \code{PostService} 5 dependencias & Acept. c/obs. & \badgeModificado\ \badgeMedia & \code{ImageValidator} tiene tests propios; hay cobertura de integración. Media: compensación de MinIO acoplada al mismo método de creación. \\ \midrule
+H-09 & Mezcla de idiomas / tipo duplicado & Aceptado & \badgeModificado\ \badgeBaja & Aceptado sin impugnación. Unificamos severidad: el foro indicaba Media, el Issue \#118 decía Baja; cerramos en Baja. \\ \midrule
+H-22 & WSOD en comentarios & Acept. c/obs. & \badgeModificado\ \badgeBaja & G03 demostró que \code{MATCH (autor:Usuario)} excluye nulos. Sin camino reproducible para disparar el crash = Baja. \\ \bottomrule
+\end{tabularx}
+
+\vspace{0.5em}
+\begin{tcolorbox}[colback=lightgray!50,colframe=upseblue!30,arc=2mm]
+\small
+\textbf{Resumen post-contrarréplica (Red Team G05 → Blue Team G03):}\quad
+\textbf{Mantenidos:} 3 (H-11 Alta, H-28 Alta, H-09 Baja)\quad
+\textbf{Modificados:} 6 (H-10 Media, H-12 Media, H-24 Media, H-05 Media, H-09 Baja, H-22 Baja)\quad
+\textbf{Retirados:} 0\quad
+\textbf{Distribución final:} 0 Críticos · 2 Altos · 4 Medios · 3 Bajos
+\end{tcolorbox}
+
+\subsection{Top 3 hallazgos más relevantes}
+
+\begin{tcolorbox}[colback=red!4,colframe=redteamcolor!40,arc=2mm,title={\textbf{Top 1 — H-10 · Clave privada RSA con chmod 644 (Issue \#112)}}]
+\badgeCritica\ \textbf{CWE-732 / CWE-552 · Permisos incorrectos sobre material criptográfico}
+
+En \code{docker-compose.yml:102}, el contenedor \code{keys-init} ejecuta \code{chmod 644 /keys/*} sobre la clave privada RSA (\code{privateKey.pem}) y la clave VAPID (\code{vapid-private.txt}). Ambas quedan \code{rw-r--r--}: legibles por cualquier usuario del sistema de archivos del contenedor. Quien logre leer \code{privateKey.pem} puede firmar tokens JWT arbitrarios para cualquier \code{subject} y asumir privilegios de cualquier usuario del sistema. Es el único hallazgo Crítico de la auditoría.
+
+\textbf{Evidencia:}
+\begin{verbatim}
+docker compose exec backend-1 ls -la /keys
+# -rw-r--r-- 1 root root 1675 privateKey.pem
+# docker-compose.yml:102: chmod 644 /keys/*
+\end{verbatim}
+\textbf{Resolución post-réplica:} Modificado a Media — el Blue Team demostró que solo los dos backends montan el volumen y que el UID correcto es 185. Corrección confirmada: \code{chown 185:185 /keys/privateKey.pem \&\& chmod 600 /keys/privateKey.pem}.\\
+\textbf{GitHub Issue:} \url{https://github.com/Joseepc18/red-social-distribuida/issues/112}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=red!4,colframe=redteamcolor!40,arc=2mm,title={\textbf{Top 2 — H-11 · Timing Attack y Enumeración de Usuarios en Login (Issue \#113)}}]
+\badgeAlta\ \textbf{CWE-208 / CWE-204 · Información filtrada por diferencias de tiempo}
+
+En \code{AuthService.login()}, cuando el usuario no existe el \code{Optional} es vacío y la rama retorna sin ejecutar \code{BcryptUtil.matches} ($\sim$5--15~ms). Cuando el usuario existe con contraseña incorrecta, \code{matches} consume el costo criptográfico de bcrypt ($\sim$80--120~ms). Diferencia de $\sim$5$\times$ confirmada por medición independiente del Blue Team G03 (mediana 22.3~ms vs 116.1~ms). Aunque el rate limit de Nginx limita las peticiones por IP, basta distribuir el escaneo entre múltiples IPs para enumerar la base de usuarios completa. \textbf{Estado final: Mantenido Alta.}
+
+\textbf{Corrección:} Computar siempre \code{BcryptUtil.matches} con un hash ficticio precargado cuando el usuario no exista.\\
+\textbf{GitHub Issue:} \url{https://github.com/Joseepc18/red-social-distribuida/issues/113}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=red!4,colframe=redteamcolor!40,arc=2mm,title={\textbf{Top 3 — H-28 · Credencial Inmutable: Sin Cambio de Contraseña ni Revocación JWT (Issue \#115)}}]
+\badgeAlta\ \textbf{CWE-620 / CWE-613 · Contraseña permanente + sesión no revocable}
+
+\code{AuthResource} solo expone \code{POST /registro} y \code{POST /login}. No existe \code{PUT /auth/password} ni lista negra de tokens en Redis. El cierre de sesión solo ejecuta \code{setSession(null)} en el cliente (\code{AuthProvider.tsx:68-71}); el servidor no tiene ninguna señal. Si la contraseña se filtra, el atacante puede emitir tokens indefinidamente sin que la víctima pueda bloquearlo: la única salida es intervenir la base de datos manualmente. Para una red social con mensajería privada, esto constituye una cuenta comprometida sin vía de recuperación. \textbf{Estado final: Mantenido Alta.}
+
+\textbf{GitHub Issue:} \url{https://github.com/Joseepc18/red-social-distribuida/issues/115}
+\end{tcolorbox}
+
+% ============================================================
+%  PARTE B — BLUE TEAM
+% ============================================================
+\section{\textcolor{blueteamcolor}{Parte B — Evidencia como Blue Team}}
+
+\subsection{Identificación del repositorio propio}
+
+\begin{tcolorbox}[colback=blue!4,colframe=blueteamcolor!40,arc=2mm]
+\begin{tabular}{@{}p{4.5cm}p{10cm}@{}}
+\textbf{Proyecto:} & Wyrdly — Red Social Distribuida \\
+\textbf{Repositorio:} & \url{https://github.com/yan2005dris-afk/wyrdly} \\
+\textbf{Rama sometida a auditoría:} & \code{develop} \\
+\textbf{SHA del commit congelado:} & \code{8c062a6} \\
+\textbf{Red Team auditor:} & Grupo 02 \\
+\textbf{Hilo en Moodle:} & \url{https://eva.upse.edu.ec/mod/forum/discuss.php?d=47708} \\
+\textbf{Issues recibidos:} & \url{https://github.com/yan2005dris-afk/wyrdly/issues} (\#173--\#177, \#184--\#185) \\
+\end{tabular}
+\end{tcolorbox}
+
+\subsection{Issues recibidos y respuestas}
+
+\subsubsection{Resumen cuantitativo}
+
+\begin{tcolorbox}[colback=lightgray!50,colframe=upseblue!30,arc=2mm]
+\centering
+\begin{tabular}{ccccc}
+\textbf{Recibidos} & \badgeAceptado & \badgeAceptadoObs & \badgeImpugnado & \\[4pt]
+\textbf{7} & 0 & 6 & 1 & \\
+\end{tabular}
+\end{tcolorbox}
+
+\subsubsection{Tabla de respuestas por hallazgo}
+
+\begin{tabularx}{\textwidth}{p{1.5cm} p{4.5cm} p{2.3cm} X}
+\rowcolor{tableheader}\toprule
+ID & Descripción & Nuestra respuesta & Resultado final (post-contrarréplica) \\ \midrule
+REP-001 & Backend \textit{unhealthy} en Windows por script JWT Bash & \badgeAceptadoObs & \badgeMantenido\ (Crítica) — El Red Team mantuvo la severidad por bloquear la reproducibilidad from-zero en Windows. \\ \midrule
+SEC-001 & Rate Limiting «falso» — todas las peticiones devolvían 200 & \badgeImpugnado & \badgeRetirado\ — El Red Team comprobó que ejecutó clics sobre el mismo post, activando el filtro de Idempotencia (Anti Rage-Click) en lugar del Rate Limiter. \\ \midrule
+REQ-002 & Soporte de video roto — selector acepta \code{.mp4} pero backend rechaza & \badgeAceptadoObs & \badgeModificado\ (Baja) — Degradado a defecto UX por selector engañoso; imágenes con RustFS operan correctamente. \\ \midrule
+QUA-003 & Ciclo \code{401 Unauthorized} constante en notificaciones & \badgeAceptadoObs & \badgeModificado\ (Media) — El canal SSE no renueva token expirado; el backend opera correctamente. \\ \midrule
+UX-004 & Botón «···» (opciones de post) sin acción — \textit{dead click} & \badgeAceptadoObs & \badgeMantenido\ (Baja) — El Blue Team reconoce que exponer controles inoperativos incumple la sección 11 del enunciado. \\ \midrule
+RES-005 & Colapso del frontend al detener Neo4j — mensajes contradictorios & \badgeAceptadoObs & \badgeModificado\ (Media) — Degradado: la falla radica en propagar \code{500} en lugar de \code{503 Service Unavailable} semántico. \\ \midrule
+RES-006 & Latencia en cascada al detener Redis (1.5–5.0 s/req) por timeout & \badgeAceptadoObs & \badgeMantenido\ (Media) — Ausencia de Circuit Breaker / Fail-fast confirmada. \\ \bottomrule
+\end{tabularx}
+
+\vspace{0.5em}
+\begin{tcolorbox}[colback=lightgray!50,colframe=upseblue!30,arc=2mm]
+\small
+\textbf{Resumen post-contrarréplica del Red Team G02:}\quad
+\textbf{Mantenidos:} 3 (REP-001, UX-004, RES-006)\quad
+\textbf{Modificados:} 3 (REQ-002, QUA-003, RES-005)\quad
+\textbf{Retirados:} 1 (SEC-001)
+\end{tcolorbox}
+
+% ============================================================
+%  REFLEXIÓN TÉCNICA
+% ============================================================
+\section{Reflexión Técnica}
+\begin{tcolorbox}[colback=blue!3,colframe=blueteamcolor!40,arc=2mm]
+\small\textit{Máximo 300 palabras. No se busca justificar errores, sino demostrar capacidad de análisis, criterio técnico y aprendizaje.}
+\end{tcolorbox}
+
+\subsubsection*{¿Qué hallazgo recibido considera técnicamente más importante y por qué?}
+
+El hallazgo REP-001 (backend \textit{unhealthy} en Windows) es el más importante porque expone una inconsistencia de diseño sistémica: el proyecto ya automatizaba la generación de claves VAPID directamente en el \code{ENTRYPOINT} del contenedor, pero las claves JWT dependían de un script Bash externo al contenedor. Esta asimetría viola el principio de ``configuración mínima'' exigido en la rúbrica y convierte a Windows en un ciudadano de segunda clase para desplegar el sistema. Lo más relevante no es el fallo en sí, sino lo que revela: una decisión de arquitectura tomada de forma inconsistente entre módulos desarrollados en momentos distintos del sprint.
+
+\subsubsection*{¿Qué aspecto del proyecto cambiaría en una nueva versión?}
+
+La estrategia de resiliencia de la capa de caché. Redis fue incorporado como optimización proactiva para el Rate Limiting y la Idempotencia de reacciones, lo cual es correcto. El error fue no añadir un Circuit Breaker con timeout fail-fast desde el inicio. En una nueva versión, todos los filtros que acceden a Redis incluirían \code{@CircuitBreaker} de \code{quarkus-smallrye-fault-tolerance} y un timeout de 200\,ms, garantizando que la capa de optimización nunca degrade el endpoint principal cuando la caché no está disponible.
+
+\subsubsection*{¿Qué problema no habían considerado durante el desarrollo?}
+
+La compatibilidad de los scripts de aprovisionamiento con entornos Windows nativos. Durante el sprint, todos los integrantes trabajamos en macOS y Linux, por lo que el vector ``Windows sin Bash/WSL'' nunca apareció en nuestros escenarios de prueba. La auditoría externa lo identificó de inmediato como un bloqueante crítico para la reproducibilidad. Este punto es el argumento más sólido a favor de incluir evaluadores con entornos heterogéneos desde las primeras iteraciones del proyecto.
+
+% ============================================================
+%  EVIDENCIAS
+% ============================================================
+\section{Evidencias}
+
+\begin{tcolorbox}[colback=lightgray!50,colframe=upseblue!30,arc=2mm]
+\small Todos los artefactos listados a continuación deben permanecer accesibles durante el periodo de evaluación.
+\end{tcolorbox}
+
+\subsection{Como Red Team}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Documento de auditoría completo (H-01 a H-28):} \code{docs/AUDITORIARB/RedTeam/AUDITORIA.tex} y \code{AUDITORIA.pdf} en este repositorio.
+  \item \textbf{Matriz priorizada de Críticos y Altos (Issues \#112--\#120):} \code{docs/AUDITORIARB/RedTeam/AUDITORIA\_CRITICOS\_ALTOS.tex} y \code{AUDITORIA\_CRITICOS\_ALTOS.pdf}.
+  \item \textbf{Contrarréplica Red Team G05 → Blue Team G03 (Fase 3):} \code{docs/AUDITORIARB/RedTeam/contrarreplicaRedTeam.html}.
+  \item \textbf{GitHub Issues en repositorio auditado:} \url{https://github.com/Joseepc18/red-social-distribuida/issues}
+  \item \textbf{Hilo de auditoría en Moodle:} \url{https://eva.upse.edu.ec/mod/forum/discuss.php?d=47712}
+\end{enumerate}
+
+\subsection{Como Blue Team}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Repositorio propio (commit congelado \code{8c062a6}):} \url{https://github.com/yan2005dris-afk/wyrdly/tree/8c062a6}
+  \item \textbf{Issues recibidos (7):} \#173 \url{https://github.com/yan2005dris-afk/wyrdly/issues/173}, \#174 \url{https://github.com/yan2005dris-afk/wyrdly/issues/174}, \#175 \url{https://github.com/yan2005dris-afk/wyrdly/issues/175}, \#176 \url{https://github.com/yan2005dris-afk/wyrdly/issues/176}, \#177 \url{https://github.com/yan2005dris-afk/wyrdly/issues/177}, \#184 \url{https://github.com/yan2005dris-afk/wyrdly/issues/184}, \#185 \url{https://github.com/yan2005dris-afk/wyrdly/issues/185}
+  \item \textbf{Réplicas oficiales en Issues + archivos locales:} \code{docs/AUDITORIARB/BlueTeam/Replica\{1-7\}.md}
+  \item \textbf{Contrarréplica del Red Team G02 (cierre):} \code{docs/AUDITORIARB/BlueTeam/ContraReplicaRedTeam.txt}
+  \item \textbf{Hilo en Moodle (Blue Team):} \url{https://eva.upse.edu.ec/mod/forum/discuss.php?d=47708}
+\end{enumerate}
+
+% ============================================================
+%  ANEXO — DETALLE DE HALLAZGOS COMO RED TEAM
+% ============================================================
+\newpage
+\section*{Anexo A — Detalle de Hallazgos Emitidos (Issues \#112–\#120)}
+\addcontentsline{toc}{section}{Anexo A — Detalle de Hallazgos Emitidos}
+
+\noindent\small El texto completo de cada ficha técnica (pasos, PoC, evidencia exacta de código) está en \code{docs/AUDITORIARB/RedTeam/AUDITORIA\_CRITICOS\_ALTOS.tex}. Este anexo recoge la síntesis y el estado final tras la contrarréplica.
+
+\vspace{0.5em}
+\subsection*{H-10 — Clave privada RSA \texttt{chmod 644} · Issue \#112}
+\badgeCritica\ $\rightarrow$ \badgeMedia\ \quad \textbf{CWE-732 · M4 Seguridad}
+
+\noindent\code{docker-compose.yml:102}: \code{chmod 644 /keys/*} deja \code{privateKey.pem} y \code{vapid-private.txt} world-readable.\par
+\noindent\textbf{Contrarréplica:} Aceptamos que solo los dos backends montan el volumen (UID 185, no 1001). Bajado a \textbf{Media} porque sin escape de contenedor o acceso al host la explotación directa no está demostrada; mantenemos porque el mismo fallo expone ambos secretos de firma del sistema.\par
+\noindent\textbf{Fix:} \code{chown 185:185 /keys/privateKey.pem \&\& chmod 600 /keys/privateKey.pem}
+
+\vspace{0.5em}
+\subsection*{H-11 — Timing Attack en Login · Issue \#113}
+\badgeAlta\ $\rightarrow$ \badgeAlta\ \quad \textbf{CWE-208 · M4 Seguridad}
+
+\noindent Rama «no existe»: 5--15~ms. Rama «contraseña incorrecta»: 80--120~ms (bcrypt). G03 confirmó con medición propia: mediana 22.3~ms vs 116.1~ms ($\sim$5$\times$).\par
+\noindent\textbf{Fix:} Precalcular siempre bcrypt con un hash ficticio cuando el Optional está vacío.
+
+\vspace{0.5em}
+\subsection*{H-12 — Ausencia de Content-Security-Policy · Issue \#114}
+\badgeAlta\ $\rightarrow$ \badgeMedia\ \quad \textbf{CWE-1021 / CWE-79 · M4 Seguridad}
+
+\noindent Nginx no envía \code{Content-Security-Policy}; JWT en \code{localStorage}. Ningún XSS demostrado en el commit \code{454d3f2}.\par
+\noindent\textbf{Contrarréplica:} Bajado a Media; mantenido porque \code{localStorage} queda sin barrera ante XSS futuro (dependencias, cambios de código).
+
+\vspace{0.5em}
+\subsection*{H-28 — Credencial Inmutable · Issue \#115}
+\badgeAlta\ $\rightarrow$ \badgeAlta\ \quad \textbf{CWE-620 / CWE-613 · M4 Seguridad}
+
+\noindent Sin \code{PUT /auth/password}; tokens no revocables (lifespan 86400~s); logout solo purga cliente.\par
+\noindent\textbf{Fix:} Atributo \code{tokenVersion} en el nodo \code{:Usuario} de Neo4j como claim en el JWT; \code{PUT /api/auth/password} incrementa el contador.
+
+\vspace{0.5em}
+\subsection*{H-05 — PostService Fat Service · Issue \#117}
+\badgeAlta\ $\rightarrow$ \badgeMedia\ \quad \textbf{Diseño · M3 Calidad}
+
+\noindent 5 dependencias; \code{create()} 46 líneas; 4 bloques \code{try/catch} de compensación acoplados.\par
+\noindent\textbf{Fix:} Descomponer en \code{PostCreator}, \code{PostImageAttacher}, \code{PostPersister}.
+
+\vspace{0.5em}
+\subsection*{H-07 — AuthService → UserService · Issue \#116}
+\badgeMedia\ $\rightarrow$ \badgeBaja\ \quad \textbf{Diseño · M3 Calidad}
+
+\noindent Acoplamiento transitivo entre servicios. G03 demostró que registro devuelve 201 y que \code{profile()} delega directo a \code{UserRepository}. Degradado a Baja: sin impacto funcional.
+
+\vspace{0.5em}
+\subsection*{H-09 — Mezcla de Idiomas y Tipo Duplicado · Issue \#118}
+\badgeMedia\ $\rightarrow$ \badgeBaja\ \quad \textbf{Mantenibilidad · M3 Calidad}
+
+\noindent Paquetes en español (\code{comentarios}, \code{notificaciones}) con métodos en inglés (\code{create}, \code{thread}, \code{save}). Tipo duplicado \code{UsuarioResumen}/\code{UserSummary} en uso simultáneo. El Blue Team lo aceptó; degradado a Baja por consenso.\par
+\noindent\textbf{Fix:} Definir y documentar una convención de idioma única en toda la base de código.
+
+\vspace{0.5em}
+\subsection*{H-22 — WSOD en Comentarios · Issue \#119}
+\badgeAlta\ $\rightarrow$ \badgeBaja\ \quad \textbf{CWE-754 · M5 UX / Robustez}
+
+\noindent \code{CommentThread.tsx} accede a \code{comment.autor.id} sin \code{?}; sin \code{<ErrorBoundary>} un nulo desmonta toda la app.\par
+\noindent\textbf{Contrarréplica:} Bajado a Baja — \code{MATCH (autor:Usuario)-[:COMENTA]->(c)} excluye nulos por diseño; camino de explotación no demostrado.
+
+\vspace{0.5em}
+\subsection*{H-24 — Sin Timeout ni Circuit Breaker hacia Neo4j · Issue \#120}
+\badgeAlta\ $\rightarrow$ \badgeMedia\ \quad \textbf{CWE-400 · M6 Resiliencia}
+
+\noindent Peticiones bloqueadas hasta 60~s (valor por defecto de \code{proxy\_read\_timeout} de Nginx). \code{/q/health/live} en 200 aunque el servicio sea inoperable; balanceador no descarta réplicas.\par
+\noindent\textbf{Contrarréplica:} Retiramos «caída en cascada». Media mantenida: degradación medible de 60~s/petición sin señal al balanceador.\par
+\noindent\textbf{Fix:} \code{@Timeout(3s)} + \code{@CircuitBreaker} en repositorios Neo4j vía \code{quarkus-smallrye-fault-tolerance}.
+
+% ============================================================
+%  ANEXO B — DETALLE DE RÉPLICAS COMO BLUE TEAM
+% ============================================================
+\newpage
+\section*{Anexo B — Síntesis de Réplicas como Blue Team}
+\addcontentsline{toc}{section}{Anexo B — Síntesis de Réplicas como Blue Team}
+
+\subsubsection*{REP-001 — ACEPTADO CON OBSERVACIONES}
+Se acepta la limitación. El script \code{generate-jwt-keys.sh} no es interpretado por PowerShell/CMD nativos. El directorio \code{jwt/} queda vacío, el backend no supera el healthcheck y entra en crash-loop. Solicitamos reclasificación a Media porque el fallo es de pre-configuración del host, no del código de aplicación. La base de código ya incluye \code{JwtKeyGenerator.java} (RSA puro en JDK) que podría integrarse en el \code{ENTRYPOINT}. \textit{Contrarréplica Red Team: MANTENIDA (Crítica)} — un bloqueante total en Windows nativo no admite reclasificación aunque sea de pre-configuración.
+
+\subsubsection*{SEC-001 — IMPUGNADO}
+El hallazgo describe una prueba metodológicamente incorrecta: 35 clics rápidos sobre el \textbf{mismo} post activan \code{ReactionIdempotencyFilter} (Anti Rage-Click), que devuelve \code{200 OK} con \code{X-Cached-Response: true} sin consumir cuota de Rate Limit. Para agotar el Rate Limiter es necesario enviar peticiones a 31 recursos distintos. Se adjuntó script de reproducción y evidencia empírica del \code{HTTP 429}. \textit{Contrarréplica Red Team: RETIRADO.}
+
+\subsubsection*{REQ-002 — ACEPTADO CON OBSERVACIONES}
+Se acepta el defecto. El atributo \code{accept="image/*,video/*"} en \code{CreatePostCard} permite seleccionar videos que el backend rechaza. El requisito base de RustFS se cumple íntegramente con imágenes. Severidad propuesta: Baja/UX. \textit{Contrarréplica: MODIFICADO (Baja).}
+
+\subsubsection*{QUA-003 — ACEPTADO CON OBSERVACIONES}
+Se acepta la falla raíz: \code{useNotificationStream} usa \code{fetch} directamente (no Axios), por lo que no renueva el token expirado y genera ciclos de \code{401}. El backend opera correctamente — rechaza tokens vencidos, como corresponde. \textit{Contrarréplica: MODIFICADO (Media).}
+
+\subsubsection*{UX-004 — ACEPTADO CON OBSERVACIONES}
+Se acepta el defecto. El botón \code{MoreHorizontal} en \code{PostCard.tsx} tiene estilos de hover pero sin manejador de evento. Viola la sección 11 del enunciado. Acción correctiva: eliminar el botón del \code{PostCard} hasta que la funcionalidad esté implementada. \textit{Contrarréplica: MANTENIDO (Baja).}
+
+\subsubsection*{RES-005 — ACEPTADO CON OBSERVACIONES}
+Se acepta la anomalía. Al caer Neo4j, Quarkus emite \code{500} sin mapper semántico; el frontend interpreta esto como expiración de sesión y purga \code{localStorage}, generando mensajes contradictorios. No hay corrupción de datos. \textit{Contrarréplica: MODIFICADO (Media).}
+
+\subsubsection*{RES-006 — ACEPTADO CON OBSERVACIONES}
+Se acepta la degradación de latencia (1.5--5.0\,s por petición). Los filtros \code{ReactionIdempotencyFilter} y \code{ReactionRateLimitFilter} realizan llamadas síncronas a Redis con \code{quarkus.redis.timeout=2s}; sin Circuit Breaker, el timeout se acumula por filtro. \textit{Contrarréplica: MANTENIDO (Media).}
+
+\end{document}

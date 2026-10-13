@@ -1,0 +1,602 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{geometry}
+\geometry{top=2cm,bottom=2cm,left=2cm,right=2cm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{amsmath,amssymb}
+\usepackage{xurl}
+
+\emergencystretch=3em
+\tolerance=2000
+\newcommand{\code}[1]{\nolinkurl{#1}}
+
+\definecolor{upseblue}{RGB}{0,51,102}
+\definecolor{sectionblue}{RGB}{11,60,115}
+\definecolor{lightgray}{RGB}{245,247,250}
+\definecolor{tableheader}{RGB}{230,235,245}
+\definecolor{codebg}{RGB}{240,242,245}
+
+\newcommand{\badgeCritica}{\colorbox{red!20}{\textcolor{red!80!black}{\textbf{\footnotesize Crítica}}}}
+\newcommand{\badgeAlta}{\colorbox{orange!20}{\textcolor{orange!90!black}{\textbf{\footnotesize Alta}}}}
+\newcommand{\badgeMedia}{\colorbox{yellow!35}{\textcolor{brown!90!black}{\textbf{\footnotesize Media}}}}
+\newcommand{\badgeBaja}{\colorbox{blue!15}{\textcolor{blue!80!black}{\textbf{\footnotesize Baja}}}}
+\newcommand{\badgePositivo}{\colorbox{green!20}{\textcolor{green!60!black}{\textbf{\footnotesize Positivo}}}}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=sectionblue,
+    urlcolor=sectionblue,
+    citecolor=sectionblue
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{sectionblue}{\textbf{Auditoría Red Team --- Hallazgos Críticos y Altos (2026)}}}
+\fancyhead[R]{\small\textcolor{gray}{Red Team · UPSE 7/1}}
+\fancyfoot[C]{\small Página \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\titleformat{\section}{\color{sectionblue}\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\color{upseblue}\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\color{black}\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+\begin{document}
+
+% ------------------- PORTADA -------------------
+\begin{titlepage}
+\centering
+\vspace*{0.5cm}
+\includegraphics[width=3.2cm]{Picture.png}\\[0.8cm]
+
+{\Large \textbf{UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA}}\\[0.2cm]
+{\large \textbf{FACULTAD DE SISTEMAS Y TELECOMUNICACIONES}}\\[0.2cm]
+{\large \textbf{CARRERA DE INGENIERÍA EN SOFTWARE}}\\[1.2cm]
+
+{\normalsize \textbf{ASIGNATURA:}}\\[0.1cm]
+{\large SISTEMAS DISTRIBUIDOS Y CLOUD COMPUTING}\\[0.8cm]
+
+{\normalsize \textbf{INFORME TÉCNICO DE AUDITORÍA:}}\\[0.1cm]
+{\Large \textbf{\textcolor{sectionblue}{MATRIZ PRIORIZADA DE HALLAZGOS CRÍTICOS Y ALTOS}}}\\[0.2cm]
+{\normalsize Arena de Auditoría Técnica · Fase 1 (Red Team vs Blue Team)}\\[1.2cm]
+
+\begin{tcolorbox}[colback=lightgray,colframe=upseblue!40,width=0.9\textwidth,arc=2mm]
+\centering
+\small
+\textbf{DATOS DE LA AUDITORÍA (FASE 1)}\\[0.3cm]
+\begin{tabularx}{\textwidth}{p{3.5cm} X}
+\textbf{Repositorio auditado:} & \texttt{red-social-distribuida} \\
+\textbf{Rama / SHA:} & \texttt{main} (Commit verificado en entorno local) \\
+\textbf{Stack tecnológico:} & Quarkus 3.33 LTS (Java 21), Neo4j 5, Redis 7, MinIO, React 19 \\
+\textbf{Fecha de emisión:} & Octubre 2026 \\
+\textbf{Total Hallazgos Detectados:} & 28 hallazgos en auditoría exhaustiva \\
+\textbf{Hallazgos Priorizados:} & \textbf{9 Hallazgos (1 Crítico + 8 Altos)} \\
+\end{tabularx}
+\end{tcolorbox}
+
+\vspace{0.8cm}
+{\normalsize \textbf{EQUIPO AUDITOR (RED TEAM):}}\\[0.4cm]
+\begin{tabularx}{0.85\textwidth}{X X}
+\textbf{Andy Bryan Alejandro Vera} & \textbf{Gino Maximiliano Bermúdez Santos} \\
+\textbf{Alisson Yamel Reyes Ricardo} & \textbf{Yandris Miguel Rivera Torres} \\
+\end{tabularx}
+
+\vfill
+{\small \textbf{CURSO Y PARALELO:} SOFTWARE 7/1 \quad$\cdot$\quad \textbf{DOCENTE:} ING. ANTHONY ABRAHAN PACHAY ESPINOZA}\\[0.3cm]
+{\footnotesize \textbf{LA LIBERTAD -- ECUADOR \quad$\cdot$\quad Octubre 2026}}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ------------------- SECCIÓN 1 -------------------
+\section{Propósito y Justificación Estratégica del Red Team}
+
+El propósito de la \textbf{Arena de Auditoría Técnica} es confrontar el software asignado con rigor científico, evidencia reproducible y una evaluación constructiva que impulse la resiliencia del sistema.
+
+Durante la fase de análisis estático y dinámico exhaustivo, este equipo auditor identificó un universo total de \textbf{28 hallazgos} (catalogados en el informe integral complementario). No obstante, en estricto cumplimiento de la \textbf{Regla de Oro} de la cátedra:
+\begin{quote}
+\textit{«Una opinión no constituye un hallazgo. Una impugnación sin evidencia no constituye una defensa. La calidad de los argumentos vale más que la cantidad de errores encontrados.»}
+\end{quote}
+
+El Red Team ha tomado la decisión deliberada de \textbf{no inundar al Blue Team} con 28 observaciones que incluyan incidencias cosméticas, inconsistencias de nomenclatura o acoplamientos menores de código. Presentar decenas de issues diluye la capacidad de defensa y el valor técnico del ejercicio en la Fase 2.
+
+Por consiguiente, el presente documento consolida exclusivamente los \textbf{Hallazgos de Severidad Crítica y Alta}. Estos 9 problemas constituyen los riesgos de seguridad más graves, los incumplimientos arquitectónicos de mayor impacto, las fallas que provocan caída completa de la interfaz en el cliente y los puntos únicos de fallo que amenazan la operación en producción. Son los hallazgos que se registrarán formalmente como \textbf{GitHub Issues} para el debate en la Fase 2.
+
+\subsection{Resumen de Reproducibilidad (Misión 1: FROM ZERO)}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Resultado del despliegue desde cero:} \badgePositivo\ \textbf{Reproducible exitosamente.}
+    \item El comando \texttt{docker compose up -d --build} levanta de forma determinista la totalidad del ecosistema (2 instancias Quarkus, 1 réplica Neo4j, 1 Redis, 1 MinIO, 1 Nginx y contenedor frontend en Node).
+    \item El script \texttt{scripts/seed-demo.mjs} siembra los datos iniciales y valida automáticamente las consultas Cypher (\textbf{C1} a \textbf{C8}), confirmando la correcta inicialización del grafo social.
+\end{itemize}
+
+% ------------------- SECCIÓN 2 -------------------
+\section{Top 3: Los Tres Problemas Técnicamente Más Relevantes}
+
+Conforme a la pauta de la Fase 1, el Red Team destaca los tres problemas con mayor repercusión sistémica:
+
+\begin{tcolorbox}[colback=red!5,colframe=red!60!black,arc=2mm,title=\textbf{TOP 1 · H-10: Clave Privada RSA World-Readable (chmod 644)}]
+\textbf{Severidad:} \badgeCritica\ \textbf{CRÍTICA} \quad$\cdot$\quad \textbf{Misión:} M4 (Seguridad)\\
+\textbf{Por qué es el \#1:} En \texttt{docker-compose.yml:102}, el contenedor \texttt{keys-init} ejecuta \texttt{chmod 644 /keys/*} sobre la clave privada RSA (\texttt{privateKey.pem}). Esto permite que cualquier contenedor o proceso con lectura al volumen monte o lea la clave privada, permitiendo la \textbf{falsificación universal de tokens JWT}. Un atacante puede firmar credenciales para cualquier usuario (\texttt{subject}) y asumir privilegios administrativos completos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5,colframe=orange!80!black,arc=2mm,title=\textbf{TOP 2 · H-28: Credencial Inmutable y Sesiones JWT Irrevocables}]
+\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} M4 (Seguridad)\\
+\textbf{Por qué es el \#2:} No existe en toda la API un endpoint de cambio de contraseña (\texttt{PUT /auth/password}) ni recuperación. La contraseña es fija y permanente. Además, los JWT emitidos tienen validez de 24 horas y no existe lista de revocación en Redis ni \texttt{tokenVersion} en el grafo. Si una contraseña o token se filtra, la víctima no puede cambiarla ni expulsar al atacante; el secuestro de la cuenta es definitivo.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5,colframe=orange!80!black,arc=2mm,title=\textbf{TOP 3 · H-11: Enumeración de Usuarios por Timing Attack en Login}]
+\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} M4 (Seguridad)\\
+\textbf{Por qué es el \#3:} En \texttt{AuthService.login()}, cuando el usuario no existe en Neo4j, el flujo retorna inmediatamente sin calcular el hash \texttt{BcryptUtil.matches}. Cuando el usuario existe pero la contraseña es errónea, se consume el costo criptográfico de bcrypt ($\sim$80--120 ms). Esta asimetría temporal medible permite a un atacante enumerar la base de usuarios completa mediante un simple análisis estadístico de latencias.
+\end{tcolorbox}
+
+% ------------------- SECCIÓN 3 -------------------
+\section{Tabla Consolidada de Hallazgos Prioritarios (GitHub Issues)}
+
+La siguiente matriz contiene los hallazgos que conforman el informe oficial del Red Team y que han sido preparados para su apertura como GitHub Issues:
+
+\vspace{0.5em}
+\noindent
+\begin{tabularx}{\textwidth}{p{1.0cm} p{1.6cm} p{1.9cm} X >{\raggedright\arraybackslash}p{4.7cm}}
+\rowcolor{tableheader}\toprule
+\textbf{ID} & \textbf{Misión} & \textbf{Severidad} & \textbf{Título / Resumen Técnico} & \textbf{Evidencia Clave (Archivo / Línea)} \\ \midrule
+\textbf{H-10} & M4 Seguridad & \badgeCritica & Clave privada RSA con permisos 644 (world-readable). & \code{docker-compose.yml:102} (\code{chmod 644 /keys/*}) \\ \midrule
+\textbf{H-11} & M4 Seguridad & \badgeAlta & Timing attack y user enumeration en login. & \code{AuthService.java:51-58}, \code{AuthRepository.java:51-66} \\ \midrule
+\textbf{H-12} & M4 Seguridad & \badgeAlta & Ausencia de Content-Security-Policy (CSP) en Nginx. & \code{frontend/nginx.conf} (directivas \code{add_header}) \\ \midrule
+\textbf{H-28} & M4 Seguridad & \badgeAlta & Credencial inmutable: sin cambio de contraseña ni revocación de JWT. & \code{AuthResource.java:23,36,48}, \code{AuthProvider.tsx:68-71} \\ \midrule
+\textbf{H-05} & M3 Código & \badgeAlta & Acoplamiento excesivo en \code{PostService} (Fat Service). & \code{PostService.java:21-26} (5 dependencias directas) \\ \midrule
+\textbf{H-18} & M5 UX & \badgeAlta & Flujo de registro en dos round-trips obligatorios. & \code{AuthResource.java:33-40}, \code{users.ts:7-22} \\ \midrule
+\textbf{H-19} & M5 UX & \badgeAlta & Pérdida irrecuperable de borradores en \code{PostComposer}. & \code{frontend/src/components/PostComposer.tsx} \\ \midrule
+\textbf{H-22} & M5 UX & \badgeAlta & Pantalla en blanco (WSOD) por falta de \code{ErrorBoundary} y null-safety en comentarios. & \code{frontend/src/components/CommentThread.tsx:31-50} \\ \midrule
+\textbf{H-24} & M6 Resiliencia & \badgeAlta & Ausencia de Circuit Breaker y Timeout en driver Neo4j. & \code{ExceptionMappers.java:27}, \code{application.properties} \\ \bottomrule
+\end{tabularx}
+\vspace{1em}
+
+% ------------------- SECCIÓN 4 -------------------
+\newpage
+\section{Fichas Técnicas de Hallazgos (Detalle para GitHub Issues)}
+
+A continuación se presentan las fichas técnicas detalladas de cada uno de los 9 hallazgos, formuladas bajo la estructura obligatoria de la auditoría.
+
+% ------------------- H-10 -------------------
+\subsection{H-10 · Clave privada RSA del JWT legible por todos (chmod 644)}
+\noindent\textbf{Severidad:} \badgeCritica\ \textbf{CRÍTICA} \quad$\cdot$\quad \textbf{Misión:} Misión 4 (Seguridad) \quad$\cdot$\quad \textbf{CWE:} CWE-732 / CWE-552\\[0.3em]
+
+\noindent\textbf{Descripción:}
+El script de inicialización de certificados y claves del servicio de autenticación asigna permisos de lectura globales (\code{644}) sobre las claves criptográficas montadas en el volumen compartido. La clave privada RSA utilizada para la firma de tokens JWT queda expuesta a cualquier proceso o contenedor que comparta el almacenamiento.
+
+\noindent\textbf{Pasos para reproducir:}
+\begin{enumerate}[leftmargin=*]
+    \item Ejecutar el despliegue del ecosistema con \code{docker compose up -d}.
+    \item Inspeccionar los permisos de los archivos generados en el contenedor o volumen:
+    \begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+docker compose exec backend-1 ls -la /keys
+\end{verbatim}
+    \end{tcolorbox}
+    \item Observar los permisos del archivo \code{privateKey.pem}.
+\end{enumerate}
+
+\noindent\textbf{Resultado esperado:}
+La clave privada debe poseer permisos estrictos de acceso (\code{chmod 600} o \code{chmod 640}), siendo accesible exclusivamente por el usuario del sistema que ejecuta el proceso de Quarkus.
+
+\noindent\textbf{Resultado obtenido:}
+Los archivos se configuran explícitamente con permisos \code{rw-r--r-- (644)}:
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+-rw-r--r-- 1 root root 1675 privateKey.pem
+\end{verbatim}
+\end{tcolorbox}
+
+\noindent\textbf{Evidencia:}
+Archivo \code{docker-compose.yml}, líneas 98--103:
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+  keys-init:
+    image: alpine:3.20
+    volumes:
+      - app_keys:/keys
+    command: |
+      sh -c "
+        ...
+        chmod 644 /keys/*   # <-- Vulnerabilidad crítica
+      "
+\end{verbatim}
+\end{tcolorbox}
+
+\noindent\textbf{Impacto:}
+\textbf{Crítico.} Un atacante con acceso de solo lectura en el host, mediante un escape de contenedor o acceso a volúmenes compartidos, puede extraer \code{privateKey.pem} y forjar tokens JWT arbitrarios con validez total. Esto vulnera el control de acceso de todos los microservicios sin requerir interacción con la base de datos.
+
+\noindent\textbf{Recomendación:}
+Modificar \code{docker-compose.yml} para aplicar \code{chmod 600 /keys/privateKey.pem} y asignar el UID/GID específico del usuario no-root que ejecuta Quarkus (\code{chown 1001:1001 /keys/privateKey.pem}).
+
+\vspace{0.8em}
+\hrule
+\vspace{0.8em}
+
+% ------------------- H-11 -------------------
+\subsection{H-11 · Enumeración de usuarios por Timing Attack en Login}
+\noindent\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} Misión 4 (Seguridad) \quad$\cdot$\quad \textbf{CWE:} CWE-208 / CWE-204\\[0.3em]
+
+\noindent\textbf{Descripción:}
+El endpoint de autenticación \code{POST /auth/login} presenta una discrepancia medible en los tiempos de respuesta dependiendo de si el nombre de usuario existe o no en la base de datos, posibilitando la enumeración automatizada de cuentas registradas.
+
+\noindent\textbf{Pasos para reproducir:}
+\begin{enumerate}[leftmargin=*]
+    \item Enviar una solicitud de login con un usuario inexistente:
+    \begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+curl -w "%{time_total}\n" -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"usuario_fantasma","password":"Password123!"}'
+\end{verbatim}
+    \end{tcolorbox}
+    \item Enviar la misma solicitud con un usuario registrado legítimo (p. ej., \code{"ana"}), pero con contraseña incorrecta.
+    \item Comparar los tiempos de latencia devueltos.
+\end{enumerate}
+
+\noindent\textbf{Resultado esperado:}
+Ambas peticiones deben responder en un intervalo de tiempo indistinguible para evitar la fuga de información sobre la existencia de cuentas.
+
+\noindent\textbf{Resultado obtenido:}
+El usuario inexistente retorna en $\sim$5--15 ms (búsqueda vacía en Neo4j). El usuario existente con contraseña errónea toma entre 80--120 ms debido a la ejecución del cálculo de \code{BcryptUtil.matches}.
+
+\noindent\textbf{Evidencia:}
+En \code{AuthService.java:51-58}:
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+public LoginResponse login(LoginRequest request) {
+    Credentials credentials = repository.findCredentials(request.username())
+        .orElseThrow(InvalidCredentialsException::new); // Cortocircuito rápido
+    if (!BcryptUtil.matches(request.password(), credentials.passwordHash())) {
+        throw new InvalidCredentialsException();
+    }
+    return new LoginResponse(jwtService.sign(credentials.id()), profile);
+}
+\end{verbatim}
+\end{tcolorbox}
+
+\noindent\textbf{Impacto:}
+\textbf{Alto.} Facilita la creación de listas verificadas de usuarios válidos del sistema mediante herramientas de fuerza bruta o escaneo distribuido, burlando la protección del rate limit de Nginx a lo largo del tiempo.
+
+\noindent\textbf{Recomendación:}
+Computar siempre la verificación criptográfica con un hash ficticio precargado cuando el usuario no exista:
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+String hash = repository.findCredentials(request.username())
+    .map(Credentials::passwordHash)
+    .orElse(DUMMY_BCRYPT_HASH);
+boolean valid = BcryptUtil.matches(request.password(), hash);
+\end{verbatim}
+\end{tcolorbox}
+
+\vspace{0.8em}
+\hrule
+\vspace{0.8em}
+
+% ------------------- H-12 -------------------
+\subsection{H-12 · Ausencia de cabecera Content-Security-Policy (CSP) en Proxy Inverso}
+\noindent\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} Misión 4 (Seguridad) \quad$\cdot$\quad \textbf{CWE:} CWE-1021 / CWE-79\\[0.3em]
+
+\noindent\textbf{Descripción:}
+La configuración de Nginx para el servidor web del frontend carece de la cabecera HTTP \code{Content-Security-Policy}. En un sistema que almacena tokens JWT en \code{localStorage}, la falta de CSP expone las credenciales de sesión ante cualquier vulnerabilidad XSS en comentarios, descripciones o metadatos de usuario.
+
+\noindent\textbf{Pasos para reproducir:}
+\begin{enumerate}[leftmargin=*]
+    \item Inspeccionar las cabeceras HTTP de respuesta entregadas por Nginx:
+    \begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+curl -I http://localhost:80/
+\end{verbatim}
+    \end{tcolorbox}
+    \item Verificar la ausencia de la cabecera \code{Content-Security-Policy}.
+\end{enumerate}
+
+\noindent\textbf{Resultado esperado:}
+El servidor web debe emitir una política CSP restrictiva que limite la ejecución de scripts al propio origen (\code{'self'}).
+
+\noindent\textbf{Resultado obtenido:}
+Nginx únicamente incluye \code{X-Content-Type-Options}, \code{X-Frame-Options} y \code{Referrer-Policy}:
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+HTTP/1.1 200 OK
+Server: nginx/1.27.0
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+\end{verbatim}
+\end{tcolorbox}
+
+\noindent\textbf{Evidencia:}
+Archivo \code{frontend/nginx.conf}, líneas 12--16. No existe ninguna directiva \code{add_header Content-Security-Policy}.
+
+\noindent\textbf{Impacto:}
+\textbf{Alto.} Si un atacante inyecta un payload en el texto de un comentario o biografía, el script se ejecutará sin restricción del navegador, pudiendo acceder a \code{localStorage.getItem('nodouni.session')} y exfiltrar el token JWT de la víctima.
+
+\noindent\textbf{Recomendación:}
+Agregar en \code{frontend/nginx.conf}:
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+add_header Content-Security-Policy "default-src 'self'; 
+  script-src 'self'; style-src 'self' 'unsafe-inline'; 
+  img-src 'self' data: blob:; 
+  connect-src 'self' wss: https://*.push.services.mozilla.com;" always;
+\end{verbatim}
+\end{tcolorbox}
+
+\vspace{0.8em}
+\hrule
+\vspace{0.8em}
+
+% ------------------- H-28 -------------------
+\subsection{H-28 · Credencial inmutable: sin cambio de contraseña ni revocación de JWT}
+\noindent\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} Misión 4 (Seguridad) \quad$\cdot$\quad \textbf{CWE:} CWE-620 / CWE-613\\[0.3em]
+
+\noindent\textbf{Descripción:}
+El sistema no proporciona ningún endpoint ni mecanismo para el cambio o recuperación de contraseña. Sumado a esto, los tokens JWT poseen una validez fija de 24 horas (\code{lifespan = 86400}) y carecen de un contador de versión (\code{tokenVersion}) o lista negra de revocación en Redis.
+
+\noindent\textbf{Pasos para reproducir:}
+\begin{enumerate}[leftmargin=*]
+    \item Inspeccionar las rutas expuestas en \code{AuthResource.java}. Solo existen \code{@POST /registro} y \code{@POST /login}.
+    \item Iniciar sesión y capturar el JWT emitido.
+    \item En el frontend, hacer clic en «Cerrar sesión».
+    \item Enviar una petición a un endpoint privado con el JWT previo mediante \code{curl}:
+    \begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+curl -H "Authorization: Bearer <TOKEN_CAPTURADO>" http://localhost:8080/api/usuarios/yo
+\end{verbatim}
+    \end{tcolorbox}
+    \item La petición responde con \code{200 OK} a pesar de que el usuario cerró sesión en su cliente.
+\end{enumerate}
+
+\noindent\textbf{Resultado esperado:}
+Debe existir un flujo de cambio de contraseña que invalide inmediatamente todos los tokens emitidos con anterioridad y permita expulsar sesiones no autorizadas.
+
+\noindent\textbf{Resultado obtenido:}
+El cierre de sesión es una operación exclusivamente cosmética del cliente (\code{setSession(null)} en \code{AuthProvider.tsx}). El backend no tiene forma de revocar el acceso y el usuario no puede cambiar su clave.
+
+\noindent\textbf{Evidencia:}
+\begin{itemize}[leftmargin=*]
+    \item \code{backend/src/main/java/com/redsocial/auth/AuthResource.java:23,36,48}: Ningún endpoint de contraseña.
+    \item \code{backend/src/main/resources/application.properties:23}: \code{smallrye.jwt.new-token.lifespan = 86400}.
+    \item \code{frontend/src/context/AuthProvider.tsx:68-71}: \code{logout()} solo purga el almacenamiento local.
+\end{itemize}
+
+\noindent\textbf{Impacto:}
+\textbf{Alto.} Secuestro definitivo de cuentas. Si la credencial o el token de un usuario se filtra, la víctima no tiene mecanismo para expulsar al intruso ni para restablecer su seguridad.
+
+\noindent\textbf{Recomendación:}
+Implementar un atributo \code{tokenVersion} en el nodo \code{(:Usuario)} de Neo4j e incluirlo como claim en el JWT. Implementar \code{PUT /api/auth/password} que incremente dicho contador, invalidando en tiempo real las credenciales en ambas réplicas.
+
+\vspace{0.8em}
+\hrule
+\vspace{0.8em}
+
+% ------------------- H-05 -------------------
+\subsection{H-05 · Acoplamiento excesivo y orquestación monolítica en PostService}
+\noindent\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} Misión 3 (Calidad de Código) \quad$\cdot$\quad \textbf{CWE:} Arquitectura / God Service\\[0.3em]
+
+\noindent\textbf{Descripción:}
+La clase \code{PostService} concentra 5 colaboradores inyectados por constructor (\code{PostRepository}, \code{MediaStorage}, \code{ImageValidator}, \code{Event<PostCreated>}, \code{PostAssembler}). Su método \code{create()} coordina validaciones de texto, procesamiento de imágenes, subida a MinIO/S3, escritura en grafo Neo4j, publicación asíncrona de eventos CDI y ensamblado de respuesta, abarcando cuatro bloques \code{try/catch} de compensación manual.
+
+\noindent\textbf{Pasos para reproducir:}
+Inspeccionar el constructor y el método \code{create()} en \code{backend/src/main/java/com/redsocial/posts/PostService.java:21-26,38-83}.
+
+\noindent\textbf{Resultado esperado:}
+El servicio debe adherirse al principio de responsabilidad única (SRP), delegando la orquestación a colaboradores especializados.
+
+\noindent\textbf{Resultado obtenido:}
+El método \code{create()} actúa como un monolito procedimental de 46 líneas altamente acoplado.
+
+\noindent\textbf{Evidencia:}
+Líneas 21--26 de \code{PostService.java}:
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+public PostService(PostRepository repository, MediaStorage storage,
+                   ImageValidator images, Event<PostCreated> events,
+                   PostAssembler assembler) { ... }
+\end{verbatim}
+\end{tcolorbox}
+
+\noindent\textbf{Impacto:}
+\textbf{Alto.} Alto riesgo de regresión en cada sprint. Modificaciones en el almacenamiento de imágenes o en el esquema de eventos obligan a editar la misma clase crítica de creación de posts.
+
+\noindent\textbf{Recomendación:}
+Descomponer \code{PostService} en clases especializadas (\code{PostCreator}, \code{PostImageAttacher}, \code{PostPersister}) con transaccionalidad aislada.
+
+\vspace{0.8em}
+\hrule
+\vspace{0.8em}
+
+% ------------------- H-18 -------------------
+\subsection{H-18 · Flujo de registro en dos round-trips obligatorios (UX degradada)}
+\noindent\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} Misión 5 (Experiencia de Usuario) \quad$\cdot$\quad \textbf{CWE:} Eficiencia de Protocolo / UX\\[0.3em]
+
+\noindent\textbf{Descripción:}
+El endpoint \code{POST /auth/registro} retorna únicamente el objeto de perfil del usuario (\code{Profile}) sin emitir un token JWT. Esto obliga al cliente web a realizar una segunda petición inmediata a \code{POST /auth/login} reenviando las credenciales para poder iniciar la sesión.
+
+\noindent\textbf{Pasos para reproducir:}
+\begin{enumerate}[leftmargin=*]
+    \item Completar el formulario de registro en \code{/registro}.
+    \item Abrir la pestaña de red de las herramientas de desarrollador del navegador.
+    \item Enviar el formulario y verificar las llamadas HTTP salientes.
+\end{enumerate}
+
+\noindent\textbf{Resultado esperado:}
+El registro exitoso debe retornar directamente la credencial de autenticación (\code{LoginResponse} con JWT) para acceder de inmediato al sistema.
+
+\noindent\textbf{Resultado obtenido:}
+Se ejecutan secuencialmente dos peticiones HTTP: \code{POST /registro} seguido de \code{POST /login}. Ambas consumen cuotas del limitador de tasa de Nginx (\code{20 r/m}).
+
+\noindent\textbf{Evidencia:}
+En \code{frontend/src/services/users.ts:7-22}:
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+await api.post<Profile>("/auth/registro", data);
+// Segunda llamada obligatoria para obtener el token:
+const login = await api.post<LoginResponse>("/auth/login", {
+  username: data.username,
+  password: data.password
+});
+\end{verbatim}
+\end{tcolorbox}
+
+\noindent\textbf{Impacto:}
+\textbf{Alto.} Duplica la latencia percibida por el usuario en el onboarding, expone la contraseña a un segundo tránsito innecesario en la red y agota prematuramente el límite de peticiones por minuto ante pruebas o registros legítimos simultáneos.
+
+\noindent\textbf{Recomendación:}
+Hacer que \code{AuthService.register()} genere y retorne inmediatamente el \code{LoginResponse} con el token emitido, eliminando la segunda llamada desde el frontend.
+
+\vspace{0.8em}
+\hrule
+\vspace{0.8em}
+
+% ------------------- H-19 -------------------
+\subsection{H-19 · Pérdida irrecuperable de borradores en PostComposer}
+\noindent\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} Misión 5 (Experiencia de Usuario) \quad$\cdot$\quad \textbf{CWE:} Resiliencia de Cliente / UX\\[0.3em]
+
+\noindent\textbf{Descripción:}
+El componente de creación de publicaciones (\code{PostComposer}) almacena el texto del mensaje y el archivo de imagen adjunto únicamente en el estado local de React (\code{useState}). Si el usuario recarga la pestaña, sufre una desconexión o navega momentáneamente a otra ruta, todo el contenido redactado se descarta de forma irrecuperable sin advertencia alguna.
+
+\noindent\textbf{Pasos para reproducir:}
+\begin{enumerate}[leftmargin=*]
+    \item Navegar a \code{/feed} y redactar una publicación extensa en el compositor.
+    \item Seleccionar una imagen adjunta.
+    \item Presionar la tecla \code{F5} (recargar página) o hacer clic en el enlace «Explorar» y regresar al «Feed».
+\end{enumerate}
+
+\noindent\textbf{Resultado esperado:}
+El contenido redactado debe conservarse en el almacenamiento local (\code{sessionStorage}) y restaurarse automáticamente al volver al componente.
+
+\noindent\textbf{Resultado obtenido:}
+El estado se reinicia a vacío (\code{""}). El texto y la imagen cargada desaparecen por completo.
+
+\noindent\textbf{Evidencia:}\\
+El componente \code{frontend/src/components/PostComposer.tsx} carece de ganchos \code{useEffect} asociados a \code{sessionStorage}.
+
+\noindent\textbf{Impacto:}
+\textbf{Alto.} Severa degradación de la experiencia de usuario y frustración directa, particularmente en usuarios móviles o en conexiones intermitentes.
+
+\noindent\textbf{Recomendación:}
+Implementar un guardado automático con \textit{debounce} de 500 ms en \code{sessionStorage} para el texto del borrador y restaurarlo al montar el componente.
+
+\vspace{0.8em}
+\hrule
+\vspace{0.8em}
+
+% ------------------- H-22 -------------------
+\subsection{H-22 · Pantalla en blanco (White Screen of Death) por falta de Error Boundary y Null-Safety en comentarios}
+\noindent\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} Misión 5 (Experiencia de Usuario / Robustez de UI) \quad$\cdot$\quad \textbf{CWE:} CWE-754 / CWE-248\\[0.3em]
+
+\noindent\textbf{Descripción:}
+El componente \code{CommentThread} accede directamente a las propiedades del autor (\code{comment.autor.id}, \code{comment.autor.nombre}, \code{comment.autor.username}) asumiendo que el objeto \code{autor} siempre está definido. Si en la base de datos de grafos un usuario fue dado de baja o existen comentarios huérfanos, el backend retorna registros con autor nulo, desatando una excepción fatal no controlada de JavaScript (\code{TypeError: Cannot read properties of undefined}).
+Al carecer la aplicación React 19 de componentes \code{<ErrorBoundary>} en sus rutas y vistas de publicación, el ciclo de vida de React desmonta la totalidad del árbol de componentes del DOM, colapsando la interfaz a una pantalla completamente en blanco («White Screen of Death» / WSOD) e imposibilitando cualquier recuperación sin reiniciar o forzar recarga.
+
+\noindent\textbf{Pasos para reproducir:}
+\begin{enumerate}[leftmargin=*]
+    \item Desconectar o eliminar un nodo de usuario en Neo4j que posea comentarios asociados en un post, o simular una respuesta de la API en \code{GET /posts/:id/comentarios} con un nodo donde \code{autor} sea \code{null}.
+    \item Navegar desde la interfaz web a la vista de detalle de dicha publicación (\code{/posts/:id}).
+    \item Abrir la consola de herramientas de desarrollador (F12).
+    \item Constatar el error fatal \code{Uncaught TypeError: Cannot read properties of undefined (reading 'id')} y verificar que la pantalla de la aplicación queda totalmente en blanco.
+\end{enumerate}
+
+\noindent\textbf{Resultado esperado:}
+El componente debe emplear navegación segura (\textit{optional chaining}) con valores por defecto (p. ej., «Usuario no disponible»), y las secciones dinámicas deben estar protegidas por un \code{<ErrorBoundary>} que muestre una tarjeta de degradación elegante sin derribar la página completa.
+
+\noindent\textbf{Resultado obtenido:}
+Colapso destructivo total de la aplicación cliente en el navegador. La vista completa se desmonta sin advertencia ni posibilidad de interacción.
+
+\noindent\textbf{Evidencia:}
+En \code{frontend/src/components/CommentThread.tsx}, líneas 31--50:
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+const profilePath = "/usuarios/" + encodeURIComponent(comment.autor.id);
+const firstName = comment.autor.nombre.split(" ")[0];
+...
+<Avatar name={comment.autor.nombre} />
+...
+<span className="muted break-all">@{comment.autor.username}</span>
+\end{verbatim}
+\end{tcolorbox}
+Adicionalmente, una búsqueda global en \code{frontend/src/} confirma la ausencia absoluta de componentes \code{ErrorBoundary}.
+
+\noindent\textbf{Impacto:}
+\textbf{Alto.} Quiebra la disponibilidad del cliente frontend. Un solo comentario con inconsistencia de autor inhabilita de forma permanente la visualización de la publicación para cualquier visitante de la red social.
+
+\noindent\textbf{Recomendación:}
+1. Envolver la jerarquía de rutas y componentes dinámicos en componentes \code{<ErrorBoundary>} con interfaz de recuperación y botón de reintento.\\
+2. Aplicar encadenamiento opcional en \code{CommentThread.tsx}: \code{comment.autor?.username ?? copy.deletedUser}.
+
+\vspace{0.8em}
+\hrule
+\vspace{0.8em}
+
+% ------------------- H-24 -------------------
+\subsection{H-24 · Ausencia de Circuit Breaker y Timeout en Driver Reactivo Neo4j}
+\noindent\textbf{Severidad:} \badgeAlta\ \textbf{ALTA} \quad$\cdot$\quad \textbf{Misión:} Misión 6 (Resiliencia) \quad$\cdot$\quad \textbf{CWE:} CWE-400 / Resiliencia Distribuida\\[0.3em]
+
+\noindent\textbf{Descripción:}
+Las consultas dirigidas a Neo4j mediante la sesión reactiva carecen de un límite de tiempo de espera (\textit{timeout}) a nivel de petición y de un patrón de disyuntor (\textit{Circuit Breaker}). Si el motor de grafos se bloquea por saturación de CPU o I/O, las solicitudes entrantes en Quarkus quedan suspendidas indefinidamente.
+
+\noindent\textbf{Pasos para reproducir:}
+\begin{enumerate}[leftmargin=*]
+    \item Pausar el contenedor de Neo4j mediante \code{docker compose pause neo4j}.
+    \item Realizar múltiples peticiones concurrentes a \code{GET /api/feed}.
+    \item Observar el consumo de conexiones y el tiempo de respuesta del balanceador Nginx.
+\end{enumerate}
+
+\noindent\textbf{Resultado esperado:}
+El backend debe abortar la consulta en un tiempo máximo prudente ($\le 3$ s), activar un disyuntor y retornar una respuesta degradada o un error 503 controlado.
+
+\noindent\textbf{Resultado obtenido:}
+Las peticiones se quedan colgadas esperando el socket de Neo4j hasta agotar los hilos de eventos de Netty/Quarkus, provocando una caída en cascada de ambas réplicas del backend y respuestas \texttt{504 Gateway Timeout} en Nginx.
+
+\noindent\textbf{Evidencia:}\\
+Configuración en \code{application.properties} y ausencia de anotaciones \code{@Timeout} o \code{@CircuitBreaker} (SmallRye Fault Tolerance) en los repositorios de Neo4j.
+
+\noindent\textbf{Impacto:}
+\textbf{Alto.} Pérdida de tolerancia a fallos. La ralentización de un único servicio de almacenamiento satura y tumba la totalidad del clúster de servidores de aplicación.
+
+\noindent\textbf{Recomendación:}\\
+Integrar \code{quarkus-smallrye-fault-tolerance} y anotar los métodos de lectura de repositorios con \code{@Timeout(value = 3, unit = ChronoUnit.SECONDS)} y \code{@CircuitBreaker(requestVolumeThreshold = 10, failureRatio = 0.5)}.
+
+% ------------------- SECCIÓN 5 -------------------
+\newpage
+\section{Guía de Registro y Próximos Pasos en la Arena (Fase 1 \texorpdfstring{$\rightarrow$}{->} Fase 2)}
+
+\subsection{Instrucciones para la apertura de GitHub Issues}
+Cada uno de los 9 hallazgos detallados en la Sección 4 debe ser registrado en el repositorio auditado bajo el siguiente formato estandarizado:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Título del Issue:} \texttt{[RED TEAM][<ID>][<SEVERIDAD>] <Título conciso>}
+    \item \textbf{Etiquetas sugeridas:} \texttt{bug}, \texttt{security}, \texttt{ui-ux}, \texttt{red-team-audit}, \texttt{p1-critical} / \texttt{p2-high}.
+    \item \textbf{Cuerpo del Issue:} Copiar fielmente la ficha técnica (Descripción, Pasos de Reproducción, Resultado Esperado, Resultado Obtenido, Evidencia, Impacto y Recomendación).
+\end{itemize}
+
+\subsection{Criterios de Evaluación para la Fase 2 (Derecho a Réplica del Blue Team)}
+Durante la Fase 2, el equipo propietario (Blue Team) deberá responder técnicamente a cada issue abierto bajo uno de los tres estados oficiales:
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{ACEPTADO:} El Blue Team reconoce la existencia del problema y propone su plan de remediación.
+    \item \textbf{ACEPTADO CON OBSERVACIONES:} Reconoce el fallo técnico, pero debate con pruebas el nivel de severidad asignado o su impacto práctico.
+    \item \textbf{IMPUGNADO:} Rechaza formalmente el hallazgo. \textbf{Condición obligatoria:} Toda impugnación debe estar sustentada en pruebas de código, logs de ejecución o demostraciones reproducibles. Argumentaciones sin evidencia técnica no serán admitidas.
+\end{enumerate}
+
+\vspace{1.5cm}
+\begin{center}
+\rule{0.6\textwidth}{0.4pt}\\[0.3em]
+\textbf{Equipo Auditor Red Team · UPSE 2026}\\
+\small Sistemas Distribuidos y Cloud Computing
+\end{center}
+
+\end{document}

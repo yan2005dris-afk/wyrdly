@@ -1,0 +1,444 @@
+<!-- ==============================================================
+     CONTRARRÉPLICA Y CIERRE RED TEAM — FASE 3 (UNIVERSIDAD UPSE)
+     FORMATO CON ESTILOS INLINE PARA EDITOR HTML DE MOODLE (Atto / TinyMCE)
+     Copiar todo el contenido de este archivo y pegarlo en el modo </> de Moodle.
+     ============================================================== -->
+
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 960px; margin: 0 auto; padding: 10px;">
+
+  <!-- ENCABEZADO DEL FORO -->
+  <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 22px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+    <div style="display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 9px; border-radius: 9999px; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; margin-bottom: 12px;">
+      Red Team vs Blue Team · Fase 3 (Contrarréplica y Cierre)
+    </div>
+    <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 12px 0; line-height: 1.25;">
+      Contrarréplica del Red Team G05 al Blue Team G03
+    </h1>
+    <p style="font-size: 14px; color: #334155; margin: 0 0 14px 0;">
+      Revisamos las 9 respuestas publicadas en los Issues <strong>#112–#120</strong> y volvimos a contrastar cada observación con el código del commit <code>454d3f2</code>. Agradecemos que todas las respuestas incluyan mediciones o pruebas: eso nos permitió corregir errores propios en lugar de discutir opiniones.
+    </p>
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 12px;">
+      <div><strong style="color: #0f172a;">Repositorio:</strong> <a href="https://github.com/Joseepc18/red-social-distribuida" style="color: #2563eb;">Joseepc18/red-social-distribuida</a></div>
+      <div><strong style="color: #0f172a;">Rama:</strong> main</div>
+      <div><strong style="color: #0f172a;">SHA:</strong> <code>454d3f2</code> (el mismo usado por el Blue Team en su réplica)</div>
+      <div><strong style="color: #0f172a;">Asignatura:</strong> Sistemas Distribuidos y Cloud Computing</div>
+      <div><strong style="color: #0f172a;">Docente:</strong> ING. ANTHONY ABRAHAN PACHAY ESPINOZA</div>
+      <div><strong style="color: #0f172a;">Curso:</strong> Software 7/1</div>
+      <div><strong style="color: #0f172a;">Auditores (Red Team):</strong> Andy Bryan Alejandro Vera, Gino Maximiliano Bermúdez Santos, Alisson Yamel Reyes Ricardo, Yandris Miguel Rivera Torres</div>
+    </div>
+  </div>
+
+  <!-- RESUMEN EN CIFRAS -->
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px;">
+    <div style="flex: 1 1 140px; background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28px; font-weight: 800; color: #991b1b; line-height: 1.1;">3</div>
+      <div style="font-size: 12px; font-weight: 700; color: #7f1d1d; text-transform: uppercase; letter-spacing: 0.04em;">Mantenidos</div>
+    </div>
+    <div style="flex: 1 1 140px; background-color: #fefce8; border: 1px solid #fde68a; border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28px; font-weight: 800; color: #854d0e; line-height: 1.1;">6</div>
+      <div style="font-size: 12px; font-weight: 700; color: #713f12; text-transform: uppercase; letter-spacing: 0.04em;">Modificados</div>
+    </div>
+    <div style="flex: 1 1 140px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28px; font-weight: 800; color: #166534; line-height: 1.1;">0</div>
+      <div style="font-size: 12px; font-weight: 700; color: #14532d; text-transform: uppercase; letter-spacing: 0.04em;">Retirados</div>
+    </div>
+    <div style="flex: 1 1 140px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1.1;">0</div>
+      <div style="font-size: 12px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em;">Impugnados</div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN: TABLA RESUMEN -->
+  <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 22px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">
+      Resumen de la Posición Final
+    </h2>
+    <p style="font-size: 14px; color: #334155; margin: 0 0 14px 0;">
+      Ningún hallazgo fue impugnado: los 9 problemas quedan reconocidos por ambos equipos y la discusión se limita a la severidad. Distribución final: <strong>0 Críticos · 2 Altos · 4 Medios · 3 Bajos</strong>.
+    </p>
+
+    <div style="overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 6px; margin: 10px 0;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; background-color: #ffffff;">
+        <thead>
+          <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+            <th style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Hallazgo</th>
+            <th style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Issue</th>
+            <th style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Réplica Blue Team</th>
+            <th style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Fase 1</th>
+            <th style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Final</th>
+            <th style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Decisión Red Team</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- H-11 -->
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 12px; color: #334155;"><strong style="color: #0f172a;">H-11</strong> · Timing attack en login</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-size: 12px; color: #0f172a;">#113</td>
+            <td style="padding: 10px 12px; color: #475569;">✅ Aceptado</td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">Alta</span></td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">Alta</span></td>
+            <td style="padding: 10px 12px; color: #991b1b; font-weight: 700;">Mantenido</td>
+          </tr>
+          <!-- H-28 -->
+          <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+            <td style="padding: 10px 12px; color: #334155;"><strong style="color: #0f172a;">H-28</strong> · Sin cambio de contraseña ni revocación</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-size: 12px; color: #0f172a;">#115</td>
+            <td style="padding: 10px 12px; color: #475569;">⚠️ Con observaciones</td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">Alta</span></td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">Alta</span></td>
+            <td style="padding: 10px 12px; color: #991b1b; font-weight: 700;">Mantenido <span style="font-weight: 400; color: #64748b;">(procedimiento corregido)</span></td>
+          </tr>
+          <!-- H-09 -->
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 12px; color: #334155;"><strong style="color: #0f172a;">H-09</strong> · Mezcla de idiomas y tipo duplicado</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-size: 12px; color: #0f172a;">#118</td>
+            <td style="padding: 10px 12px; color: #475569;">✅ Aceptado</td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">Media / Baja</span></td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #dcfce7; color: #166534; border: 1px solid #86efac;">Baja</span></td>
+            <td style="padding: 10px 12px; color: #991b1b; font-weight: 700;">Mantenido <span style="font-weight: 400; color: #64748b;">(severidad unificada)</span></td>
+          </tr>
+          <!-- H-10 -->
+          <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+            <td style="padding: 10px 12px; color: #334155;"><strong style="color: #0f172a;">H-10</strong> · Clave privada JWT con permisos 644</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-size: 12px; color: #0f172a;">#112</td>
+            <td style="padding: 10px 12px; color: #475569;">⚠️ Con observaciones</td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171;">Crítica</span></td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">Media</span></td>
+            <td style="padding: 10px 12px; color: #854d0e; font-weight: 700;">Modificado</td>
+          </tr>
+          <!-- H-12 -->
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 12px; color: #334155;"><strong style="color: #0f172a;">H-12</strong> · Falta de Content-Security-Policy</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-size: 12px; color: #0f172a;">#114</td>
+            <td style="padding: 10px 12px; color: #475569;">⚠️ Con observaciones</td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">Alta</span></td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">Media</span></td>
+            <td style="padding: 10px 12px; color: #854d0e; font-weight: 700;">Modificado</td>
+          </tr>
+          <!-- H-24 -->
+          <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+            <td style="padding: 10px 12px; color: #334155;"><strong style="color: #0f172a;">H-24</strong> · Sin timeout ni circuit breaker hacia Neo4j</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-size: 12px; color: #0f172a;">#120</td>
+            <td style="padding: 10px 12px; color: #475569;">⚠️ Con observaciones</td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">Alta</span></td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">Media</span></td>
+            <td style="padding: 10px 12px; color: #854d0e; font-weight: 700;">Modificado <span style="font-weight: 400; color: #64748b;">(contrarréplica)</span></td>
+          </tr>
+          <!-- H-05 -->
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 12px; color: #334155;"><strong style="color: #0f172a;">H-05</strong> · PostService con cinco dependencias</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-size: 12px; color: #0f172a;">#117</td>
+            <td style="padding: 10px 12px; color: #475569;">⚠️ Con observaciones</td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">Alta</span></td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">Media</span></td>
+            <td style="padding: 10px 12px; color: #854d0e; font-weight: 700;">Modificado</td>
+          </tr>
+          <!-- H-07 -->
+          <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+            <td style="padding: 10px 12px; color: #334155;"><strong style="color: #0f172a;">H-07</strong> · AuthService depende de UserService</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-size: 12px; color: #0f172a;">#116</td>
+            <td style="padding: 10px 12px; color: #475569;">⚠️ Con observaciones</td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">Media</span></td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #dcfce7; color: #166534; border: 1px solid #86efac;">Baja</span></td>
+            <td style="padding: 10px 12px; color: #854d0e; font-weight: 700;">Modificado</td>
+          </tr>
+          <!-- H-22 -->
+          <tr>
+            <td style="padding: 10px 12px; color: #334155;"><strong style="color: #0f172a;">H-22</strong> · Pantalla en blanco en comentarios</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-size: 12px; color: #0f172a;">#119</td>
+            <td style="padding: 10px 12px; color: #475569;">⚠️ Con observaciones</td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">Alta</span></td>
+            <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #dcfce7; color: #166534; border: 1px solid #86efac;">Baja</span></td>
+            <td style="padding: 10px 12px; color: #854d0e; font-weight: 700;">Modificado</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 1: MANTENIDOS -->
+  <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 22px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">
+      1. Hallazgos Mantenidos
+    </h2>
+
+    <!-- H-11 -->
+    <div style="background-color: #fff7ed; border: 1px solid #fed7aa; border-left: 5px solid #ea580c; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+        <strong style="font-size: 15px; color: #9a3412;">H-11 · Enumeración de usuarios por tiempo de respuesta — #113</strong>
+        <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">ALTA · MANTENIDO</span>
+      </div>
+      <p style="font-size: 13px; color: #431407; margin: 0 0 8px 0;">
+        El Blue Team lo aceptó y aportó una medición propia: mediana de <strong>22,3 ms</strong> para un usuario inexistente frente a <strong>116,1 ms</strong> para uno existente con contraseña incorrecta (10 pares alternados). La diferencia de ~5× confirma el hallazgo con datos independientes de los nuestros.
+      </p>
+      <p style="font-size: 13px; color: #431407; margin: 0 0 8px 0;">
+        Corregimos un detalle de nuestra evidencia: el fragmento citado en el Issue no era literal. El código real de <code>AuthService.login()</code> usa <code>findCredentials(...).filter(c -&gt; BcryptUtil.matches(...))</code>; el <code>filter</code> no se ejecuta cuando el <code>Optional</code> está vacío, así que el comportamiento descrito es el mismo.
+      </p>
+      <p style="font-size: 13px; color: #431407; margin: 0;">
+        Mantenemos <strong>Alta</strong>. El límite de Nginx (<code>auth_zone</code>, 20 peticiones/minuto por IP, <code>frontend/nginx.conf:20-25</code>) ralentiza la enumeración desde una sola IP, pero no la impide: la clave del límite es <code>$binary_remote_addr</code>, y basta repartir las peticiones entre varias direcciones.
+      </p>
+    </div>
+
+    <!-- H-28 -->
+    <div style="background-color: #fff7ed; border: 1px solid #fed7aa; border-left: 5px solid #ea580c; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+        <strong style="font-size: 15px; color: #9a3412;">H-28 · Credencial sin cambio de contraseña ni revocación de JWT — #115</strong>
+        <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c;">ALTA · MANTENIDO</span>
+      </div>
+      <p style="font-size: 13px; color: #431407; margin: 0 0 6px 0;">Aceptamos las dos correcciones del Blue Team:</p>
+      <ul style="font-size: 13px; color: #431407; margin: 0 0 8px 20px; padding: 0;">
+        <li style="margin-bottom: 4px;">La ruta del paso 4 es <code>GET /api/usuarios/me</code>, no <code>/api/usuarios/yo</code>. Con la ruta correcta, el Blue Team reprodujo el hallazgo: el mismo token devolvió <strong>200 antes y después de cerrar sesión</strong>.</li>
+        <li style="margin-bottom: 4px;">El token no es indefinido: vence a las 24 h (<code>smallrye.jwt.new-token.lifespan</code>, <code>application.properties:23</code>). Retiramos la expresión «secuestro definitivo» referida al token.</li>
+      </ul>
+      <p style="font-size: 13px; color: #431407; margin: 0;">
+        Mantenemos <strong>Alta</strong> porque el impacto no depende del token, sino de la contraseña. Si se filtra un token, el acceso dura hasta 24 h sin que la víctima pueda cortarlo. Si se filtra la <strong>contraseña</strong>, el atacante puede emitir tokens nuevos indefinidamente, porque no existe ningún endpoint para cambiarla (<code>AuthResource</code> solo expone registro y login). La única salida es intervenir la base de datos a mano. Para una red social con mensajería privada, una cuenta comprometida sin vía de recuperación justifica la severidad Alta.
+      </p>
+    </div>
+
+    <!-- H-09 -->
+    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #16a34a; border-radius: 6px; padding: 16px; margin-bottom: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+        <strong style="font-size: 15px; color: #166534;">H-09 · Mezcla de idiomas y tipo duplicado — #118</strong>
+        <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #dcfce7; color: #166534; border: 1px solid #86efac;">BAJA · MANTENIDO</span>
+      </div>
+      <p style="font-size: 13px; color: #14532d; margin: 0;">
+        Aceptado por el Blue Team, incluido el tipo duplicado <code>UsuarioResumen</code> / <code>UserSummary</code>. Corregimos una inconsistencia nuestra: la tabla del foro de la Fase 1 lo clasificaba como Media, mientras el Issue #118 decía Baja. La severidad final es <strong>Baja</strong>, la misma que aceptó el Blue Team.
+      </p>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2: MODIFICADOS -->
+  <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 22px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">
+      2. Hallazgos Modificados
+    </h2>
+
+    <!-- H-10 -->
+    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; margin-bottom: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div style="font-size: 15.5px; font-weight: 700; color: #0f172a;">H-10 · Clave privada RSA con permisos 644 — #112</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 3px;"><strong>Misión:</strong> M4 Seguridad &nbsp;·&nbsp; <strong>CWE:</strong> CWE-732</div>
+        </div>
+        <div>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; text-decoration: line-through;">CRÍTICA</span>
+          <span style="font-size: 12px; color: #64748b;">&nbsp;→&nbsp;</span>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">MEDIA</span>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: #334155; margin: 0 0 8px 0;">
+        Hechos confirmados por ambos equipos: <code>keys-init</code> ejecuta <code>chmod 644 /keys/*</code> (<code>docker-compose.yml:102</code>) y <code>privateKey.pem</code> queda como <code>root:root</code> legible por cualquier usuario del contenedor.
+      </p>
+      <span style="font-weight: 700; color: #334155; font-size: 13px; display: block; margin-bottom: 3px;">Aceptamos dos objeciones del Blue Team:</span>
+      <ol style="font-size: 13px; color: #334155; margin: 0 0 8px 20px; padding: 0;">
+        <li style="margin-bottom: 4px;"><strong>La severidad Crítica no estaba demostrada.</strong> Al revisar el compose, el volumen <code>app_keys</code> solo lo montan <code>keys-init</code> (lectura/escritura) y los dos backends en modo <code>:ro</code> (<code>docker-compose.yml:139</code>). Ningún otro contenedor (Nginx, Redis, MinIO, Neo4j, web) accede a la clave. Explotarla exige ejecutar código dentro de un backend o acceder al host, y no demostramos ninguna de las dos cosas.</li>
+        <li style="margin-bottom: 4px;"><strong>El UID era incorrecto.</strong> El Dockerfile ejecuta Quarkus con <code>USER 185</code> (<code>backend/Dockerfile:30</code>), no con 1001. La recomendación corregida es:</li>
+      </ol>
+      <pre style="background-color: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 12px; margin: 6px 0 10px 0;">chown 185:185 /keys/privateKey.pem &amp;&amp; chmod 600 /keys/privateKey.pem</pre>
+      <p style="font-size: 13px; color: #334155; margin: 0;">
+        No lo bajamos a Baja porque el mismo <code>chmod 644 /keys/*</code> deja también legible <code>vapid-private.txt</code>, la clave privada VAPID de las notificaciones push. Un solo fallo de lectura arbitraria de archivos en el backend expondría ambas claves de firma, lo que permitiría falsificar sesiones y suplantar al servidor de notificaciones. Es una falta de defensa en profundidad sobre los dos secretos más sensibles del sistema. Severidad final: <strong>Media</strong>.
+      </p>
+    </div>
+
+    <!-- H-12 -->
+    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; margin-bottom: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div style="font-size: 15.5px; font-weight: 700; color: #0f172a;">H-12 · Ausencia de Content-Security-Policy — #114</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 3px;"><strong>Misión:</strong> M4 Seguridad &nbsp;·&nbsp; <strong>CWE:</strong> CWE-1021 / CWE-79</div>
+        </div>
+        <div>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c; text-decoration: line-through;">ALTA</span>
+          <span style="font-size: 12px; color: #64748b;">&nbsp;→&nbsp;</span>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">MEDIA</span>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: #334155; margin: 0 0 8px 0;">
+        Confirmado por ambos equipos: Nginx no envía <code>Content-Security-Policy</code> (<code>frontend/nginx.conf:55-57</code>).
+      </p>
+      <p style="font-size: 13px; color: #334155; margin: 0 0 8px 0;">
+        El Blue Team tiene razón en que no demostramos un XSS. Lo comprobamos: no hay ningún uso de <code>dangerouslySetInnerHTML</code> en <code>frontend/src</code>, y React escapa el texto por defecto. El escenario de robo del token es condicional y no lo probamos.
+      </p>
+      <p style="font-size: 13px; color: #334155; margin: 0;">
+        Mantenemos el hallazgo en <strong>Media</strong>, no en Baja, porque la sesión con el JWT se guarda en <code>localStorage</code> (<code>frontend/src/lib/session.ts:64</code>), al alcance de cualquier script que se ejecute en el origen. La CSP es la única barrera del navegador que quedaría si aparece un XSS por una dependencia o un cambio futuro, y la cadena de suministro del frontend ya obligó a un parche (PR #109, «actualizar dependencia transitiva del frontend»).
+      </p>
+    </div>
+
+    <!-- H-24 -->
+    <div style="background-color: #fefce8; border: 1px solid #fde68a; border-left: 5px solid #ca8a04; border-radius: 8px; padding: 18px; margin-bottom: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #fde68a; padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div style="font-size: 15.5px; font-weight: 700; color: #0f172a;">H-24 · Sin timeout ni circuit breaker hacia Neo4j — #120</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 3px;"><strong>Misión:</strong> M6 Resiliencia &nbsp;·&nbsp; <strong>CWE:</strong> CWE-400 &nbsp;·&nbsp; <strong style="color: #854d0e;">Contrarréplica formal</strong></div>
+        </div>
+        <div>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c; text-decoration: line-through;">ALTA</span>
+          <span style="font-size: 12px; color: #64748b;">&nbsp;→&nbsp;</span>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">MEDIA</span>
+        </div>
+      </div>
+      <span style="font-weight: 700; color: #334155; font-size: 13px; display: block; margin-bottom: 3px;">Aceptamos tres correcciones del Blue Team:</span>
+      <ul style="font-size: 13px; color: #334155; margin: 0 0 10px 20px; padding: 0;">
+        <li style="margin-bottom: 4px;">Nuestro paso 2 omitía el JWT: sin <code>Authorization</code>, <code>/api/feed</code> devuelve 401 sin consultar Neo4j.</li>
+        <li style="margin-bottom: 4px;">La mención a los hilos de eventos de Netty era incorrecta. Los repositorios usan <code>driver.executableQuery(...).execute()</code> (bloqueante) desde endpoints síncronos que se ejecutan en el pool de workers.</li>
+        <li style="margin-bottom: 4px;">Con 20 peticiones concurrentes no hubo caída de las réplicas, y el sistema se recuperó solo al reanudar Neo4j. <strong>Retiramos la afirmación de «caída en cascada de ambas réplicas».</strong></li>
+      </ul>
+      <span style="font-weight: 700; color: #334155; font-size: 13px; display: block; margin-bottom: 3px;">Contrarréplica sobre la severidad Baja propuesta:</span>
+      <p style="font-size: 13px; color: #334155; margin: 0 0 6px 0;">
+        La propia prueba del Blue Team muestra que <strong>el límite de 60 s no lo pone el backend, sino Nginx</strong>. El bloque <code>location ~ ^/api</code> (<code>frontend/nginx.conf:67-78</code>) define <code>proxy_connect_timeout 2s</code> pero no <code>proxy_read_timeout</code>, así que rige el valor por defecto de Nginx, <strong>60 s</strong>. Esto coincide con las 17 respuestas 504 a los ~60 s:
+      </p>
+      <pre style="background-color: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 12px; margin: 6px 0 10px 0;"># frontend/nginx.conf — location ~ ^/api(?:/|$)
+proxy_pass http://backend_pool;
+proxy_connect_timeout 2s;
+proxy_next_upstream_timeout 5s;
+# proxy_read_timeout no definido → valor por defecto de Nginx: 60s</pre>
+      <p style="font-size: 13px; color: #334155; margin: 0 0 6px 0;">En consecuencia:</p>
+      <ol style="font-size: 13px; color: #334155; margin: 0 0 10px 20px; padding: 0;">
+        <li style="margin-bottom: 4px;">El backend no corta la consulta; quien corta la conexión con el cliente es el proxy. El hilo worker sigue bloqueado mientras el driver espera a Neo4j, aunque el cliente ya recibió el 504.</li>
+        <li style="margin-bottom: 4px;">Durante la caída de Neo4j, el 100 % de las peticiones autenticadas que leen el grafo tardan 60 s en fallar y devuelven un 504/500 genérico, en lugar de un 503 inmediato y explicable.</li>
+        <li style="margin-bottom: 4px;"><code>/q/health/live</code> siguió en 200, como reconoce el Blue Team. El balanceador no tiene ninguna señal para dejar de enviar tráfico: ninguna réplica se marca como no disponible.</li>
+      </ol>
+      <p style="font-size: 13px; color: #334155; margin: 0;">
+        Una prueba de 20 peticiones no basta para descartar el agotamiento del pool de workers con más carga, y nosotros tampoco lo demostramos. Por eso no sostenemos Alta. Pero una indisponibilidad total del servicio con 60 s de espera por petición es una degradación medible en la misión de resiliencia, no un detalle cosmético. Severidad final: <strong>Media</strong>.
+      </p>
+    </div>
+
+    <!-- H-05 -->
+    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; margin-bottom: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div style="font-size: 15.5px; font-weight: 700; color: #0f172a;">H-05 · PostService con cinco dependencias — #117</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 3px;"><strong>Misión:</strong> M3 Código &nbsp;·&nbsp; <strong>Tipo:</strong> Mantenibilidad / diseño</div>
+        </div>
+        <div>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c; text-decoration: line-through;">ALTA</span>
+          <span style="font-size: 12px; color: #64748b;">&nbsp;→&nbsp;</span>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15;">MEDIA</span>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: #334155; margin: 0 0 6px 0;">
+        El Blue Team confirmó todo lo descrito (cinco dependencias, <code>create()</code> de 46 líneas, métodos de lectura que no usan <code>storage</code>, <code>images</code> ni <code>events</code>) y aportó dos precisiones que aceptamos:
+      </p>
+      <ul style="font-size: 13px; color: #334155; margin: 0 0 8px 20px; padding: 0;">
+        <li style="margin-bottom: 4px;">La validación detallada de la imagen vive en <code>media/ImageValidator</code>, con tests propios, no dentro de <code>create()</code>.</li>
+        <li style="margin-bottom: 4px;">Las operaciones sí tienen cobertura de integración (<code>PostResourceTest</code>, <code>ReactionResourceTest</code>), aunque no tests unitarios aislados.</li>
+      </ul>
+      <p style="font-size: 13px; color: #334155; margin: 0;">
+        Es un hallazgo de diseño sin falla actual demostrada. Lo mantenemos en <strong>Media</strong> y no en Baja porque la compensación de MinIO depende del orden de dos bloques <code>try/catch</code> en el mismo método. Es el punto donde un cambio futuro (WebP, edición o borrado de posts con imagen) tiene más probabilidad de dejar objetos huérfanos.
+      </p>
+    </div>
+
+    <!-- H-07 -->
+    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; margin-bottom: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div style="font-size: 15.5px; font-weight: 700; color: #0f172a;">H-07 · AuthService depende de UserService — #116</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 3px;"><strong>Misión:</strong> M3 Código &nbsp;·&nbsp; <strong>Tipo:</strong> Mantenibilidad / diseño</div>
+        </div>
+        <div>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15; text-decoration: line-through;">MEDIA</span>
+          <span style="font-size: 12px; color: #64748b;">&nbsp;→&nbsp;</span>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #dcfce7; color: #166534; border: 1px solid #86efac;">BAJA</span>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: #334155; margin: 0;">
+        Aceptamos la objeción completa. El 404 <code>USUARIO_NO_ENCONTRADO</code> tras el registro era un escenario hipotético que no reprodujimos, y el Blue Team comprobó que el registro devuelve 201. <code>UserService.profile()</code> hoy solo delega en <code>UserRepository</code>. El acoplamiento entre servicios existe (<code>AuthService.java:24-30</code>, <code>:48</code>), pero es un punto de mantenibilidad sin impacto funcional. Severidad final: <strong>Baja</strong>.
+      </p>
+    </div>
+
+    <!-- H-22 -->
+    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; margin-bottom: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div style="font-size: 15.5px; font-weight: 700; color: #0f172a;">H-22 · Pantalla en blanco en comentarios — #119</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 3px;"><strong>Misión:</strong> M5 UX / UI Crash &nbsp;·&nbsp; <strong>CWE:</strong> CWE-754 / CWE-248</div>
+        </div>
+        <div>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c; text-decoration: line-through;">ALTA</span>
+          <span style="font-size: 12px; color: #64748b;">&nbsp;→&nbsp;</span>
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background-color: #dcfce7; color: #166534; border: 1px solid #86efac;">BAJA</span>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: #334155; margin: 0 0 8px 0;">
+        El Blue Team demostró, con evidencia que verificamos, que el disparador que propusimos no es alcanzable con el backend actual. <code>CommentRepository.thread()</code> exige <code>MATCH (autor:Usuario)-[:COMENTA]-&gt;(c)</code> (<code>CommentRepository.java:90</code>), lo que excluye los comentarios sin autor, y la API no permite eliminar usuarios. Su prueba con <code>DETACH DELETE</code> devolvió el hilo sin autores nulos.
+      </p>
+      <p style="font-size: 13px; color: #334155; margin: 0;">
+        También confirmaron lo que sí sigue vigente: con <code>autor: null</code> en la respuesta la vista queda en blanco, y no existe ningún <code>ErrorBoundary</code> en <code>frontend/src</code>. Cualquier excepción de renderizado, en cualquier componente, desmonta la aplicación completa. Como no demostramos un camino real que la provoque, aceptamos <strong>Baja</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 3: RETIRADOS -->
+  <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 22px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">
+      3. Hallazgos Retirados
+    </h2>
+    <p style="font-size: 14px; color: #334155; margin: 0 0 12px 0;">
+      <strong>Ninguno.</strong> Las 9 observaciones fueron confirmadas por el propio Blue Team en <code>454d3f2</code>; ninguna fue impugnada. Sí retiramos afirmaciones concretas que la evidencia no respalda:
+    </p>
+    <div style="overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 6px; margin: 10px 0 0 0;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; background-color: #ffffff;">
+        <thead>
+          <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+            <th style="padding: 10px 12px; font-weight: 700; color: #0f172a; width: 80px;">Hallazgo</th>
+            <th style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Afirmación retirada</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">H-24</td>
+            <td style="padding: 10px 12px; color: #334155;">«Caída en cascada de ambas réplicas» y «agotamiento de hilos de eventos de Netty».</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+            <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">H-28</td>
+            <td style="padding: 10px 12px; color: #334155;">«Secuestro definitivo» referido al token (sí aplica a la contraseña).</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">H-22</td>
+            <td style="padding: 10px 12px; color: #334155;">«El backend retorna registros con autor nulo».</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+            <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">H-07</td>
+            <td style="padding: 10px 12px; color: #334155;">«El registro puede responder 404».</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">H-10</td>
+            <td style="padding: 10px 12px; color: #334155;">UID 1001 en la recomendación (el correcto es 185).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 4: CONCLUSIÓN -->
+  <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 22px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">
+      4. Conclusión
+    </h2>
+    <p style="font-size: 14px; color: #334155; margin: 0 0 12px 0;">
+      La auditoría cierra con <strong>9 hallazgos reconocidos por ambos equipos</strong> y <strong>0 impugnaciones</strong>. Tras la réplica, la severidad agregada baja de forma justificada: de 1 Crítico, 6 Altos y 2 Medios a <strong>0 Críticos, 2 Altos, 4 Medios y 3 Bajos</strong>.
+    </p>
+    <p style="font-size: 14px; color: #334155; margin: 0 0 12px 0;">
+      Las rebajas responden a errores nuestros que el Blue Team demostró con mediciones reproducibles: una ruta incorrecta, un paso sin JWT, un UID equivocado, un fragmento de código no literal y escenarios de impacto que no probamos. Los aceptamos sin reservas, en línea con la regla de oro:
+    </p>
+    <blockquote style="border-left: 4px solid #2563eb; background-color: #eff6ff; padding: 12px 16px; margin: 14px 0; border-radius: 0 8px 8px 0; font-style: italic; color: #1e3a8a; font-size: 13px;">
+      «Una opinión no constituye un hallazgo. Una impugnación sin evidencia no constituye una defensa. La calidad de los argumentos vale más que la cantidad de errores encontrados.»
+    </blockquote>
+    <p style="font-size: 14px; color: #334155; margin: 0 0 12px 0;">
+      Los dos hallazgos que siguen en <strong>Alta</strong>, <strong>H-11</strong> y <strong>H-28</strong>, son de seguridad de cuentas, están reproducidos por ambos equipos y no tienen mitigación en el código actual. Son, a nuestro juicio, la prioridad de corrección.
+    </p>
+    <p style="font-size: 14px; color: #334155; margin: 0 0 12px 0;">
+      Como valoración general, el producto es <strong>reproducible, funcional y mejor defendido de lo que nuestro informe inicial sugería</strong>: rate limiting en Nginx, montajes de claves en solo lectura, consultas Cypher que filtran nodos huérfanos y pruebas de integración amplias. Sus debilidades están en la gestión del ciclo de vida de las credenciales y en la tolerancia a fallos de las dependencias, más que en defectos funcionales.
+    </p>
+    <div style="background-color: #fefce8; border: 1px solid #fde68a; border-left: 5px solid #ca8a04; border-radius: 6px; padding: 12px 14px; font-size: 13px; color: #713f12;">
+      <strong>Diferencia no resuelta:</strong> la severidad de <strong>H-24</strong> (Blue Team: Baja; Red Team: Media) queda sujeta al dictamen docente según las reglas de la actividad.
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="text-align: center; padding: 16px 10px; color: #64748b; font-size: 12.5px; border-top: 1px solid #e2e8f0; margin-top: 20px;">
+    <p style="margin: 0 0 4px 0;"><strong style="color: #0f172a;">Equipo Auditor Red Team G05 · UPSE 2026</strong></p>
+    <p style="margin: 0 0 4px 0;">Ingeniería en Software · Sistemas Distribuidos y Cloud Computing · Software 7/1</p>
+  </div>
+
+</div>

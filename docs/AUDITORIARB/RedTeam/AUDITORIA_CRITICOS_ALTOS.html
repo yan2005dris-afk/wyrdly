@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoría Red Team — Hallazgos Críticos y Altos (Arena Fase 1)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --upse-blue: #38bdf8;
+      --accent: #60a5fa;
+      --critica-bg: rgba(239, 68, 68, 0.15);
+      --critica-border: #ef4444;
+      --critica-text: #fca5a5;
+      --alta-bg: rgba(249, 115, 22, 0.15);
+      --alta-border: #f97316;
+      --alta-text: #fdba74;
+      --media-bg: rgba(234, 179, 8, 0.15);
+      --media-border: #eab308;
+      --media-text: #fde047;
+      --code-bg: #090d16;
+      --code-text: #e2e8f0;
+      --code-border: #1e293b;
+      --table-header: #1e293b;
+      --table-row-alt: #172033;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --upse-blue: #0284c7;
+        --accent: #2563eb;
+        --critica-bg: #fee2e2;
+        --critica-border: #dc2626;
+        --critica-text: #991b1b;
+        --alta-bg: #ffedd5;
+        --alta-border: #ea580c;
+        --alta-text: #9a3412;
+        --media-bg: #fef9c3;
+        --media-border: #ca8a04;
+        --media-text: #854d0e;
+        --code-bg: #f1f5f9;
+        --code-text: #0f172a;
+        --code-border: #cbd5e1;
+        --table-header: #f1f5f9;
+        --table-row-alt: #f8fafc;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.65;
+      color: var(--text);
+      background-color: var(--bg);
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* Header del post del foro */
+    .forum-post-header {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.8rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .badge-tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--upse-blue);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      margin-bottom: 0.75rem;
+    }
+
+    h1 {
+      font-size: 1.85rem;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 0.8rem;
+      color: var(--text);
+    }
+
+    .post-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.2rem;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--card-border);
+      padding-top: 1rem;
+      margin-top: 1rem;
+    }
+
+    .post-meta span strong {
+      color: var(--text);
+    }
+
+    /* Secciones de contenido */
+    .content-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.8rem;
+      margin-bottom: 1.8rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin: 1.2rem 0 0.6rem 0;
+      color: var(--text);
+    }
+
+    p {
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .lead-text {
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+
+    blockquote {
+      border-left: 4px solid var(--accent);
+      padding: 0.8rem 1.2rem;
+      margin: 1.2rem 0;
+      background: rgba(96, 165, 250, 0.08);
+      border-radius: 0 8px 8px 0;
+      font-style: italic;
+      color: var(--text);
+    }
+
+    ul, ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1.2rem;
+    }
+
+    li {
+      margin-bottom: 0.4rem;
+    }
+
+    /* Badges de severidad */
+    .badge {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      vertical-align: middle;
+    }
+
+    .badge-critica {
+      background: var(--critica-bg);
+      color: var(--critica-text);
+      border: 1px solid var(--critica-border);
+    }
+
+    .badge-alta {
+      background: var(--alta-bg);
+      color: var(--alta-text);
+      border: 1px solid var(--alta-border);
+    }
+
+    .badge-media {
+      background: var(--media-bg);
+      color: var(--media-text);
+      border: 1px solid var(--media-border);
+    }
+
+    .badge-positivo {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid #22c55e;
+    }
+
+    /* Cards del TOP 3 */
+    .top-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin: 1.2rem 0;
+    }
+
+    .top-card {
+      border-radius: 8px;
+      padding: 1.2rem;
+      border-left: 5px solid;
+    }
+
+    .top-card.top-1 {
+      background: var(--critica-bg);
+      border-left-color: var(--critica-border);
+    }
+
+    .top-card.top-2, .top-card.top-3 {
+      background: var(--alta-bg);
+      border-left-color: var(--alta-border);
+    }
+
+    .top-card h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    /* Tablas responsivas */
+    .table-container {
+      overflow-x: auto;
+      margin: 1.2rem 0;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.92rem;
+    }
+
+    th {
+      background-color: var(--table-header);
+      padding: 0.75rem 0.9rem;
+      font-weight: 700;
+      border-bottom: 2px solid var(--card-border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 0.75rem 0.9rem;
+      border-bottom: 1px solid var(--card-border);
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background-color: var(--table-row-alt);
+    }
+
+    /* Fichas Técnicas */
+    .finding-card {
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1.4rem;
+      margin-bottom: 1.5rem;
+      background: var(--card-bg);
+    }
+
+    .finding-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.8rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .finding-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .finding-meta {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .field-label {
+      font-weight: 700;
+      color: var(--text);
+      display: inline-block;
+      margin-bottom: 0.2rem;
+    }
+
+    .field-block {
+      margin-bottom: 1rem;
+    }
+
+    /* Código */
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.88em;
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 0.15rem 0.35rem;
+      border-radius: 4px;
+      border: 1px solid var(--code-border);
+      word-break: break-all;
+    }
+
+    pre {
+      background: var(--code-bg);
+      color: var(--code-text);
+      border: 1px solid var(--code-border);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      overflow-x: auto;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      margin: 0.5rem 0 1rem 0;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      border: none;
+      word-break: normal;
+    }
+
+    /* Footer del post */
+    .forum-footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      border-top: 1px solid var(--card-border);
+      margin-top: 2rem;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--card-border);
+      margin: 1.5rem 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ==================== ENCABEZADO DEL FORO ==================== -->
+  <header class="forum-post-header">
+    <div class="badge-tag">Red Team vs Blue Team · Fase 1 (Auditoría Técnica)</div>
+    <h1>Informe Priorizado de Auditoría: 9 Hallazgos Clave</h1>
+    <p class="lead-text">
+      Compañeros y docente: compartimos los resultados de la auditoría técnica independiente realizada sobre el repositorio <code>red-social-distribuida</code>. Siguiendo la <strong>Regla de Oro</strong> de la cátedra, hemos seleccionado de forma consensuada 9 hallazgos prioritarios (H-10, H-11, H-12, H-28, H-05, H-07, H-09, H-22 y H-24) que comprometen la seguridad, la arquitectura por capas, el diseño del dominio, la resiliencia y la interfaz, focalizando el debate de la Fase 2 en problemas de impacto técnico comprobado.
+    </p>
+    <div class="post-meta">
+      <span><strong>Asignatura:</strong> Sistemas Distribuidos y Cloud Computing</span>
+      <span><strong>Docente:</strong> ING. ANTHONY ABRAHAN PACHAY ESPINOZA</span>
+      <span><strong>Curso:</strong> Software 7/1</span>
+      <span><strong>Auditores (Red Team):</strong> Andy Bryan Alejandro Vera, Gino Maximiliano Bermúdez Santos, Alisson Yamel Reyes Ricardo, Yandris Miguel Rivera Torres</span>
+    </div>
+  </header>
+
+  <!-- ==================== SECCIÓN 1: INTRODUCCIÓN Y REPRODUCIBILIDAD ==================== -->
+  <section class="content-card">
+    <h2>1. Contexto de la Auditoría y Reproducibilidad</h2>
+    <p>
+      Durante el análisis exhaustivo identificamos un total de <strong>28 hallazgos</strong> en el sistema (documentados en su totalidad en el informe integral complementario). No obstante, para la interacción en el foro y la apertura de issues para la Fase 2, aplicamos el criterio institucional:
+    </p>
+    <blockquote>
+      «Una opinión no constituye un hallazgo. Una impugnación sin evidencia no constituye una defensa. La calidad de los argumentos vale más que la cantidad de errores encontrados.»
+    </blockquote>
+    <p>
+      Por esta razón, este informe se enfoca en los <strong>9 hallazgos seleccionados</strong> (1 Crítico, 6 Altos y 2 Medios de arquitectura/dominio). Estos serán los ítems registrados formalmente como GitHub Issues para la réplica del Blue Team.
+    </p>
+
+    <h3>Resumen de la Misión 1 (FROM ZERO: Reproducibilidad)</h3>
+    <ul>
+      <li><strong>Resultado del despliegue:</strong> <span class="badge badge-positivo">Reproducible exitosamente</span>.</li>
+      <li>El comando <code>docker compose up -d --build</code> levanta de manera determinista los 7 contenedores (2 instancias Quarkus, 1 Neo4j, 1 Redis, 1 MinIO, 1 Nginx y el contenedor web).</li>
+      <li>El script <code>scripts/seed-demo.mjs</code> puebla la base de datos y verifica automáticamente las 8 consultas Cypher (<strong>C1</strong> a <strong>C8</strong>), confirmando que las relaciones requeridas por la guía están implementadas.</li>
+    </ul>
+  </section>
+
+  <!-- ==================== SECCIÓN 2: TOP 3 ==================== -->
+  <section class="content-card">
+    <h2>2. Top 3: Los Problemas Más Relevantes</h2>
+    <p>Conforme a la pauta de la Fase 1, destacamos los tres hallazgos con mayor repercusión sistémica:</p>
+
+    <div class="top-grid">
+      <div class="top-card top-1">
+        <h4>
+          <span>TOP 1 · H-10: Clave Privada RSA World-Readable (chmod 644)</span>
+          <span class="badge badge-critica">CRÍTICA</span>
+        </h4>
+        <p><strong>Misión:</strong> M4 (Seguridad) | <strong>CWE:</strong> CWE-732</p>
+        <p>
+          En <code>docker-compose.yml:102</code>, el contenedor <code>keys-init</code> asigna permisos <code>chmod 644 /keys/*</code> a la clave privada <code>privateKey.pem</code>. Esto permite que cualquier contenedor o proceso con lectura al volumen extraiga la clave y <strong>falsifique tokens JWT para cualquier usuario</strong> con privilegios totales sin tocar la base de datos.
+        </p>
+      </div>
+
+      <div class="top-card top-2">
+        <h4>
+          <span>TOP 2 · H-28: Credencial Inmutable y Sesiones JWT Irrevocables</span>
+          <span class="badge badge-alta">ALTA</span>
+        </h4>
+        <p><strong>Misión:</strong> M4 (Seguridad) | <strong>CWE:</strong> CWE-620</p>
+        <p>
+          La API no expone ningún endpoint para cambiar o recuperar contraseñas (<code>PUT /auth/password</code>). Además, los JWT tienen una vida útil fija de 24 horas sin lista de revocación ni contador <code>tokenVersion</code> en Neo4j. Si una credencial se filtra, la víctima no puede cambiarla ni expulsar al atacante; el secuestro de la cuenta es definitivo.
+        </p>
+      </div>
+
+      <div class="top-card top-3">
+        <h4>
+          <span>TOP 3 · H-11: Enumeración de Usuarios por Timing Attack en Login</span>
+          <span class="badge badge-alta">ALTA</span>
+        </h4>
+        <p><strong>Misión:</strong> M4 (Seguridad) | <strong>CWE:</strong> CWE-208</p>
+        <p>
+          En <code>AuthService.login()</code>, cuando el usuario no existe, la petición responde en ~5–15 ms (búsqueda vacía). Cuando el usuario existe pero la clave es incorrecta, se ejecuta <code>BcryptUtil.matches</code> tardando 80–120 ms. Esta asimetría medible por latencia permite enumerar toda la base de usuarios mediante un script automatizado.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECCIÓN 3: TABLA CONSOLIDADA ==================== -->
+  <section class="content-card">
+    <h2>3. Tabla Consolidada de Hallazgos Prioritarios</h2>
+    <p>Matriz de los 9 hallazgos preparados para su apertura como GitHub Issues:</p>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Misión / Área</th>
+            <th>Severidad</th>
+            <th>Título / Resumen Técnico</th>
+            <th>Evidencia Clave</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>H-10</strong></td>
+            <td>M4 Seguridad</td>
+            <td><span class="badge badge-critica">Crítica</span></td>
+            <td>Clave privada RSA del JWT con permisos 644 (world-readable).</td>
+            <td><code>docker-compose.yml:102</code> (chmod 644 /keys/*)</td>
+          </tr>
+          <tr>
+            <td><strong>H-11</strong></td>
+            <td>M4 Seguridad</td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td>Timing attack y enumeración de usuarios en <code>POST /auth/login</code>.</td>
+            <td><code>AuthService.java:51-58</code>, <code>AuthRepository.java</code></td>
+          </tr>
+          <tr>
+            <td><strong>H-12</strong></td>
+            <td>M4 Seguridad</td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td>Ausencia de Content-Security-Policy (CSP) en Nginx.</td>
+            <td><code>frontend/nginx.conf:55-57</code></td>
+          </tr>
+          <tr>
+            <td><strong>H-28</strong></td>
+            <td>M4 Seguridad</td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td>Credencial inmutable: sin cambio de contraseña ni revocación de JWT.</td>
+            <td><code>AuthResource.java:23,36,48</code>, <code>AuthProvider.tsx:68-71</code></td>
+          </tr>
+          <tr>
+            <td><strong>H-05</strong></td>
+            <td>M3 Código</td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td>Acoplamiento excesivo y orquestación monolítica en <code>PostService</code>.</td>
+            <td><code>PostService.java:21-26,38-83</code> (5 dependencias directas)</td>
+          </tr>
+          <tr>
+            <td><strong>H-07</strong></td>
+            <td>M3 Código</td>
+            <td><span class="badge badge-media">Media</span></td>
+            <td>Acoplamiento transitivo: <code>AuthService</code> depende de <code>UserService</code> en vez de repositorio.</td>
+            <td><code>AuthService.java:23-26,32-49</code></td>
+          </tr>
+          <tr>
+            <td><strong>H-09</strong></td>
+            <td>M3 Código</td>
+            <td><span class="badge badge-media">Media</span></td>
+            <td>Deuda técnica por spanglish estructural y ruptura de lenguaje ubicuo (DDD).</td>
+            <td><code>CommentRequest.java</code>, <code>CommentService.java</code></td>
+          </tr>
+          <tr>
+            <td><strong>H-22</strong></td>
+            <td>M5 UX / Crash</td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td>Pantalla en blanco (WSOD) por falta de <code>ErrorBoundary</code> y null-safety.</td>
+            <td><code>CommentThread.tsx:31-50</code> (0 ErrorBoundary en SPA)</td>
+          </tr>
+          <tr>
+            <td><strong>H-24</strong></td>
+            <td>M6 Resiliencia</td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td>Ausencia de Circuit Breaker y Timeout en driver reactivo Neo4j.</td>
+            <td><code>application.properties</code> (sin SmallRye Fault Tolerance)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ==================== SECCIÓN 4: FICHAS TÉCNICAS ==================== -->
+  <section class="content-card">
+    <h2>4. Fichas Técnicas Detalladas (Estructura de GitHub Issues)</h2>
+    <p>A continuación, presentamos el desglose técnico de cada hallazgo con sus pasos de reproducción y recomendaciones:</p>
+
+    <!-- H-10 -->
+    <div class="finding-card">
+      <div class="finding-header">
+        <div>
+          <div class="finding-title">H-10 · Clave privada RSA del JWT legible por todos (chmod 644)</div>
+          <div class="finding-meta">
+            <span><strong>Misión:</strong> M4 Seguridad</span>
+            <span><strong>CWE:</strong> CWE-732 / CWE-552</span>
+          </div>
+        </div>
+        <span class="badge badge-critica">CRÍTICA</span>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Descripción:</span>
+        <p>El job <code>keys-init</code> asigna permisos <code>644</code> (lectura para todo el mundo) sobre las claves criptográficas montadas en el volumen compartido. La clave privada RSA para firmar tokens JWT queda expuesta a cualquier proceso o contenedor que comparta el almacenamiento.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Pasos para reproducir:</span>
+        <ol>
+          <li>Ejecutar <code>docker compose up -d</code>.</li>
+          <li>Inspeccionar permisos en el contenedor:
+            <pre><code>docker compose exec backend-1 ls -la /keys</code></pre>
+          </li>
+          <li>Comprobar los permisos del archivo <code>privateKey.pem</code>.</li>
+        </ol>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Resultado esperado vs. Obtenido:</span>
+        <p><strong>Esperado:</strong> Permisos estrictos <code>chmod 600</code> o <code>640</code> solo para el usuario del proceso Quarkus.<br>
+        <strong>Obtenido:</strong> <code>-rw-r--r-- 1 root root 1675 privateKey.pem</code> (permite lectura a cualquier proceso del host).</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Evidencia:</span>
+        <pre><code># docker-compose.yml:102
+keys-init:
+  image: alpine:3.20
+  volumes:
+    - app_keys:/keys
+  command: |
+    sh -c "
+      ...
+      chmod 644 /keys/*   # <-- Vulnerabilidad crítica
+    "</code></pre>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Impacto y Recomendación:</span>
+        <p><strong>Impacto:</strong> Crítico. Falsificación universal de tokens JWT y asunción de privilegios administrativos completos.<br>
+        <strong>Recomendación:</strong> Cambiar a <code>chmod 600 /keys/privateKey.pem</code> y asignar propiedad al UID no-root de Quarkus (<code>chown 1001:1001</code>).</p>
+      </div>
+    </div>
+
+    <!-- H-11 -->
+    <div class="finding-card">
+      <div class="finding-header">
+        <div>
+          <div class="finding-title">H-11 · Enumeración de usuarios por Timing Attack en Login</div>
+          <div class="finding-meta">
+            <span><strong>Misión:</strong> M4 Seguridad</span>
+            <span><strong>CWE:</strong> CWE-208 / CWE-204</span>
+          </div>
+        </div>
+        <span class="badge badge-alta">ALTA</span>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Descripción:</span>
+        <p>El endpoint <code>POST /auth/login</code> responde con tiempos notablemente distintos según la existencia del usuario, permitiendo comprobar usuarios válidos mediante latencias.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Pasos para reproducir:</span>
+        <pre><code># 1. Petición con usuario inexistente:
+curl -w "%{time_total}\n" -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"usuario_fantasma","password":"Password123!"}'
+# Retorna en ~5-15 ms
+
+# 2. Petición con usuario real pero clave incorrecta:
+curl -w "%{time_total}\n" -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"ana","password":"Password123!"}'
+# Retorna en ~80-120 ms por el cálculo de bcrypt</code></pre>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Evidencia:</span>
+        <pre><code>// AuthService.java:51-58
+Credentials credentials = repository.findCredentials(request.username())
+    .filter(c -> BcryptUtil.matches(request.password(), c.passwordHash()))
+    .orElseThrow(() -> new InvalidCredentialsException()); // Cortocircuito rápido</code></pre>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Impacto y Recomendación:</span>
+        <p><strong>Impacto:</strong> Facilita la extracción automatizada del padrón de usuarios para ataques dirigidos.<br>
+        <strong>Recomendación:</strong> Ejecutar siempre <code>BcryptUtil.matches</code> contra un hash dummy precargado en memoria cuando el usuario no exista.</p>
+      </div>
+    </div>
+
+    <!-- H-12 -->
+    <div class="finding-card">
+      <div class="finding-header">
+        <div>
+          <div class="finding-title">H-12 · Ausencia de cabecera Content-Security-Policy (CSP) en Nginx</div>
+          <div class="finding-meta">
+            <span><strong>Misión:</strong> M4 Seguridad</span>
+            <span><strong>CWE:</strong> CWE-1021 / CWE-79</span>
+          </div>
+        </div>
+        <span class="badge badge-alta">ALTA</span>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Descripción:</span>
+        <p>El proxy Nginx no emite la cabecera HTTP <code>Content-Security-Policy</code>. Al almacenar el token JWT en <code>localStorage</code>, cualquier vector XSS en comentarios o nombres permite exfiltrar credenciales hacia servidores externos.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Evidencia:</span>
+        <pre><code># frontend/nginx.conf (líneas 55-57)
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+# <-- Falta Content-Security-Policy</code></pre>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Recomendación:</span>
+        <p>Agregar una política estricta en Nginx restringiendo scripts a <code>'self'</code> y permitiendo únicamente los endpoints de Web Push autorizados en <code>connect-src</code>.</p>
+      </div>
+    </div>
+
+    <!-- H-28 -->
+    <div class="finding-card">
+      <div class="finding-header">
+        <div>
+          <div class="finding-title">H-28 · Credencial inmutable: sin cambio de contraseña ni revocación de JWT</div>
+          <div class="finding-meta">
+            <span><strong>Misión:</strong> M4 Seguridad</span>
+            <span><strong>CWE:</strong> CWE-620 / CWE-613</span>
+          </div>
+        </div>
+        <span class="badge badge-alta">ALTA</span>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Descripción:</span>
+        <p>La API no ofrece rutas para modificar contraseñas. Además, los JWT emitidos son válidos por 24 horas (<code>smallrye.jwt.new-token.lifespan = 86400</code>) y no existe lista de revocación en Redis ni versión de token en Neo4j. Al hacer "Cerrar sesión", el frontend solo purga el estado local; el token sigue siendo válido en el servidor.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Evidencia:</span>
+        <ul>
+          <li><code>AuthResource.java:23,36,48</code>: solo expone <code>/registro</code> y <code>/login</code>.</li>
+          <li><code>AuthProvider.tsx:68-71</code>: <code>logout()</code> solo llama <code>setSession(null)</code> localmente.</li>
+          <li>Ausencia de validación de estado de token en cada petición REST.</li>
+        </ul>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Impacto y Recomendación:</span>
+        <p><strong>Impacto:</strong> Secuestro permanente de cuentas ante filtraciones. La víctima no puede expulsar a intrusos.<br>
+        <strong>Recomendación:</strong> Agregar <code>tokenVersion</code> en el nodo <code>(:Usuario)</code> e implementar <code>PUT /api/auth/password</code> que incremente este valor para invalidar instantáneamente todos los tokens previos.</p>
+      </div>
+    </div>
+
+    <!-- H-05 -->
+    <div class="finding-card">
+      <div class="finding-header">
+        <div>
+          <div class="finding-title">H-05 · Acoplamiento excesivo y orquestación monolítica en PostService</div>
+          <div class="finding-meta">
+            <span><strong>Misión:</strong> M3 Código</span>
+            <span><strong>CWE:</strong> Arquitectura / God Service</span>
+          </div>
+        </div>
+        <span class="badge badge-alta">ALTA</span>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Descripción:</span>
+        <p><code>PostService</code> concentra 5 colaboradores directos y su método <code>create()</code> (46 líneas) coordina validaciones de texto, llamadas a MinIO, persistencia en Neo4j, publicación de eventos CDI y rollback manual en 4 bloques <code>try/catch</code>.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Evidencia:</span>
+        <pre><code>// PostService.java:21-26
+public PostService(PostRepository repository, MediaStorage storage,
+                   ImageValidator images, Event&lt;PostCreated&gt; events,
+                   PostAssembler assembler) { ... }</code></pre>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Impacto y Recomendación:</span>
+        <p><strong>Impacto:</strong> Alto blast radius y riesgo de regresión al mezclar almacenamiento multimedia con persistencia de grafos.<br>
+        <strong>Recomendación:</strong> Descomponer en <code>PostCreator</code>, <code>PostImageAttacher</code> y <code>PostPersister</code> con responsabilidades aisladas.</p>
+      </div>
+    </div>
+
+    <!-- H-07 -->
+    <div class="finding-card">
+      <div class="finding-header">
+        <div>
+          <div class="finding-title">H-07 · Acoplamiento transitivo: AuthService depende de UserService en vez de UserRepository</div>
+          <div class="finding-meta">
+            <span><strong>Misión:</strong> M3 Código</span>
+            <span><strong>CWE:</strong> Arquitectura / Violación DIP (Dependency Inversion)</span>
+          </div>
+        </div>
+        <span class="badge badge-media">MEDIA</span>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Descripción:</span>
+        <p><code>AuthService</code> inyecta directamente la clase de servicio <code>UserService</code> en lugar de consultar la capa de persistencia <code>UserRepository</code>. Durante el registro (<code>register()</code>), delega en <code>users.profile(id)</code> para construir la respuesta.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Evidencia:</span>
+        <pre><code>// backend/src/main/java/com/redsocial/auth/AuthService.java:23-26, 32-49
+public AuthService(AuthRepository repository, UserService users) {
+    this.repository = repository;
+    this.users = users;
+}
+
+public Profile register(RegisterRequest req) {
+    // ... crea usuario en AuthRepository ...
+    return users.profile(id);
+}</code></pre>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Impacto:</span>
+        <p>Genera acoplamiento transitivo innecesario entre dos servicios del mismo nivel. Si <code>UserService</code> en el futuro incorpora dependencias adicionales (notificaciones, auditoría, caches), arrastra ese peso directamente a <code>AuthService</code>. Dificulta los tests unitarios aislados del módulo de autenticación y aumenta el radio de explosión ante cambios.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Recomendación:</span>
+        <p>Hacer que <code>AuthService</code> consulte directamente a <code>UserRepository</code> para obtener la proyección de perfil mínima (que ya utiliza para persistir), o extraer un ensamblador/puerto compartido (ej. <code>UserProfileReader</code>) para desacoplar ambos servicios.</p>
+      </div>
+    </div>
+
+    <!-- H-09 -->
+    <div class="finding-card">
+      <div class="finding-header">
+        <div>
+          <div class="finding-title">H-09 · Deuda técnica por spanglish estructural y ruptura de lenguaje ubicuo (DDD)</div>
+          <div class="finding-meta">
+            <span><strong>Misión:</strong> M3 Código</span>
+            <span><strong>CWE:</strong> Deuda Técnica / Inconsistencia de Dominio</span>
+          </div>
+        </div>
+        <span class="badge badge-media">MEDIA</span>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Descripción:</span>
+        <p>Existe una mezcla continua y desordenada de español e inglés a lo largo del backend y el frontend, rompiendo el principio fundamental de <em>Lenguaje Ubicuo</em> (DDD):</p>
+        <ul>
+          <li><strong>Paquetes en español:</strong> <code>comentarios</code>, <code>notificaciones</code>, con clases como <code>ClavePublica.java</code>, <code>SuscripcionRequest.java</code>, <code>Sugerencia.java</code>.</li>
+          <li><strong>Records con campos en español:</strong> <code>CommentRequest(texto, respondeA)</code>, <code>CommentResponse(texto, fecha, autor, respuestas)</code>.</li>
+          <li><strong>Métodos en inglés sobre esos mismos objetos:</strong> <code>create()</code>, <code>thread()</code>, <code>save()</code>, <code>history()</code>.</li>
+          <li><strong>Comentarios y logs en inglés:</strong> <code>// Shares the /posts root...</code>, conviviendo con respuestas al usuario en español (<code>mensaje</code> en lugar de <code>message</code>).</li>
+        </ul>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Evidencia:</span>
+        <pre><code>// backend/src/main/java/com/redsocial/comentarios/CommentRequest.java
+public record CommentRequest(String texto, String respondeA) {}
+
+// backend/src/main/java/com/redsocial/comentarios/CommentService.java
+public CommentResponse create(String autorId, CommentRequest request) { ... }
+public List&lt;CommentResponse&gt; thread(String postId) { ... }
+
+// backend/src/main/java/com/redsocial/notificaciones/Sugerencia.java
+package com.redsocial.notificaciones;</code></pre>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Impacto:</span>
+        <p>Duplica el costo cognitivo de los desarrolladores al tener que adivinar si un atributo es <code>text</code> o <code>texto</code>, <code>parentId</code> o <code>respondeA</code>. Genera fricción en integraciones, aumenta la propensión a bugs en refactorizaciones y deteriora la consistencia de la arquitectura.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Recomendación:</span>
+        <p>Establecer y documentar una política estándar en el repositorio:<br>
+        1. <strong>Código interno (100% inglés):</strong> Nombres de paquetes, clases, records, métodos, variables, comentarios y commits (ej. <code>CommentRequest(text, parentId)</code>).<br>
+        2. <strong>Capa de usuario/API:</strong> Mensajes de error en español y descripciones localizadas.<br>
+        3. Congelar la regla para código nuevo e integrar la migración progresiva en refactors futuros.</p>
+      </div>
+    </div>
+
+    <!-- H-22 -->
+    <div class="finding-card">
+      <div class="finding-header">
+        <div>
+          <div class="finding-title">H-22 · Pantalla en blanco (White Screen of Death) en comentarios</div>
+          <div class="finding-meta">
+            <span><strong>Misión:</strong> M5 UX / UI Crash</span>
+            <span><strong>CWE:</strong> CWE-754 / CWE-248</span>
+          </div>
+        </div>
+        <span class="badge badge-alta">ALTA</span>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Descripción:</span>
+        <p><code>CommentThread.tsx</code> accede directamente a propiedades anidadas (<code>comment.autor.id</code>, <code>comment.autor.username</code>) asumiendo que el autor siempre existe. Ante un comentario huérfano o un usuario eliminado en el grafo, JavaScript lanza un <code>TypeError: Cannot read properties of undefined</code>. Al <strong>no existir ningún ErrorBoundary en toda la aplicación React</strong>, React desmonta el árbol completo del DOM, dejando la pantalla totalmente en blanco.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Evidencia:</span>
+        <pre><code>// CommentThread.tsx:31-50
+const profilePath = "/usuarios/" + encodeURIComponent(comment.autor.id);
+const firstName = comment.autor.nombre.split(" ")[0];
+...
+&lt;span className="muted break-all"&gt;@{comment.autor.username}&lt;/span&gt;</code></pre>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Recomendación:</span>
+        <p>1. Envolver la jerarquía de rutas en componentes <code>&lt;ErrorBoundary&gt;</code> con fallback amigable.<br>
+        2. Usar optional chaining: <code>comment.autor?.username ?? copy.deletedUser</code>.</p>
+      </div>
+    </div>
+
+    <!-- H-24 -->
+    <div class="finding-card">
+      <div class="finding-header">
+        <div>
+          <div class="finding-title">H-24 · Ausencia de Circuit Breaker y Timeout en driver Neo4j</div>
+          <div class="finding-meta">
+            <span><strong>Misión:</strong> M6 Resiliencia</span>
+            <span><strong>CWE:</strong> CWE-400 / Resiliencia Distribuida</span>
+          </div>
+        </div>
+        <span class="badge badge-alta">ALTA</span>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Descripción:</span>
+        <p>Las consultas al grafo carecen de límites de tiempo de espera y disyuntor ante fallos. Si Neo4j se pausa (<code>docker compose pause neo4j</code>) o se satura, las peticiones entrantes en Quarkus quedan bloqueadas hasta agotar los hilos de eventos de Netty, provocando caídas en cascada de ambas réplicas y errores <code>504 Gateway Timeout</code> en Nginx.</p>
+      </div>
+      <div class="field-block">
+        <span class="field-label">Recomendación:</span>
+        <p>Integrar <code>quarkus-smallrye-fault-tolerance</code> con anotaciones <code>@Timeout(value = 3, unit = SECONDS)</code> y <code>@CircuitBreaker(failureRatio = 0.5)</code> en los repositorios de lectura.</p>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="forum-footer">
+    <p><strong>Equipo Auditor Red Team · UPSE 2026</strong></p>
+    <p>Ingeniería en Software · Sistemas Distribuidos y Cloud Computing</p>
+    <p><em>Fase 1 completada · Listos para la interacción técnica en la Fase 2</em></p>
+  </footer>
+</div>
+
+</body>
+</html>

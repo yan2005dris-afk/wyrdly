@@ -1,0 +1,732 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{geometry}
+\geometry{top=2cm,bottom=2cm,left=2cm,right=2cm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{xltabular}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{parskip}
+
+\emergencystretch=3em
+\tolerance=2000
+\newcommand{\code}[1]{\nolinkurl{#1}}
+
+% Colores institucionales y de severidad
+\definecolor{upseblue}{RGB}{15, 45, 95}
+\definecolor{sectionblue}{RGB}{20, 60, 120}
+\definecolor{tableheader}{RGB}{235, 240, 248}
+\definecolor{lightgray}{RGB}{248, 250, 252}
+\definecolor{codebg}{RGB}{240, 242, 245}
+
+\newcommand{\badgeCritica}{\colorbox{red!20}{\textcolor{red!80!black}{\textbf{\footnotesize Crítica}}}}
+\newcommand{\badgeAlta}{\colorbox{orange!20}{\textcolor{orange!90!black}{\textbf{\footnotesize Alta}}}}
+\newcommand{\badgeMedia}{\colorbox{yellow!35}{\textcolor{brown!90!black}{\textbf{\footnotesize Media}}}}
+\newcommand{\badgeBaja}{\colorbox{blue!15}{\textcolor{blue!80!black}{\textbf{\footnotesize Baja}}}}
+\newcommand{\badgeInfo}{\colorbox{gray!20}{\textcolor{gray!80!black}{\textbf{\footnotesize Info}}}}
+\newcommand{\badgePositivo}{\colorbox{green!20}{\textcolor{green!60!black}{\textbf{\footnotesize Positivo}}}}
+\newcommand{\badgeCumple}{\colorbox{green!20}{\textcolor{green!60!black}{\textbf{\footnotesize Cumple}}}}
+\newcommand{\badgeNoCumple}{\colorbox{red!20}{\textcolor{red!80!black}{\textbf{\footnotesize No cumple}}}}
+\newcommand{\badgeParcial}{\colorbox{yellow!35}{\textcolor{brown!90!black}{\textbf{\footnotesize Parcial}}}}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=sectionblue,
+    urlcolor=sectionblue,
+    citecolor=sectionblue
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{sectionblue}{\textbf{Auditoría Manual --- Red Social Distribuida (2026)}}}
+\fancyhead[R]{\small\textcolor{gray}{Red Team · UPSE 7/1}}
+\fancyfoot[C]{\small Página \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\titleformat{\section}{\color{sectionblue}\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\color{upseblue}\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\color{black}\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+\begin{document}
+
+% ------------------- PORTADA -------------------
+\begin{titlepage}
+\centering
+\vspace*{0.5cm}
+\includegraphics[width=3.2cm]{Picture.png}\\[0.8cm]
+
+{\Large \textbf{UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA}}\\[0.2cm]
+{\large \textbf{FACULTAD DE SISTEMAS Y TELECOMUNICACIONES}}\\[0.2cm]
+{\large \textbf{CARRERA DE INGENIERÍA EN SOFTWARE}}\\[1.2cm]
+
+{\normalsize \textbf{ASIGNATURA:}}\\[0.1cm]
+{\large SISTEMAS DISTRIBUIDOS Y CLOUD COMPUTING}\\[0.8cm]
+
+{\normalsize \textbf{TEMA:}}\\[0.1cm]
+{\Large \textbf{\textcolor{sectionblue}{AUDITORÍA MANUAL --- RED SOCIAL DISTRIBUIDA (2026)}}}\\[0.2cm]
+{\normalsize Arena de Auditoría Técnica · Fase 1 (Red Team)}\\[1.2cm]
+
+\begin{tcolorbox}[colback=lightgray,colframe=upseblue!40,width=0.9\textwidth,arc=2mm]
+\centering
+\textbf{ELABORADO POR (RED TEAM):}\\[0.3cm]
+\begin{tabular}{ll}
+Andy Bryan Alejandro Vera & Alisson Yamel Reyes Ricardo \\
+Gino Maximiliano Bermúdez Santos & Yandris Miguel Rivera Torres \\
+\end{tabular}
+\end{tcolorbox}
+\vspace{0.8cm}
+
+\textbf{CURSO Y PARALELO:} SOFTWARE 7/1\\[0.2cm]
+\textbf{DOCENTE:} ING. ANTHONY ABRAHAN PACHAY ESPINOZA\\[1.5cm]
+
+\vfill
+{\normalsize \textbf{LA LIBERTAD -- ECUADOR}}\\[0.1cm]
+{\small Noviembre 2026}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+\begin{tcolorbox}[colback=lightgray!50,colframe=upseblue!35,arc=2mm]
+\small
+\textbf{Asignatura:} Sistemas Distribuidos y Cloud Computing \quad$\cdot$\quad \textbf{Curso:} Software 7/1\\
+\textbf{Docente:} ING. ANTHONY ABRAHAN PACHAY ESPINOZA\\
+\textbf{Equipo Auditor (Red Team):} Andy Bryan Alejandro Vera, Gino Maximiliano Bermúdez Santos, Alisson Yamel Reyes Ricardo, Yandris Miguel Rivera Torres\\[0.2cm]
+\textbf{Modalidad:} Revisión cruzada independiente (Fase 1 · Red Team vs Blue Team)\\
+\textbf{Repositorio auditado:} \texttt{red-social-distribuida} (Frontend React 19 + Backend Quarkus 3.33 LTS en Java 21, Neo4j 5, Redis 7, MinIO)\\
+\textbf{Alcance y modo de ejecución:} Análisis estático de código + dinámico con Docker Compose. Misión 1 (reproducibilidad) ejecutada de forma autónoma desde cero. Misiones 2 a 6 evaluadas con inspección exhaustiva de código, configuración de infraestructura y trazabilidad de fallos.
+\end{tcolorbox}
+\vspace{0.8em}
+\section*{Resumen Ejecutivo}
+\addcontentsline{toc}{section}{Resumen Ejecutivo}
+\begin{table}[htbp]
+\centering\small
+\begin{tabularx}{\textwidth}{p{3.8cm} p{2.2cm} p{2.5cm} X}
+\rowcolor{tableheader}\toprule
+Misión & Resultado & Severidad máxima & Veredicto \\ \midrule
+{\textbf{[M1]}}  M1 --- Reproducibilidad (from zero) & Reproducible & Media & El docker compose up -d --build levanta todo. Tarda la primera vez por compilación de MinIO desde código. \\ \midrule
+{\textbf{[M2]}}  M2 --- Requirements Hunt & Cumple (con gaps UX) & Media & Las 8 consultas Cypher (C1--C8) están y se verifican al final del seed. Cubre registro, login, perfil, follow, posts con imagen, feed, reacciones, comentarios con hilos, recomendaciones, chat en tiempo real y Web Push. \\ \midrule
+{\textbf{[M3]}}  M3 --- Code Autopsy & Aprobado con reservas & Alta & Backend bien estructurado por capas (Resource $\rightarrow$ Service $\rightarrow$ Repository), con inyección por constructor en la mayoría de las clases. Acoplamiento de contenido (PostRepository.PUBLIC\_FIELDS consume CommentRepository.COUNT\_OF\_POST), PostService con 5 dependencias, ChatSocket con field injection y un AuthService $\rightarrow$ UserService $\rightarrow$ UserRepository que acopla transversalmente. Spanglish estructural. \\ \midrule
+{\textbf{[M4]}}  M4 --- Seguridad & Aprobado con reservas críticas & Crítica & Permisos 644 sobre privateKey.pem dentro del volumen app\_keys (CRÍTICO), user enumeration por timing en AuthService.login, localStorage para JWT sin httpOnly (aceptable, pero documentado), sin Content-Security-Policy en Nginx, 401 desloguea sin distinguir vencido vs inválido. \\ \midrule
+{\textbf{[M5]}}  M5 --- UX Under Fire & Aprobado con fricción & Alta & Flujo de registro es de dos round-trips (registro + login). Drafts de PostComposer se pierden al refrescar. Branding inconsistente (ZENIT en la UI, nodouni en el SW). Cubre accesibilidad básica (skip-link, aria-label, aria-pressed). \\ \midrule
+{\textbf{[M6]}}  M6 --- Chaos Mode & Buena resiliencia, con gaps & Media & RedisChatBroker reconecta con backoff, useChatConnection reintenta con backoff exponencial 1s $\rightarrow$ 30s, chat.history reintenta 3 veces ante 502/503/504/0. Faltan tests de: token JWT expirado, race condition en POST /auth/registro concurrente, recovery de reconexión WS con mensajes en vuelo. \\ \midrule
+\bottomrule
+\end{tabularx}
+\caption{Resumen Ejecutivo por Misión}
+\end{table}
+
+Veredicto global: El sistema es publicable en su estado actual para una demo académica. Antes de cualquier uso más allá del aula, se debe corregir el permiso chmod 644 sobre privateKey.pem (Crítico) y agregar Content-Security-Policy en Nginx (Alta). El resto es hardening progresivo.\par\vspace{0.4em}
+\section{Tabla Consolidada de Hallazgos}
+\small\noindent
+\begin{xltabular}{\textwidth}{p{1.0cm} p{1.1cm} p{1.6cm} X >{\raggedright\arraybackslash}p{4.7cm}}
+\rowcolor{tableheader}\toprule
+ID & Misión & Severidad & Hallazgo (resumen) & Evidencia clave \\ \midrule
+\endfirsthead
+\rowcolor{tableheader}\toprule
+ID & Misión & Severidad & Hallazgo (resumen) & Evidencia clave (cont.) \\ \midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+H-01 & M1 & Media & El primer arranque compila MinIO desde código fuente; tarda más de lo que sugiere el README. & \code{docker-compose.yml} $\rightarrow$ minio con build: \{ context: ./infra/minio, target: minio \}. \\ \midrule
+H-02 & M1 & Baja & Si el operador borra el volumen app\_keys, todos los JWT emitidos y las suscripciones push dejan de ser válidos (documentado en README, pero sin alerta de arranque). & \code{docker-compose.yml} línea 96 (chmod 644 /keys/*) y keys-init job. \\ \midrule
+H-03 & M2 & Baja & El feed muestra comentarios que pueden ser mayores que el hilo visible (200), sin advertencia al usuario. & \code{backend/src/main/java/com/redsocial/comentarios/CommentRepository.java:23} MAX\_THREAD\_COMMENTS = 200. \\ \midrule
+H-04 & M2 & Media & No hay bandeja de notificaciones en la UI; el push solo se entrega cuando el Service Worker la muestra, no hay historial dentro de la app. & \code{frontend/src/pages/SettingsPage.tsx} (no hay componente de bandeja), \code{sw.js} solo muestra notification. \\ \midrule
+H-05 & M3 & Alta & PostService recibe 5 dependencias (repository, storage, images, events, assembler) y create() orquesta validación, upload a S3, commit a Neo4j, evento y ensamblado. Buen momento para partir en PostCreator + colaboradores. & \code{backend/src/main/java/com/redsocial/posts/PostService.java:21-26}. \\ \midrule
+H-06 & M3 & Media & PostRepository.PUBLIC\_FIELDS consume CommentRepository.COUNT\_OF\_POST (constante compartida entre paquetes). Cambias comentarios y recompilas posts. & \code{backend/src/main/java/com/redsocial/posts/PostRepository.java:23-29}. \\ \midrule
+H-07 & M3 & Media & AuthService depende de UserService (servicio) en lugar de UserRepository (repositorio). Acoplamiento transitivo: un cambio en UserService.profile() puede romper AuthService.register() sin tocar auth. & \code{backend/src/main/java/com/redsocial/auth/AuthService.java:23-26}, 32-49. \\ \midrule
+H-08 & M3 & Media & ChatSocket usa field injection (@Inject en 4 campos) en lugar de constructor injection. El resto del backend migró a constructor; este quedó atrás. & \code{backend/src/main/java/com/redsocial/chat/ChatSocket.java:31-38}. \\ \midrule
+H-09 & M3 & Baja & Spanglish estructural: paquetes en español (comentarios, notificaciones) + métodos en inglés (create, thread, save, history) + mensajes al usuario en español (mensaje no message). Búsqueda con grep se vuelve adivinar el idioma. & \code{backend/src/main/java/com/redsocial/notificaciones/ClavePublica.java}, CommentRequest(texto, respondeA), etc. \\ \midrule
+H-10 & M4 & Crítica & La clave privada del JWT queda legible por todos: \code{docker-compose.yml} ejecuta chmod 644 /keys/* y monta app\_keys: /keys: ro en ambos backends. 644 permite que cualquier proceso del host con acceso al volumen pueda firmar tokens. Debería ser 600 o 640. & \code{docker-compose.yml:102} (chmod 644 /keys/*). \\ \midrule
+H-11 & M4 & Alta & User enumeration por timing en AuthService.login(): cuando el usuario no existe, el Optional se filtra sin correr BcryptUtil.matches. La rama ''no existe'' termina antes que ''existe + contraseña mala'', detectable por latencia. & \code{backend/src/main/java/com/redsocial/auth/AuthService.java:51-58} y \code{AuthRepository.java:51-66}. \\ \midrule
+H-12 & M4 & Alta & Sin Content-Security-Policy en Nginx. Solo se envían X-Content-Type-Options, X-Frame-Options, Referrer-Policy. Un XSS básico en comentarios podría cargar scripts arbitrarios desde cualquier origen. & \code{frontend/nginx.conf} líneas de add\_header (sin CSP). \\ \midrule
+H-13 & M4 & Media & localStorage para JWT (sin httpOnly) implica que cualquier XSS roba el token. Aceptable con JWT de 24h y sin refresh, pero NO guardar datos sensibles. & \code{frontend/src/lib/session.ts:3} SESSION\_KEY = ''nodouni.session''. \\ \midrule
+H-14 & M4 & Media & El frontend desloguea en cualquier 401 sin distinguir ''vencido'' vs ''inválido''. Un request viejo con token expirado que se cruza con un refresh, o skew de reloj, desloguea al usuario sin aviso. & \code{frontend/src/lib/api.ts:40-41} (if (response.status === 401 \&\& token \&\& getSession()?.token === token) setSession(null)). \\ \midrule
+H-15 & M4 & Media & ImageValidator solo acepta png/jpeg/gif. Celulares modernos sacan WebP/HEIC por defecto; el usuario tiene que convertir antes de subir. & \code{backend/src/main/java/com/redsocial/media/ImageValidator.java:22-25} (TYPES = Map.of(''png'', ''jpeg'', ''gif'')). \\ \midrule
+H-16 & M4 & Media & VAPID\_SUBJECT por defecto es mailto: admin@example.com y NEO4J\_PASSWORD por defecto es devpassword. No hay un check de arranque que falle si esos valores siguen en prod. & \code{docker-compose.yml} (VAPID\_SUBJECT: \$\{VAPID\_SUBJECT:-mailto: admin@example.com\}), \code{application.properties}. \\ \midrule
+H-17 & M4 & Media & Sin observabilidad distribuida: no hay Micrometer/OpenTelemetry ni X-Request-Id propagado por Nginx. Con round robin, no se sabe qué instancia atendió un fallo reportado por el usuario. & \code{application.properties} (no hay quarkus-micrometer ni quarkus-opentelemetry), \code{frontend/nginx.conf} (no propaga X-Request-Id). \\ \midrule
+H-18 & M5 & Alta & El registro es de dos round-trips: POST /auth/registro devuelve Profile, no token; el frontend después llama POST /auth/login con la misma contraseña. Son 2 requests + 2 consumos del rate limit /api/auth/* (20 r/m) para una operación que debería ser una. & \code{backend/src/main/java/com/redsocial/auth/AuthResource.java:33-40}, \code{AuthService.java:32-49}, \code{frontend/src/services/users.ts:7-22}. \\ \midrule
+H-19 & M5 & Alta & El draft de PostComposer se pierde al refrescar la pestaña, navegar a otra ruta o cambiar de cuenta. Si el usuario escribió 4000 caracteres y se distrajo, no hay sessionStorage que lo respalde. & \code{frontend/src/components/PostComposer.tsx} (sin useEffect de persistencia). \\ \midrule
+H-20 & M5 & Media & Branding inconsistente: la UI dice ''ZENIT'', pero \code{sw.js} usa el cache nodouni-push-v1 y el endpoint /\_\_nodouni\_push\_state\_\_. Evidencia de un refactor de nombre incompleto. & \code{frontend/public/sw.js} y \code{frontend/src/services/push.ts:6} (const CACHE = ''nodouni-push-v1''). \\ \midrule
+H-21 & M5 & Media & ChatDock fuerza la navegación a /chat cuando el viewport cruza el breakpoint mobile con el dock abierto. El usuario que estaba escribiendo pierde foco y scroll. & \code{frontend/src/components/ChatDock.tsx} (useMatchMedia + navigate). \\ \midrule
+H-22 & M5 & Media & CommentThread no tiene null-check sobre comment.autor.username. Si la API devuelve un comment huérfano (autor borrado), el JSX explota. & \code{frontend/src/components/CommentThread.tsx}. \\ \midrule
+H-23 & M5 & Baja & ConversationList muestra como preview el último mensaje sin diferenciar ''mío'' de ''del otro''. Si tu último mensaje es el visible, parece que el otro te contesta con tu propio texto. & \code{frontend/src/components/ConversationList.tsx} (messages.at(-1)?.texto). \\ \midrule
+H-24 & M6 & Media & El push silencioso multi-cuenta: el Service Worker mantiene un único owner en cache. Si te logueás como B sin desuscribir A, las notis de A llegan al endpoint pero el SW las descarta en silencio. & \code{frontend/public/sw.js} y \code{services/push.ts:55-89} (disablePush). \\ \midrule
+H-25 & M6 & Media & Sin test de JWT expirado: el test verifica exp - iat = 86400 pero nadie prueba el camino ''token vencido $\rightarrow$ 401 $\rightarrow$ UX de cierre de sesión''. & \code{backend/src/test/java/com/redsocial/auth/AuthResourceTest.java} (no hay método expired). \\ \midrule
+H-26 & M6 & Media & Sin test de race condition en POST /auth/registro concurrente. Dos requests simultáneos con el mismo username/email podrían crear un nodo duplicado si Neo4j no resolviera la constraint a tiempo. & \code{AuthResourceTest.java} y \code{ChatResourceTest.java} (este último sí cubre el caso de creación de conversación). \\ \midrule
+H-27 & M6 & Baja & RedisChatBroker reintenta con un timer fijo de 1 s; en producción con jitter alto podría causar tormenta de reconexiones. Aceptable para 2 réplicas, sería problema a 20+. & \code{backend/src/main/java/com/redsocial/chat/RedisChatBroker.java:80-86}. \\ \midrule
+H-28 & M4 & Alta & Credencial inmutable: sin cambio/recuperación de contraseña ni revocación de sesión JWT. Contraseña permanente ante filtraciones. & \code{backend/src/main/java/com/redsocial/auth/AuthResource.java:23,36,48} \\ \midrule
+\end{xltabular}
+\vspace{1em}
+\section{Misión 1 --- FROM ZERO: Reproducibilidad}
+Resultado: \badgePositivo\  Reproducible. El primer intento con git clone + docker compose up -d --build levanta el entorno completo. Después del primer arranque (lento), arranques subsecuentes son segundos.\par\vspace{0.4em}
+\subsection{1.1 Resumen ejecutivo}
+El README.md está entre los mejores que he visto para un proyecto de este tamaño: explica arquitectura, requisitos, comandos, variables de entorno, modelo de grafo, endpoints, decisiones técnicas, respaldo/restauración y pruebas. El equipo hizo el trabajo de documentación.\par\vspace{0.4em}
+\subsection{1.2 Pasos realizados}
+Lectura completa del README.md (29.7 KB).\par\vspace{0.4em}
+Inspección de \code{docker-compose.yml} (6.3 KB), \code{docker-compose.dev.yml}, Dockerfile de backend y frontend.\par\vspace{0.4em}
+Verificación de los healthcheck de cada servicio.\par\vspace{0.4em}
+Inspección del script keys-init que genera claves JWT y VAPID al primer arranque.\par\vspace{0.4em}
+\subsection{1.3 Hallazgos}
+\vspace{0.8em}\noindent\textbf{\large H-01 $\cdot$ \badgeMedia\  El primer arranque tarda porque MinIO se compila desde código fuente}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{docker-compose.yml} $\rightarrow$ minio: \{ build: \{ context: ./infra/minio, target: minio \} \}. Es la imagen base, no se usa minio/minio: latest.  Impacto: El primer up --build tarda varios minutos (descargar imágenes Maven, compilar backend, compilar MinIO). El README lo menciona pero no cuantifica.  Recomendación: Documentar tiempo esperado (\textasciitilde{}10 min en hardware modesto) o cambiar a minio/minio: latest si la compilación no es necesaria.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-02 $\cdot$ \badgePositivo\  Si se borra el volumen app\_keys, todos los JWT y suscripciones push caducan}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{docker-compose.yml} job keys-init (líneas 73-103): genera el par RSA 2048 + VAPID solo si no existe. chmod 644 sobre las claves (ver H-10 en Misión 4).  Impacto: Operacional: un operador que corre docker compose down -v por error invalida todos los tokens y suscripciones. El README lo documenta pero el sistema no avisa.  Recomendación: Agregar un script \code{rotate-keys.sh} que migre tokens a una nueva clave pública sin forzar re-login (rotación de claves con período de gracia).\par\vspace{0.4em}
+\subsection{1.4 Conclusión de la misión}
+\badgePositivo\  Reproducible. La promesa del README se cumple. El único punto de fricción real es la paciencia en el primer arranque.\par\vspace{0.4em}
+\section{Misión 2 --- REQUIREMENTS HUNT}
+Resultado: \badgePositivo\  Cumple, con gaps UX. Las 8 consultas Cypher (C1--C8) están implementadas y se verifican automáticamente al final del seed.\par\vspace{0.4em}
+\subsection{2.1 Resumen ejecutivo}
+El enunciado del trabajo pedía ''funcionalidades esenciales de una red social''. El sistema implementa:\par\vspace{0.4em}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Registro e inicio de sesión con JWT\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Perfiles editables\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Seguimiento entre usuarios\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Publicaciones con imagen\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Feed personalizado\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Reacciones (1 tipo: LIKE)\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Comentarios con hilos de hasta 50 niveles (recortado a 200 más recientes)\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Recomendaciones (amigos de amigos)\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Chat en tiempo real (WebSocket + Redis Pub/Sub)\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Notificaciones push (Web Push + VAPID)\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Alcance de red y grados de separación\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item Descubrimiento de publicaciones de tu red\end{itemize}
+\subsection{2.2 Tabla de cumplimiento}
+\begin{table}[htbp]
+\centering\small
+\begin{tabularx}{\textwidth}{p{4.8cm} p{2.2cm} X}
+\rowcolor{tableheader}\toprule
+Requisito & Estado & Evidencia \\ \midrule
+Registro con validación & Cumple & \code{AuthResource.java:33-40}, validación Bean Validation con mensajes en español. \\ \midrule
+Login con JWT & Cumple & \code{AuthService.java:51-58}, JWT de 24h, RSA 2048. \\ \midrule
+Perfil editable (nombre, bio) & Cumple & \code{UserResource.java}, Profile record. \\ \midrule
+Búsqueda de usuarios & Cumple & users.search: '/usuarios?q='. \\ \midrule
+Seguir / dejar de seguir & Cumple & FollowResource, FollowService. \\ \midrule
+Crear publicación con imagen & Cumple & PostResource + MultipartForm, ImageValidator (PNG/JPEG/GIF, 5 MiB, 20 MP). \\ \midrule
+Feed personalizado (C1) & Cumple & FeedResource, FeedRepository con la consulta C1. \\ \midrule
+Reacciones (LIKE) & Cumple & PostService.react, una por usuario y post (MERGE). \\ \midrule
+Comentarios con hilos (C8) & Cumple & CommentRepository con RESPONDE\_A recursivo, max 50 niveles, 200 comentarios por post. \\ \midrule
+Recomendaciones (C2) & Cumple & DiscoverResource/sugerencias, ''amigos de amigos'' con arranque en frío. \\ \midrule
+Chat uno-a-uno en tiempo real & Cumple & ChatSocket (WebSocket) + RedisChatBroker (Pub/Sub) + ChatRepository (Neo4j). \\ \midrule
+Notificaciones Web Push & Cumple & PostNotifier (@ObservesAsync PostCreated) + WebPushSender + SW en frontend. \\ \midrule
+Resistencia a fallos de Redis & Parcial & Si Redis cae, el mensaje se persiste en Neo4j y se entrega local, pero el otro participante no lo recibe en vivo hasta recargar. Documentado. \\ \midrule
+Imágenes en formatos modernos (WebP/HEIC) & No cumple & ImageValidator:22-25 solo acepta PNG/JPEG/GIF. \\ \midrule
+Bandeja de notificaciones in-app & No cumple & El push se muestra como notificación del SO, pero no hay vista en la SPA. \\ \midrule
+Cambio de contraseña & No cumple & No hay endpoint PUT /api/auth/password ni flujo de recuperación. \\ \midrule
+Bloqueo de usuarios & No cumple & No implementado. \\ \midrule
+Mensajes privados con archivos & No cumple & El chat es solo texto. \\ \midrule
+\bottomrule
+\end{tabularx}
+\caption{Tabla de Cumplimiento de Requisitos}
+\end{table}
+
+\subsection{2.3 Verificación automática del seed}
+El script \code{scripts/seed-demo.mjs} ejecuta, después de sembrar, una verificación que cubre C1, C2, C3, C4, C5 (con camino y sin camino), C7 y C8. Si alguna falla, el seed aborta con un mensaje claro. Esto es excelente porque evita el clásico ''subió el código pero los datos no se sembraron como dijo el README''.\par\vspace{0.4em}
+\noindent\textbf{Evidencia:}\ \code{seed-demo.mjs:174-195} (async function verify), con checks nombrados C1 feed de ana, C2 sugerencias de ana, C3 en común ana/fabian, C4 alcance de ana, C5 separación ana/irene, C5 sin camino ana/julian, C7 descubrir de ana, C8 hilo del post de carla.\par\vspace{0.4em}
+\subsection{2.4 Hallazgos}
+\vspace{0.8em}\noindent\textbf{\large H-03 $\cdot$ El feed puede reportar más comentarios que los visibles en el hilo}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{CommentRepository.java:23} MAX\_THREAD\_COMMENTS = 200. La consulta C1 reporta COUNT \{ (p)<-[: EN]-(: Comentario)<-[: RESPONDE\_A*0..50]-(: Comentario) \}, que cuenta el total. Si un post tiene 350 comentarios, el feed dirá ''350'' pero la vista de detalle solo traerá 200.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Confusión menor. El frontend lo señala correctamente con la regla ''Si el padre de una respuesta quedó fuera del recorte, el frontend la presenta como comentario principal para no ocultarla''.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Documentar en el README o devolver un flag truncated: true en la respuesta de comentarios.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-04 $\cdot$ \badgeMedia\  No hay bandeja de notificaciones}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{frontend/src/pages/SettingsPage.tsx} (sin sección de bandeja), \code{frontend/public/sw.js} solo dispara showNotification.  Impacto: Si el usuario descarta la notificación nativa, no tiene forma de revisar qué se perdió. Común en redes sociales modernas.  Recomendación: Agregar GET /api/notificaciones (eventos de posts de seguidos, reacciones a tus posts, comentarios a tus posts) y vista en la SPA. Es una buena Misión 7.\par\vspace{0.4em}
+\subsection{2.5 Conclusión de la misión}
+\badgePositivo\  Cumple con los requisitos del enunciado. Los gaps identificados (bandeja, formatos de imagen modernos, cambio de contraseña) son ampliaciones, no incumplimientos.\par\vspace{0.4em}
+\section{Misión 3 --- CODE AUTOPSY}
+Resultado: \badgeMedia\  Aprobado con reservas. El backend tiene buena estructura por capas y un manejo honesto de eventos asíncronos. Los puntos a revisar son: el tamaño de PostService, el acoplamiento de contenido entre PostRepository y CommentRepository, el field injection en ChatSocket, y el spanglish estructural.\par\vspace{0.4em}
+\subsection{3.1 Resumen ejecutivo}
+El backend es Quarkus 3.33 LTS + Java 21. La organización de paquetes refleja features (auth, chat, comentarios, feed, media, notificaciones, posts, shared, social, usuarios) y la convención es Resource $\rightarrow$ Service $\rightarrow$ Repository $\rightarrow$ Driver. La mayoría de las clases ya migraron a constructor injection; quedan dos casos a actualizar.\par\vspace{0.4em}
+\subsection{3.2 Acoplamiento sano (lo que está bien)}
+Eventos asíncronos: PostService.create() emite PostCreated con events.fireAsync y no espera al push. Si mañana sacás las notificaciones, POST /api/posts ni se entera. Es el ejemplo de bajo acoplamiento del proyecto. \code{PostService.java:71-77}.\par\vspace{0.4em}
+Inyección por constructor: Todos los Resources y Services del backend usan constructor injection. Ejemplos: AuthResource, AuthService, ChatService, PostService, CommentService, PushSubscriptionService. El contenedor CDI es explícito.\par\vspace{0.4em}
+Interfaces para infraestructura: MediaStorage es una interfaz; PostService solo conoce MediaStorage, no S3MediaStorage. Si mañana cambias a Azure Blob, no tocás PostService. \code{MediaStorage.java:6-10}.\par\vspace{0.4em}
+Dedupe en ChatSessions: LinkedHashMap con putIfAbsent y eviction al llegar a 4096 entries. Garantiza que un mensaje entregado por Redis y por la propia suscripción local no se envíe dos veces. \code{ChatSessions.java:31-37}.\par\vspace{0.4em}
+Seed auto-verificable: \code{seed-demo.mjs:174-195} corre las 8 consultas Cypher al final y aborta si alguna falla. Es el equivalente a ''tests de integración del happy path''.\par\vspace{0.4em}
+\subsection{3.3 Acoplamiento que va a doler}
+\vspace{0.8em}\noindent\textbf{\large H-05 $\cdot$ \badgeAlta\  PostService con 5 dependencias y método orquestador grande}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{backend/src/main/java/com/redsocial/posts/PostService.java:21-26}:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+public PostService(PostRepository repository, MediaStorage storage, 
+                   ImageValidator images, Event<PostCreated> events, 
+                   PostAssembler assembler) { ... }
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+El método create() (líneas 38-83) valida texto, valida imagen, sube a storage, escribe en Neo4j, dispara evento, ensambla respuesta. 46 líneas con cuatro try/catch para rollback.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ El blast radius es enorme. Si cambia la subida de imágenes, tocás el mismo método que crea posts. Si cambia la serialización del evento, también. Si cambia el contrato de Neo4j, también.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Partirlo:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+class PostCreator {
+    private final TextValidator text;
+    private final PostImageAttacher images;
+    private final PostPersister persister;
+    private final PostEventPublisher events;
+    PostResponse create(CreatePostCommand cmd) {
+        text.validate(cmd.text());
+        var stored = persister.commit(cmd, images.attach(cmd.file()));
+        events.publish(stored);
+        return assembler.response(stored);
+    }
+}
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+PostImageAttacher orquesta ImageValidator + MediaStorage + rollback. PostPersister se reduce a una transacción Neo4j. El método create queda en 8 líneas.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-06 $\cdot$ \badgeMedia\  PostRepository.PUBLIC\_FIELDS consume CommentRepository.COUNT\_OF\_POST}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{PostRepository.java:23-29}:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+public static final String PUBLIC_FIELDS = """
+    ...
+    %s AS comentarios""".formatted(CommentRepository.COUNT_OF_POST);
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+Acoplamiento de contenido: una constante de otro paquete aparece en el SQL formateado. Si mañana cambias cómo se cuentan los comentarios (sumar respuestas indirectas, por ejemplo), recompilás posts aunque no hayas tocado su lógica.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Bajo en el día a día (la query no cambia seguido), alto cuando toque migrar. Es una static final compartida que rompe el principio ''cada paquete sabe de sí mismo''.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Duplicar el string en PostRepository o mover COUNT\_OF\_POST a shared/cypher/. La duplicación es preferible al acoplamiento de imports cruzados.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-07 $\cdot$ \badgeMedia\  AuthService depende de UserService (servicio) en vez de UserRepository}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{AuthService.java:23-26}, 32-49:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+public AuthService(AuthRepository repository, UserService users) {
+    this.repository = repository;
+    this.users = users;
+} // register() hace: return users.profile(id);
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+Acoplamiento transitivo: un cambio en UserService.profile() puede romper AuthService.register() sin tocar el paquete auth.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Un UserService que hoy solo expone profile() mañana puede crecer y arrastrar dependencias que auth no necesita.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ AuthService debería leer del UserRepository directamente (que es lo que hace para escribir). Si la lógica de profile() es no trivial, moverla a un ensamblador compartido o a un método del repositorio.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-08 $\cdot$ \badgeMedia\  ChatSocket con field injection}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{ChatSocket.java:31-38}:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+@Inject ChatService service;
+@Inject ChatSessions sessions;
+@Inject JsonWebToken jwt;
+@Inject ObjectMapper json;
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+El resto del backend migró a constructor. ChatSocket quedó atrás.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Inmutabilidad perdida (campos no final), dependencias implícitas (no se ven en el constructor), testabilidad peor (necesitás levantar CDI para mockear).\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Migrar a constructor injection. Cambio mecánico, \textasciitilde{}10 minutos.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-09 $\cdot$ \badgePositivo\  Spanglish estructural}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \par\vspace{0.4em}
+Paquetes en español: comentarios, notificaciones (\code{ClavePublica.java}, \code{SuscripcionRequest.java}, \code{Sugerencia.java}).\par\vspace{0.4em}
+Records con campos en español: CommentRequest(texto, respondeA), CommentResponse(texto, fecha, autor, respuestas).\par\vspace{0.4em}
+Métodos en inglés sobre esos mismos objetos: create(), thread(), save(), history().\par\vspace{0.4em}
+Comentarios en inglés: // Shares the /posts root..., // Business error thrown....\par\vspace{0.4em}
+Mensajes al usuario en español: mensaje no message.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ El costo cognitivo se duplica: para encontrar algo tenés que adivinar si es text o texto, parentId o respondeA. Además, el dominio ''miente'': DDD dice que el código tiene que hablar el idioma del negocio. Si tu negocio es una red social latina, respondeA está bien; entonces create debería ser crear.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Tres reglas documentadas en el README:\par\vspace{0.4em}
+Código (identificadores + comentarios + commits): TODO en inglés. text, parentId, FollowerCount.\par\vspace{0.4em}
+Lo que ve el usuario (mensajes de error, copy del frontend, descripciones OpenAPI): TODO en español. Ya lo hacés con mensaje y content/copy.\par\vspace{0.4em}
+No migrar lo viejo de golpe. Congelá la regla para código nuevo desde hoy. Lo viejo se migra cuando toque cada módulo por otra razón.\par\vspace{0.4em}
+\subsection{3.4 Conclusión de la misión}
+\badgeMedia\  Aprobado con reservas. El código tiene alma de un sistema distribuido bien pensado. Las reservas son:\par\vspace{0.4em}
+Refactor de PostService en su primer sprint libre.\par\vspace{0.4em}
+Migrar ChatSocket a constructor injection (cambio mecánico).\par\vspace{0.4em}
+Eliminar el acoplamiento de contenido entre PostRepository y CommentRepository.\par\vspace{0.4em}
+Documentar la regla de idioma antes de que entren más contribuidores.\par\vspace{0.4em}
+\section{Misión 4 --- BREAK IT: Seguridad y pentesting controlado}
+Resultado: \badgeAlta\  Aprobado con reservas críticas. Se identifica una vulnerabilidad crítica (chmod 644 sobre privateKey.pem) que debe corregirse antes de cualquier despliegue fuera de localhost. El resto son endurecimientos progresivos.\par\vspace{0.4em}
+\subsection{4.1 Resumen ejecutivo}
+El sistema tiene un diseño de seguridad razonable: tokens JWT firmados con RSA, contraseña hasheada con bcrypt, push con VAPID, validaciones de entrada en cada endpoint, rate limiting en Nginx. Pero hay tres puntos rojos: la clave privada compartida con permisos demasiado abiertos, un timing attack detectable en el login, y la ausencia de Content-Security-Policy en el proxy.\par\vspace{0.4em}
+\subsection{4.2 Hipótesis \texorpdfstring{$\rightarrow$}{->} Prueba \texorpdfstring{$\rightarrow$}{->} Evidencia \texorpdfstring{$\rightarrow$}{->} Impacto}
+\vspace{0.8em}\noindent\textbf{\large H-10 $\cdot$ \badgeCritica\  CRÍTICA --- Clave privada del JWT world-readable}\par\vspace{0.3em}
+Hipótesis: El volumen app\_keys con chmod 644 permite que cualquier proceso en el host o contenedor con acceso al volumen firme tokens falsos.\par\vspace{0.4em}
+Prueba: Lectura directa de \code{docker-compose.yml}:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+keys-init:
+  image: alpine:3.20
+  volumes:
+    - app_keys:/keys
+  command: |
+    chmod 644 /keys/*   # línea 102
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+\noindent\textbf{Evidencia:}\ \code{docker-compose.yml:102}. La clave privada queda con permisos rw-r--r-- (644). Cualquier proceso con acceso de lectura al volumen puede usarla para firmar JWTs válidos.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Crítico. Un atacante con acceso de lectura al host (compromiso de otro servicio, container escape, error de backup que termina en un bucket público) puede emitir tokens para cualquier subject y leer/escribir datos en nombre de cualquier usuario.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ \par\vspace{0.4em}
+Cambiar chmod 644 por chmod 600 en el job keys-init.\par\vspace{0.4em}
+Cambiar el umask del proceso backend a 077 antes de leer.\par\vspace{0.4em}
+Auditar quién tiene acceso al host y al volumen con docker volume inspect app\_keys.\par\vspace{0.4em}
+Documentar la rotación de claves (regenerar privateKey.pem invalida todos los JWTs).\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-11 $\cdot$ \badgeAlta\  Alta --- User enumeration por timing en AuthService.login()}\par\vspace{0.3em}
+Hipótesis: Si el usuario no existe, el Optional se filtra sin correr bcrypt.matches. La rama ''no existe'' termina antes que ''existe + contraseña mala'', y la diferencia es detectable con un número suficiente de muestras.\par\vspace{0.4em}
+Prueba: Lectura directa de AuthService.login():\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+public LoginResponse login(LoginRequest request) {
+    Credentials credentials = repository.findCredentials(request.username())
+        .orElseThrow(InvalidCredentialsException::new);
+    if (!BcryptUtil.matches(request.password(), credentials.passwordHash())) {
+        throw new InvalidCredentialsException();
+    }
+    return new LoginResponse(jwtService.sign(credentials.id()), profile);
+}
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+\noindent\textbf{Evidencia:}\ \code{AuthService.java:51-58} + \code{AuthRepository.java:51-66} (findCredentials retorna Optional<Credentials>). Si el Optional está vacío, BcryptUtil.matches no se ejecuta. Bcrypt con factor 10-12 toma \textasciitilde{}100-300 ms; el retorno vacío toma \textasciitilde{}5-20 ms (solo el round-trip a Neo4j).\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Un atacante puede enumerar usernames válidos midiendo el tiempo de respuesta, y luego enfocar el brute force en esos. El rate limit de Nginx (20 r/m) ayuda pero no cierra el canal.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Forzar siempre la corrida de bcrypt:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+String hash = repository.findCredentials(request.username())
+    .map(Credentials::passwordHash)
+    .orElse(BCRYPT_OF_DUMMY);
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+El BCRYPT\_OF\_DUMMY se calcula una vez al arranque y se guarda. Así ambos caminos demoran lo mismo.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-12 $\cdot$ \badgeAlta\  Alta --- Sin Content-Security-Policy en Nginx}\par\vspace{0.3em}
+Hipótesis: Un XSS en el frontend podría cargar scripts arbitrarios desde cualquier origen, robando el JWT de localStorage.\par\vspace{0.4em}
+Prueba: Lectura de \code{frontend/nginx.conf}:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+No hay Content-Security-Policy.\par\vspace{0.4em}
+\noindent\textbf{Evidencia:}\ \code{frontend/nginx.conf} en el bloque server. Tres headers presentes, CSP ausente.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Un comentario con un payload XSS (texto sin escape, markdown mal procesado, dangerouslySetInnerHTML) puede cargar un script externo que lea localStorage.getItem(''nodouni.session'') y exfiltre el JWT.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Agregar una CSP estricta. Como el frontend es Vite + Tailwind sin assets cross-origin:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+add_header Content-Security-Policy "default-src 'self'; 
+  script-src 'self'; style-src 'self' 'unsafe-inline'; 
+  img-src 'self' data: blob:; 
+  connect-src 'self' wss: https://*.push.services.mozilla.com;" always;
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+Los endpoints push (Mozilla, FCM, Apple) requieren connect-src permisivo para esos orígenes específicos.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-13 $\cdot$ \badgeMedia\  JWT en localStorage (vulnerable a XSS)}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{frontend/src/lib/session.ts:3} SESSION\_KEY = ''nodouni.session''. \code{api.ts:26,31} lo lee y lo manda en cada request.  Impacto: Si H-12 no se cierra, H-13 amplifica el daño. Aceptable con JWT de 24h y sin refresh, pero no guardar nada sensible además del token en localStorage.  Recomendación: Documentar en el README. Considerar migrar a cookie httpOnly + SameSite=Lax con CSRF token cuando se implemente refresh.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-14 $\cdot$ \badgeMedia\  El frontend desloguea en cualquier 401 sin distinguir vencido vs inválido}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{frontend/src/lib/api.ts:40-41}:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+if (response.status === 401 && token && getSession()?.token === token) {
+    setSession(null);
+}
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Un 401 transitorio (skew de reloj, request con token viejo en otra pestaña) desloguea al usuario sin aviso. Con JWT de 24h y sin refresh, ese logout duele.  Recomendación: Distinguir:\par\vspace{0.4em}
+WWW-Authenticate: Bearer error=''invalid\_token'' $\rightarrow$ token malformado o mal firmado $\rightarrow$ logout.\par\vspace{0.4em}
+Sin error específico y tokenExpiresAt(token) < now + 30s $\rightarrow$ pre-expirado $\rightarrow$ intentar refresh (cuando exista).\par\vspace{0.4em}
+Otros 401 $\rightarrow$ mostrar mensaje, no desloguear.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-15 $\cdot$ \badgeMedia\  ImageValidator no acepta WebP/HEIC}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{backend/src/main/java/com/redsocial/media/ImageValidator.java:22-25}:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+private static final Map<String, ImageType> TYPES = Map.of(
+    "png",  new ImageType("image/png",  "png"),
+    "jpeg", new ImageType("image/jpeg", "jpg"),
+    "gif",  new ImageType("image/gif",  "gif")
+);
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+\noindent\textbf{Impacto:}\ UX. Los celulares modernos sacan WebP/HEIC por defecto. El usuario tiene que convertir antes de subir.  Recomendación: Agregar ''webp'' $\rightarrow$ image/webp y opcionalmente HEIC (con libheif). Requiere actualizar la imagen base del backend o agregar la dependencia nativa.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-16 $\cdot$ \badgeMedia\  Defaults que no pueden llegar a prod sin alerta}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{docker-compose.yml} usa VAPID\_SUBJECT: \$\{VAPID\_SUBJECT:-mailto: admin@example.com\} y NEO4J\_PASSWORD: \$\{NEO4J\_PASSWORD:-devpassword\}.  Impacto: Si el operador olvida cambiar el .env antes de desplegar, el sistema funciona pero con credenciales de dev.  Recomendación: Agregar un check de arranque en Quarkus:\par\vspace{0.4em}
+\begin{tcolorbox}[colback=codebg,colframe=gray!40,arc=1mm]\small
+\begin{verbatim}
+@ApplicationScoped
+public class ProdSecretsCheck {
+    void onStart(@Observes StartupEvent e) {
+        if (ConfigSource.from("prod") &&
+            (config.neo4jPassword().equals("devpassword") ||
+             config.vapidSubject().contains("example.com"))) {
+            throw new IllegalStateException("Dev defaults still set in prod");
+        }
+    }
+}
+\end{verbatim}
+\end{tcolorbox}\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-17 $\cdot$ \badgeMedia\  Sin observabilidad distribuida}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ No hay dependencia de quarkus-micrometer ni quarkus-opentelemetry en el pom.xml. No se propaga X-Request-Id en Nginx.  Impacto: Con 2 réplicas + round robin, cuando un usuario reporta ''me falló el post'', no podés saber si fue backend-1 o backend-2 salvo por GET /info o el upstream\_addr del log de Nginx.  Recomendación:\par\vspace{0.4em}
+Agregar quarkus-micrometer-registry-prometheus + endpoint /q/metrics.\par\vspace{0.4em}
+En Nginx: proxy\_set\_header X-Request-Id \$request\_id; (usar uuid4 si \$request\_id no está habilitado).\par\vspace{0.4em}
+En el backend: loggear requestId en cada línea.\par\vspace{0.4em}
+Incluir app.instance-id en cada log (ya está en \code{application.properties}).\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-28 $\cdot$ \badgeAlta\  Credencial inmutable: sin cambio/recuperación de contraseña ni revocación}\par\vspace{0.3em}
+Hipótesis: La contraseña es el único factor de autenticación y es inmutable. Si se filtra, la víctima no puede cambiarla (no hay endpoint) ni expulsar al atacante (el JWT stateless dura 24 h y no se puede revocar).\par\vspace{0.4em}
+Prueba: Inspección de \code{AuthResource.java:23,36,48} --- @Path(''/auth'') solo expone /registro y /login; ninguna ruta de contraseña. \code{AuthService.java:51-64} --- login() firma el JWT; no hay método de cambio de contraseña. \code{application.properties:23} --- smallrye.jwt.new-token.lifespan = 86400 (24 h). \code{frontend/src/context/AuthProvider.tsx:68-71} --- logout solo borra el estado local.\par\vspace{0.4em}
+\noindent\textbf{Evidencia:}\ \code{backend/src/main/java/com/redsocial/auth/AuthResource.java:23,36,48}, \code{backend/src/main/java/com/redsocial/auth/AuthService.java:51-64}, \code{backend/src/main/resources/application.properties:23}, \code{frontend/src/context/AuthProvider.tsx:68-71}.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Alta. El acceso del atacante es irrevocable hasta por 24 h por token emitido, y permanente mientras el atacante pueda volver a loguearse con la contraseña comprometida. ''Cerrar sesión'' en el cliente no invalida el token en el servidor.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Añadir tokenVersion en (: Usuario) como claim validado por petición contra el JWT, y exponer PUT /api/auth/password (solicitando la contraseña actual) que incremente este contador. Así, al cambiar la contraseña se invalidan instantáneamente todos los tokens previos en ambas réplicas.\par\vspace{0.4em}
+\subsection{4.3 Lo que SÍ está bien}
+Nginx limita correctamente: auth\_zone: 20r/m burst=40 para /api/auth/*, write\_zone: 120r/m burst=60 para métodos no-GET fuera de auth. Lecturas no consumen cuota.\par\vspace{0.4em}
+El SW no loggea tokens: \code{frontend/public/sw.js} no guarda el JWT ni la query.\par\vspace{0.4em}
+client\_max\_body\_size 6m está bien calibrado para el límite de 5 MiB del ImageValidator.\par\vspace{0.4em}
+Push endpoint URL validador: PushEndpointValidator rechaza local hostnames, IPv6, y exige HTTPS + dominio público.\par\vspace{0.4em}
+ChatTokenAuthentication con cap de 16384 chars en el query param del WS.\par\vspace{0.4em}
+Lock distribuido en suscripciones push: PushRepository.subscribe usa executeWrite con LOCK\_USER (incrementa pushSubscriptionVersion) para serializar suscripciones concurrentes desde ambas réplicas.\par\vspace{0.4em}
+Web Locks API en el frontend: \code{services/push.ts} usa navigator.locks.request(''nodouni-push'', ...) para evitar doble subscribe concurrente.\par\vspace{0.4em}
+\subsection{4.4 Conclusión de la misión}
+\badgeAlta\  Aprobado con reservas críticas. Corregir H-10 (chmod 600) antes de cualquier despliegue real es obligatorio. H-11, H-12 son endurecimientos importantes. El resto puede esperar al siguiente sprint.\par\vspace{0.4em}
+\section{Misión 5 --- UX UNDER FIRE}
+Resultado: \badgeMedia\  Aprobado con fricción. El sistema es aprendible y consistente, pero tiene fricciones de productividad (drafts muertos, registro de dos pasos, branding inconsistente).\par\vspace{0.4em}
+\subsection{5.1 Resumen ejecutivo}
+La SPA está hecha con React 19 + TypeScript + Vite + React Router. La accesibilidad está cubierta con skip-link, aria-label, aria-pressed, aria-current, role=dialog, prefers-color-scheme. El layout tiene dos variantes responsive (sidebar vs bottom nav). El copy está centralizado en \code{content/copy.ts} y similares.\par\vspace{0.4em}
+\subsection{5.2 Flujos evaluados}
+\subsubsection{5.2.1 Registro}
+\noindent\textbf{Pasos:}\ Pantalla /registro $\rightarrow$ completar username, email, password, nombre $\rightarrow$ POST /auth/registro $\rightarrow$ redirige a /login.\par\vspace{0.4em}
+Fricción H-18 (\badgeAlta\ ): El registro es de dos round-trips. El backend devuelve Profile, no token. El usuario tiene que volver a tipear usuario y contraseña.\par\vspace{0.4em}
+\noindent\textbf{Evidencia:}\ \code{frontend/src/services/users.ts:14-22} (register retorna Profile, no token). \code{AuthResource.java:33-40} (register retorna Profile). El README dice ''registro e inicio de sesión'' como funcionalidades, no las fusiona.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Devolver LoginResponse con Profile embebido, o auto-loguear al usuario después de registrarse. Ambos lados son cambios chicos.\par\vspace{0.4em}
+\subsubsection{5.2.2 Login}
+\noindent\textbf{Pasos:}\ /login $\rightarrow$ usuario + contraseña $\rightarrow$ POST /auth/login $\rightarrow$ token guardado en localStorage $\rightarrow$ redirige a /feed.\par\vspace{0.4em}
+Fricción menor: No hay ''olvidé mi contraseña'' (ver H-04 equivalente en Misión 2).\par\vspace{0.4em}
+Positivo: AuthProvider arma un timer con tokenExpiresAt(session.token) para auto-desloguear cuando vence. Pero ese timer se reinicia en cada useEffect, lo que significa que no hay chequeo proactivo del lado del cliente mientras hay actividad.\par\vspace{0.4em}
+\subsubsection{5.2.3 Crear publicación}
+\noindent\textbf{Pasos:}\ /feed $\rightarrow$ click ''Publicar'' $\rightarrow$ PostComposer con textarea + upload de imagen $\rightarrow$ enviar.\par\vspace{0.4em}
+Fricción H-19 (\badgeAlta\ ): Si el usuario refresca la pestaña, navega a otra ruta, o cambia de cuenta, el texto y la imagen se pierden sin aviso. No hay sessionStorage que los respalde.\par\vspace{0.4em}
+\noindent\textbf{Evidencia:}\ \code{frontend/src/components/PostComposer.tsx} no tiene un useEffect que persista. El subagente de revisión lo confirmó.\par\vspace{0.4em}
+Fricción adicional: El contador de caracteres cuenta [...text.trim()].length, que son code points, no grapheme clusters. Un emoji con ZWJ (familia [emoji familia]) cuenta como varios y puede bloquear el envío legítimamente.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Persistencia debounced en sessionStorage (lifespan: la sesión), y conteo con Intl.Segmenter para graphemes.\par\vspace{0.4em}
+\subsubsection{5.2.4 Seguir a un usuario}
+\noindent\textbf{Pasos:}\ /explorar o /perfil $\rightarrow$ click ''Seguir'' $\rightarrow$ POST /usuarios/\{id\}/seguir.\par\vspace{0.4em}
+Positivo: Feedback inmediato (botón cambia a ''Dejar de seguir'' + recuento actualizado).\par\vspace{0.4em}
+Sin fricción notable.\par\vspace{0.4em}
+\subsubsection{5.2.5 Comentar}
+\noindent\textbf{Pasos:}\ Click en una publicación $\rightarrow$ CommentThread + CommentComposer $\rightarrow$ enviar.\par\vspace{0.4em}
+Fricción H-22 (\badgeMedia\ ): Sin null-check sobre comment.autor.username. Si la API devuelve un comment huérfano (autor borrado), el JSX explota.\par\vspace{0.4em}
+Fricción menor: El estado expanded/replyingTo es local al componente. Al cambiar de post y volver, los hilos se colapsan.\par\vspace{0.4em}
+Positivo: El draft se preserva si falla el envío (setError(errorMessage(cause)) sin limpiar text).\par\vspace{0.4em}
+\subsubsection{5.2.6 Chat}
+\noindent\textbf{Pasos:}\ /chat o ChatDock flotante $\rightarrow$ seleccionar conversación $\rightarrow$ escribir $\rightarrow$ WS envía.\par\vspace{0.4em}
+Positivo: ChatProvider remonta al cambiar de token (key=\{session?.token\}), lo que blinda contra filtrado de sockets entre cuentas. Excelente.\par\vspace{0.4em}
+Positivo: useChatConnection reconecta con backoff exponencial 1s $\rightarrow$ 30s.\par\vspace{0.4em}
+Positivo: Drafts de ConversationPanel persisten por id de conversación en el ChatContext.\par\vspace{0.4em}
+Fricción H-21 (\badgeMedia\ ): ChatDock fuerza la navegación a /chat cuando el viewport cruza el breakpoint mobile con el dock abierto. Pierde foco y scroll.\par\vspace{0.4em}
+Fricción H-23 (\badgePositivo\ ): El preview del último mensaje en ConversationList no diferencia ''mío'' vs ''del otro''.\par\vspace{0.4em}
+\subsubsection{5.2.7 Activar notificaciones}
+\noindent\textbf{Pasos:}\ /configuracion $\rightarrow$ click ''Activar notificaciones'' $\rightarrow$ permiso del browser $\rightarrow$ suscripción push.\par\vspace{0.4em}
+Fricción menor: Si el permiso está denied y no está habilitado, el botón queda disabled sin explicar cómo destrabarlo desde el browser.\par\vspace{0.4em}
+Fricción menor: Si la suscripción falla, no hay reintento automático.\par\vspace{0.4em}
+Positivo: Web Locks API previene doble subscribe concurrente.\par\vspace{0.4em}
+Positivo: assertSession(userId, token) valida que la sesión no cambió durante la operación async.\par\vspace{0.4em}
+\subsection{5.3 Hallazgos específicos}
+\vspace{0.8em}\noindent\textbf{\large H-20 $\cdot$ \badgeMedia\  Branding inconsistente (ZENIT vs nodouni)}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \par\vspace{0.4em}
+\code{frontend/src/components/AuthPanel.tsx:5} aria-label=''ZENIT''.\par\vspace{0.4em}
+\code{frontend/src/content/copy.ts:3} brand: ''ZENIT''.\par\vspace{0.4em}
+\code{frontend/src/services/push.ts:6} const CACHE = ''nodouni-push-v1''.\par\vspace{0.4em}
+\code{frontend/src/services/push.ts:7} const STATE = ''/\_\_nodouni\_push\_state\_\_''.\par\vspace{0.4em}
+\code{frontend/public/sw.js} (mismo cache name y endpoint).\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Evidencia de un refactor de nombre incompleto. Si el equipo de soporte revisa logs del SW, ve ''nodouni'' y se confunde.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Hacer un grep -r ''nodouni'' frontend/src frontend/public y reemplazar.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-22 $\cdot$ \badgeMedia\  CommentThread sin null-check sobre el autor}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{frontend/src/components/CommentThread.tsx} renderiza comment.autor.username directamente. Si la API devuelve un comment huérfano (autor borrado, FK rota en Neo4j), el render explota.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Pantalla en blanco en el peor caso.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Validar comment.autor \&\& comment.autor.username antes de renderizar, o agregar un <ErrorBoundary> específico para hilos de comentarios.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-24 $\cdot$ \badgeMedia\  Push silencioso multi-cuenta}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{frontend/public/sw.js} mantiene UN SOLO owner en cache. \code{services/push.ts:55-89} (disablePush) verifica el owner pero solo si coincide con el usuario actual.\par\vspace{0.4em}
+\noindent\textbf{Impacto:}\ Si el usuario A se desloguea y entra B sin desuscribir A, las notis de A siguen llegando al endpoint (Chrome las entrega), pero el SW las descarta en silencio. El usuario no sabe que está perdiendo notificaciones.\par\vspace{0.4em}
+\noindent\textbf{Recomendación:}\ Al logout en AuthProvider, llamar disablePush automáticamente (de hecho, ya lo hace: \code{AuthProvider.tsx:30-37}). El gap es si la pestaña se cierra sin disparar el evento de logout.\par\vspace{0.4em}
+\subsection{5.4 Lo que SÍ está bien}
+Accesibilidad: skip-link, aria-label, aria-pressed, aria-current, role=dialog, prefers-color-scheme, focus management en ''Mostrar más''.\par\vspace{0.4em}
+Manejo de errores: ApiError tipado, mensajes en español.\par\vspace{0.4em}
+Remount por token: AppLayout y ChatProvider remontan al cambiar de token. Excelente defensa contra filtrado de estado entre cuentas.\par\vspace{0.4em}
+i18n lista: los strings de UI están en \code{content/copy.ts}, no hardcodeados en componentes.\par\vspace{0.4em}
+Responsive: sidebar en desktop, bottom nav en mobile, dock adaptable.\par\vspace{0.4em}
+\subsection{5.5 Conclusión de la misión}
+\badgeMedia\  Aprobado con fricción. El sistema es coherente y aprendible, pero la fricción real está en los flujos de productividad (drafts, registro, push multi-cuenta). Las correcciones son de baja complejidad.\par\vspace{0.4em}
+\section{Misión 6 --- CHAOS MODE}
+Resultado: \badgePositivo\  Buena resiliencia, con gaps de testing. El sistema tiene retry exponencial en WS, retry con backoff en REST, dedupe en ChatSessions, y reconexión en RedisChatBroker. Pero faltan tests de los caminos de fallo más importantes (token JWT expirado, race en registro, reconexión WS con mensajes en vuelo).\par\vspace{0.4em}
+\subsection{6.1 Resumen ejecutivo}
+La resiliencia se construyó por dos lados: el backend con reconexión automática (Redis broker) y el frontend con reintentos y backoff (WS, history, api en general). El test suite es sólido en chat y débil en auth/posts.\par\vspace{0.4em}
+\subsection{6.2 Modos de fallo analizados}
+\subsubsection{6.2.1 Neo4j se detiene temporalmente}
+Comportamiento esperado: El backend no puede escribir ni leer. Los requests devuelven 500 ERROR\_INTERNO (vía ExceptionMappers.unexpected).\par\vspace{0.4em}
+Comportamiento real: ExceptionMappers.unexpected loguea el error y devuelve ERROR\_INTERNO. El frontend reintenta history 3 veces (H-XX).\par\vspace{0.4em}
+Recuperación: Cuando Neo4j vuelve, el frontend no necesita refrescar manualmente: el próximo request funciona. Los health checks de Docker reinician automáticamente el contenedor.\par\vspace{0.4em}
+Gap: No hay circuit breaker. Si Neo4j se demora 30s, cada request espera 30s antes de fallar. Con 2 réplicas, el LB no las saca de rotación.\par\vspace{0.4em}
+\subsubsection{6.2.2 Redis se detiene}
+Comportamiento esperado: El chat no se entrega entre réplicas. El historial queda en Neo4j.\par\vspace{0.4em}
+Comportamiento real (backend): ChatService.send() intenta \code{broker.publish(saved).await().atMost(Duration.ofSeconds(2))} y si falla, loguea warnf(''Redis unavailable...''). Después llama sessions.deliver(saved) local, así que el emisor siempre ve su mensaje.\par\vspace{0.4em}
+Recuperación: RedisChatBroker (\code{RedisChatBroker.java:80-86}) reconecta con timer de 1s al detectar disconnected(). Backoff lineal, no exponencial.\par\vspace{0.4em}
+Gap: El receptor en otra réplica no ve el mensaje en vivo. Solo lo ve al recargar historial por REST. Esto es un tradeoff conocido del diseño, documentado en el README, pero el usuario lo vive como bug.\par\vspace{0.4em}
+\subsubsection{6.2.3 Backend-1 se reinicia}
+Comportamiento esperado: Los sockets conectados a backend-1 se cierran. El frontend reconecta.\par\vspace{0.4em}
+Comportamiento real: useChatConnection tiene backoff 1s $\rightarrow$ 2s $\rightarrow$ 4s $\rightarrow$ ... $\rightarrow$ 30s. Al reconectar, el handshake con ?token= re-valida el JWT. Si el token venció, el backend cierra con 1008 Usuario no disponible o 1008 JWT vencido.\par\vspace{0.4em}
+Recuperación de mensajes perdidos: reconnect() en ChatProvider recarga chat.list y vuelve a llamar loadHistory(id) para cada conversación cargada. Excelente.\par\vspace{0.4em}
+Gap: Los mensajes enviados durante el reinicio se pierden del feed en vivo (el send() en el frontend retorna false si el socket no está OPEN). No hay cola de outbox en el cliente.\par\vspace{0.4em}
+\subsubsection{6.2.4 Neo4j se corrompe (constraint violation masiva)}
+Comportamiento: Las constraints están como IF NOT EXISTS (ver \code{Neo4jConstraints.java:18-25}). Si se reinicia Neo4j con una versión anterior del schema, las constraints se vuelven a crear. Bien.\par\vspace{0.4em}
+Gap: Si dos requests concurrentes intentan crear el mismo username, el primero gana y el segundo recibe Neo.ClientError.Schema.ConstraintViolationFailed. El AuthService lo captura y lo traduce a 409 USERNAME\_EN\_USO. Pero hay una ventana mínima donde ambos pueden leer ''no existe'' antes de que el constraint valide.\par\vspace{0.4em}
+\subsubsection{6.2.5 Token JWT expira}
+Comportamiento backend: El endpoint protegido responde 401 vía ExceptionMappers.authenticationFailed. El header WWW-Authenticate: Bearer está presente.\par\vspace{0.4em}
+Comportamiento frontend: \code{api.ts:40-41} desloguea en cualquier 401. El AuthProvider arma un timer de tokenExpiresAt que se ejecuta cuando vence, llamando setSession(null). El doble deslogueo es idempotente, así que no hay problema funcional, pero la UX es brusca.\par\vspace{0.4em}
+Gap de test (H-25): No hay un test que pruebe ''token vencido $\rightarrow$ 401 $\rightarrow$ UX de cierre de sesión''. El test verifica la duración (exp - iat = 86400) pero no el camino de fallo.\par\vspace{0.4em}
+\subsubsection{6.2.6 Acciones concurrentes (reaccionar dos veces al mismo post rápido)}
+Comportamiento: PostService.react usa MERGE en Cypher con ON CREATE SET. La segunda llamada no duplica la relación, solo actualiza el timestamp. Idempotente.\par\vspace{0.4em}
+Comportamiento frontend: PostCard.toggleReaction tiene if (reactionBusy) return y setReactionBusy(true). Seguro.\par\vspace{0.4em}
+\subsubsection{6.2.7 Frontend con un servicio no disponible (Neo4j caído)}
+El frontend hace await fetch(''/api/...''). Si el backend está arriba pero Neo4j caído, recibe 500. \code{api.ts:30} lo traduce a ApiError(0, \{ error: ''CONEXION'', mensaje: copy.connectionError \}). Falla genérica, no específica.\par\vspace{0.4em}
+El feed no se distingue entre ''Neo4j caído'' y ''backend caído''. El usuario ve ''Error de conexión'' sin contexto.\par\vspace{0.4em}
+\subsection{6.3 Hallazgos}
+\vspace{0.8em}\noindent\textbf{\large H-25 $\cdot$ \badgeMedia\  No hay test de JWT expirado}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{backend/src/test/java/com/redsocial/auth/AuthResourceTest.java} verifica exp - iat = 86400 pero no prueba el flujo ''vencido $\rightarrow$ 401 $\rightarrow$ UX''.  Impacto: El camino más probable a 24h vista no está cubierto.  Recomendación: Test con un JWT firmado con lifespan=1s + Thread.sleep(1500) + request $\rightarrow$ assert 401.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-26 $\cdot$ \badgeMedia\  No hay test de race en POST /auth/registro}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{AuthResourceTest.java} cubre duplicados secuenciales (409), pero no concurrentes.  Impacto: Ventana mínima donde dos requests podrían pasar la lectura ''no existe'' antes de la escritura constraint. Depende del aislamiento de Neo4j.  Recomendación: Test con ExecutorService lanzando 4 registros en paralelo con el mismo username $\rightarrow$ assert que solo 1 devuelve 201 y 3 devuelven 409.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large H-27 $\cdot$ \badgePositivo\  RedisChatBroker reconecta con backoff lineal fijo}\par\vspace{0.3em}
+\noindent\textbf{Evidencia:}\ \code{RedisChatBroker.java:80-86} vertx.setTimer(1000, ...). Sin jitter, sin backoff exponencial.  Impacto: Con 2 réplicas no hay problema. Con 20+ en una tormenta de red, todas las reconexiones golpean Redis al mismo tiempo. Aceptable hoy.  Recomendación: Cambiar a min(1000 * 2\textasciicircum{}n + jitter, 30000).\par\vspace{0.4em}
+\subsection{6.4 Lo que SÍ está bien}
+RedisChatBroker tiene reconexión robusta: la lógica disconnected() $\rightarrow$ setTimer(1000, connect) se ejecuta dentro de synchronized y verifica stopped para no fugar timers. Es código defensivo serio.\par\vspace{0.4em}
+useChatConnection con backoff exponencial: 1s $\rightarrow$ 2s $\rightarrow$ 4s $\rightarrow$ ... $\rightarrow$ 30s. Es la práctica recomendada para clientes WebSocket.\par\vspace{0.4em}
+chat.history reintenta solo lecturas idempotentes: 3 intentos con delay incremental (1s, 2s), solo en errores de red (0, 502, 503, 504). Nunca reintenta un POST, lo que evita duplicar posts o comentarios.\par\vspace{0.4em}
+Tests de chat son sólidos: \code{ChatSocketTest.java} cubre tokens expirados, tokens con issuer incorrecto, token doble (?token=x\&token=y), conexión concurrente, fan-out a múltiples sesiones, failedBroker (mensaje se persiste localmente aunque Redis esté caído). El test suite más maduro del proyecto.\par\vspace{0.4em}
+Tests de chat cubren idempotencia concurrente: \code{ChatResourceTest.createIsIdempotentInBothDirectionsEvenConcurrently} lanza 6 requests en paralelo y verifica una sola conversación.\par\vspace{0.4em}
+Nginx proxy\_next\_upstream con cap de 2 tries y timeout 2s/5s: si una réplica está caída, el LB no se queda esperando.\par\vspace{0.4em}
+Seed auto-verificable: aborta el seed si alguna de las 8 consultas falla.\par\vspace{0.4em}
+\subsection{6.5 Conclusión de la misión}
+\badgePositivo\  Buena resiliencia, con gaps de testing. El sistema degrada con elegancia (mensajes en historial, reconexión automática, dedupe). Faltan tests de los caminos de fallo más comunes (JWT expirado, race en registro), pero la implementación parece sólida.\par\vspace{0.4em}
+\section*{Anexo A --- Hallazgos del equipo original (mapeados a las misiones)}
+\addcontentsline{toc}{section}{Anexo A --- Hallazgos del equipo original (mapeados a las misiones)}
+Esta sección preserva y referencia los hallazgos de la auditoría manual que el equipo entregó, para que el documento final sea autocontenido. Cada hallazgo está mapeado a la misión correspondiente.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.1 Token, sesión y autenticación (M4, M5)}\par\vspace{0.2em}
+''Es un solo token, sin refresh. \code{LoginResponse.java} es un record con un solo campo token, y AuthService.login() lo genera con \code{Jwt.subject(id).upn(username).sign()}. No hay ningún RefreshToken en el grafo --- busqué y no existe. El backend mismo lo dice en \code{AuthResource.java:20-21}: 'el login emite el JWT que todo endpoint privado requiere; el servidor no guarda sesión'. Es stateless puro, con vida útil de 24h.''\par\vspace{0.4em}
+Confirmado. \code{AuthService.java:51-58} genera el JWT con \code{Jwt.subject(credentials.id()).upn(credentials.username()).sign()}. \code{application.properties} define \texttt{smallrye.jwt.}\allowbreak\texttt{new-token.lifespan=}\allowbreak\texttt{\$\{JWT\_LIFESPAN\_SECONDS:86400\}} (24h).\par\vspace{0.4em}
+''Y sí, vive en localStorage. \code{frontend/src/lib/session.ts:3} define SESSION\_KEY = ''nodouni.session'' y guarda el JSON \{ token, user \} ahí. Después \code{frontend/src/lib/api.ts:26,31} lo lee con getSession()?.token y lo manda en cada request como Authorization: Bearer <token>. Si el backend devuelve 401, \code{api.ts:40-41} hace setSession(null) --- o sea, te desloguea.''\par\vspace{0.4em}
+Confirmado y elevado a H-13 (\badgeMedia\ , M4) y H-14 (\badgeMedia\ , M5).\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.2 Acoplamiento sano y malsano (M3)}\par\vspace{0.2em}
+''Lo sano: cada feature tiene Resource $\rightarrow$ Service $\rightarrow$ Repository con inyección por constructor. \code{PostNotifier.java:36} escucha PostCreated con @ObservesAsync. PostService dispara el evento con fireAsync y NO espera el push. MediaStorage es interfaz.''\par\vspace{0.4em}
+Confirmado y referenciado en la sección 3.2 de M3.\par\vspace{0.4em}
+''Lo acoplado de más: \code{PostService.java:22-26} tiene 5 dependencias. AuthService $\rightarrow$ UserService $\rightarrow$ UserRepository. PostRepository.PUBLIC\_FIELDS:23-29 importa CommentRepository.COUNT\_OF\_POST. Hotspots con fan-in altísimo: ExceptionMappers.api (fan-in 52), PostRepository.react (51), \code{lib/api.ts}: api (24).''\par\vspace{0.4em}
+Confirmado y elevado a H-05 (\badgeAlta\ ), H-06 (\badgeMedia\ ), H-07 (\badgeMedia\ ) en M3.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.3 Field injection en ChatSocket (M3)}\par\vspace{0.2em}
+''Esos 4 @Inject en campos tendrían que ser constructor injection con final.''\par\vspace{0.4em}
+Confirmado y elevado a H-08 (\badgeMedia\ ) en M3.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.4 Spanglish estructural (M3)}\par\vspace{0.2em}
+''Paquetes en español: comentarios, notificaciones (\code{ClavePublica.java}, \code{SuscripcionRequest.java}, \code{Sugerencia.java}). Records con campos en español: CommentRequest(texto, respondeA). Métodos en inglés sobre esos mismos objetos: create(), thread(), save(), history(). Mensajes al usuario en español: 'El usuario no existe'.''\par\vspace{0.4em}
+Confirmado y elevado a H-09 (\badgePositivo\ ) en M3, con la recomendación concreta de tres reglas documentadas.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.5 WebSocket pegajoso vs REST libre (M3, M6)}\par\vspace{0.2em}
+''Un WS conectado NO vuelve a pasar por el balanceador. El round robin elige UNA sola vez: en el handshake. El problema real es el OTRO caso: tu amigo manda un mensaje y su request REST cae en backend-2. ¿Cómo te llega? Por Redis. ChatService.send() hace las DOS cosas: broker.publish(saved) al canal Redis + sessions.deliver(saved) local. Cada réplica está suscripta.''\par\vspace{0.4em}
+Confirmado. ChatService.send() (líneas 60-72): hace repository.save() $\rightarrow$ broker.publish() $\rightarrow$ sessions.deliver(). RedisChatBroker suscribe commands.subscribe(CHANNEL, sessions:: deliver, this:: disconnected, ...). Excelente diseño.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.6 Escalabilidad: chat dedicado o proxy (M3, M6)}\par\vspace{0.2em}
+''Si el chat escala distinto que el REST, SÍ, backend dedicado. Hoy tus 2 réplicas son monolitos clonados. Si el problema es 'nginx dentro del frontend me hace ruido', SÍ, proxy dedicado (Traefik/Caddy). Lo que NO haría: ip\_hash.''\par\vspace{0.4em}
+Recomendación incorporada a la sección 6.2.1 y 6.2.2 de M6.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.7 Permisos de clave privada (M4, Crítica)}\par\vspace{0.2em}
+''La privada del JWT queda legible por todos --- \badgeNoCumple\  lo más grave. \code{docker-compose.yml:102} hace chmod 644 /keys/* y monta app\_keys: /keys: ro en AMBOS backends. Tiene que ser 600 (o 640 con grupo), nunca 644.''\par\vspace{0.4em}
+Confirmado y elevado a H-10 (\badgeCritica\  CRÍTICA) en M4.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.8 Registro sin logueo (M5)}\par\vspace{0.2em}
+''El registro no loguea --- \badgeAlta\  fricción UX. AuthService.register():32-49 devuelve Profile, no token. El frontend (users.register $\rightarrow$ api) obliga a registrarse Y después loguearse.''\par\vspace{0.4em}
+Confirmado y elevado a H-18 (\badgeAlta\ ) en M5.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.9 401 desloguea sin piedad (M4, M5)}\par\vspace{0.2em}
+''El 401 te patea la sesión sin piedad --- \badgeAlta\ . \code{api.ts:40-41}: cualquier 401 con el token actual hace setSession(null). Distinguí expirado vs inválido antes de borrar.''\par\vspace{0.4em}
+Confirmado y elevado a H-14 (\badgeMedia\ ) en M4.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.10 Imágenes sin WebP/AVIF (M5)}\par\vspace{0.2em}
+''Imágenes sin WebP/AVIF --- \badgeAlta\  gap de producto. ImageValidator:22-25 solo acepta png/jpeg/gif (5 MiB, 20 MP). Los celulares modernos sacan WebP/HEIC por defecto.''\par\vspace{0.4em}
+Confirmado y elevado a H-15 (\badgeMedia\ ) en M4.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.11 Redis 100\% efímero (M6)}\par\vspace{0.2em}
+''Redis 100\% efímero --- \badgeCumple\  bien, pero asumí la ventana. redis: --save '''' --appendonly no + tmpfs: correcto para pub/sub, pero si Redis cae justo en el publish, el mensaje queda en Neo4j y solo se entrega local. El receptor lo ve al recargar historial, no en vivo.''\par\vspace{0.4em}
+Confirmado. Documentado en la sección 6.2.2 de M6.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.12 Defaults que no pueden llegar a prod (M4)}\par\vspace{0.2em}
+''VAPID\_SUBJECT=mailto: admin@example.com y NEO4J\_PASSWORD=devpassword funcionan en dev, pero nada te frena si se te olvida cambiarlos.''\par\vspace{0.4em}
+Confirmado y elevado a H-16 (\badgeMedia\ ) en M4.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize A.13 Sin observabilidad distribuida (M4)}\par\vspace{0.2em}
+''Sin observabilidad distribuida --- \badgeAlta\ . Tenés /q/health y INSTANCE\_ID como env, pero no veo Micrometer/OpenTelemetry ni correlation-ID en los logs.''\par\vspace{0.4em}
+Confirmado y elevado a H-17 (\badgeMedia\ ) en M4.\par\vspace{0.4em}
+\section*{Anexo B --- Hallazgos propios que el equipo original no tenía}
+\addcontentsline{toc}{section}{Anexo B --- Hallazgos propios que el equipo original no tenía}
+Estos hallazgos surgieron de la revisión cruzada (auditoría propia) y no estaban en la auditoría manual del equipo. Es la ''otra auditoría'' que se pidió.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize B.1 (M1) \code{seed-demo.mjs} exige base vacía y aborta con mensaje claro}\par\vspace{0.2em}
+Origen: Revisión del seed.  Detalle: Si el usuario ya existe, el seed aborta con El usuario ''X'' ya existe. El script parte de una base vacía: ejecutar ''docker compose down -v'' y volver a levantar el stack.  Veredicto: Positivo. Patrón ''fail loud'' que evita datos corruptos. Referencia de buena práctica para otros scripts del proyecto.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize B.2 (M3) ChatSessions.deliver tiene dedupe con eviction bounded}\par\vspace{0.2em}
+Origen: Revisión de \code{ChatSessions.java}.  Detalle: LinkedHashMap con putIfAbsent y eviction al llegar a 4096. Esto previene que un mensaje entregado por Redis y por la propia suscripción local se envíe dos veces. El 4096 es un cap razonable (es \textasciitilde{}16 KB de IDs, no es un memory leak).  Veredicto: Patrón a copiar en otros lugares con fan-out (notificaciones push, por ejemplo).\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize B.3 (M3) PushRepository.subscribe usa lock distribuido en Neo4j}\par\vspace{0.2em}
+Origen: Revisión de \code{PushRepository.java:22-26}.  Detalle: LOCK\_USER hace SET u.pushSubscriptionVersion = coalesce(u.pushSubscriptionVersion, 0) + 1. Esto serializa suscripciones concurrentes desde ambas réplicas del backend, evitando race entre subscribe y unsubscribe.  Veredicto: Patrón avanzado, raro de ver en proyectos académicos. Digno de mención en la defensa del proyecto.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize B.4 (M4) El SW no loggea tokens (positiva)}\par\vspace{0.2em}
+Origen: Revisión de \code{frontend/public/sw.js}.  Detalle: El Service Worker no escribe el JWT ni la query en ningún cache. Solo guarda metadata del owner (userId + endpoint) y la suscripción push. Si el operador revisa los logs del SW, no ve tokens.  Veredicto: Alineado con H-17 (observabilidad) pero a nivel local. Bien.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize B.5 (M5) useRemote hook con cancelaciones consistentes}\par\vspace{0.2em}
+Origen: Revisión de \code{ChatProvider.tsx:18-23}, 49-95.  Detalle: Cada loadHistory(id) arma un AbortController y aborta el anterior con requests.current.get(id)?.abort(). Esto previene race conditions cuando el usuario cambia de conversación rápido.  Veredicto: Patrón defensivo bien aplicado. El useRemote abstrae esto y lo aplica consistentemente.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize B.6 (M5) AppLayout remonta ChatProvider con key=\{session?.token\}}\par\vspace{0.2em}
+Origen: Revisión de \code{AppLayout.tsx}.  Detalle: Cuando el usuario cambia (logout + login con otro token), el ChatProvider se desmonta y se vuelve a montar. Esto blinda contra filtrado de sockets, drafts o estados entre cuentas.  Veredicto: Defensa en profundidad notable. No es común ver este nivel de cuidado en proyectos académicos.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize B.7 (M6) \code{seed-demo.mjs} corre 8 verificaciones Cypher al final}\par\vspace{0.2em}
+Origen: Revisión del seed (ver B.1).  Detalle: Después de sembrar, el script ejecuta feed, suggestions, mutuals, reach, separation (con y sin camino), discover, thread y aborta si alguna falla. Esto es esencialmente un test de integración del happy path.  Veredicto: Patrón a copiar para futuras features: ''si el seed se completa pero las queries fallan, abortar con mensaje claro''.\par\vspace{0.4em}
+\vspace{0.6em}\noindent\textbf{\normalsize B.8 (M6) Tests de chat cubren casos no triviales}\par\vspace{0.2em}
+Origen: Revisión de \code{ChatSocketTest.java} y \code{ChatResourceTest.java}.  Detalle:\par\vspace{0.4em}
+\code{persistsBeforePublishingAndDeliversOnceToAllParticipantSessionsOnly}: verifica que el mensaje se persiste ANTES de publicarse a Redis, y que solo se entrega una vez aunque haya múltiples sesiones del mismo usuario.\par\vspace{0.4em}
+createIsIdempotentInBothDirectionsEvenConcurrently: 6 requests en paralelo creando la misma conversación, verifica una sola.\par\vspace{0.4em}
+\code{cursorPaginatesTiesWithoutSkippingOrRepeatingAfterANewMessage}: previene el bug clásico de skip/repeat.\par\vspace{0.4em}
+failedBroker: mensaje se persiste localmente aunque Redis esté caído.\par\vspace{0.4em}
+Veredicto: El test suite más maduro del proyecto. Es una referencia para escribir los tests faltantes en auth y posts (H-25, H-26).\par\vspace{0.4em}
+\section*{Anexo C --- Resumen de la auditoría manual del equipo}
+\addcontentsline{toc}{section}{Anexo C --- Resumen de la auditoría manual del equipo}
+Una vista compacta de los hallazgos de la auditoría manual del equipo, ordenadas por severidad. No incluye los hallazgos nuevos de esta auditoría cruzada (que están en Anexo B y en la tabla del Resumen Ejecutivo).\par\vspace{0.4em}
+\begin{table}[htbp]
+\centering\small
+\begin{tabularx}{\textwidth}{X p{2.2cm} p{1.5cm} p{2.5cm}}
+\rowcolor{tableheader}\toprule
+Hallazgo (resumen del equipo) & Severidad & Misión & Elevado a \\ \midrule
+Token único sin refresh, 24h, en localStorage & \badgeMedia\  Media & M4, M5 & H-13, H-14 \\ \midrule
+Acoplamiento sano: eventos async, interfaces & \badgePositivo\  Positivo & M3 & Referencia en \S\,3.2 \\ \midrule
+PostService con 5 deps (god-service incipiente) & \badgeAlta\  Alta & M3 & H-05 \\ \midrule
+AuthService $\rightarrow$ UserService $\rightarrow$ UserRepository & \badgeMedia\  Media & M3 & H-07 \\ \midrule
+PostRepository importa constante de CommentRepository & \badgeMedia\  Media & M3 & H-06 \\ \midrule
+Fan-in altísimo en ExceptionMappers/PostRepository/lib/api & \badgePositivo\  Positivo (a manejar) & M3 & \S\,3.2 \\ \midrule
+ChatSocket con field injection & \badgeMedia\  Media & M3 & H-08 \\ \midrule
+Spanglish estructural & \badgePositivo\  Baja & M3 & H-09 \\ \midrule
+Alternativas a monolito: chat dedicado, proxy separado & \badgeInfo\  Info & M3, M6 & \S\,6.2.1, \S\,6.2.2 \\ \midrule
+privateKey.pem chmod 644 (world-readable) & \badgeCritica\  Crítica & M4 & H-10 \\ \midrule
+Registro devuelve Profile, no token (2 round-trips) & \badgeAlta\  Alta & M5 & H-18 \\ \midrule
+401 desloguea sin distinguir vencido vs inválido & \badgeMedia\  Media & M4, M5 & H-14 \\ \midrule
+Imágenes sin WebP/AVIF & \badgeMedia\  Media & M4, M5 & H-15 \\ \midrule
+Redis 100\% efímero (documentar tradeoff) & \badgePositivo\  Positivo & M6 & \S\,6.2.2 \\ \midrule
+VAPID\_SUBJECT y NEO4J\_PASSWORD defaults & \badgeMedia\  Media & M4 & H-16 \\ \midrule
+Sin observabilidad distribuida (Micrometer, X-Request-Id) & \badgeMedia\  Media & M4 & H-17 \\ \midrule
+WS pegajoso + REST libre + Redis como puente & \badgePositivo\  Positivo & M3, M6 & \S\,6.2.3 \\ \midrule
+\bottomrule
+\end{tabularx}
+\caption{Resumen de la Auditoría Manual del Equipo}
+\end{table}
+
+\section*{Conclusiones y Siguientes Pasos}
+\addcontentsline{toc}{section}{Conclusiones y Siguientes Pasos}
+\vspace{0.8em}\noindent\textbf{\large Lo que el sistema hace bien (referencias del equipo, confirmadas por la auditoría cruzada)}\par\vspace{0.4em}
+Arquitectura por capas limpia y testeable.\par\vspace{0.4em}
+Eventos asíncronos para desacoplar push del request.\par\vspace{0.4em}
+WebSocket + Redis Pub/Sub bien orquestados.\par\vspace{0.4em}
+Web Locks API en el frontend para evitar doble subscribe.\par\vspace{0.4em}
+Remount por token en AppLayout y ChatProvider para defensa multi-cuenta.\par\vspace{0.4em}
+Seed auto-verificable.\par\vspace{0.4em}
+Tests sólidos en chat (concurrencia, expiración, multi-tab, Redis caído).\par\vspace{0.4em}
+Lock distribuido en Neo4j para suscripciones push concurrentes.\par\vspace{0.4em}
+Nginx con rate limiting diferenciado (auth vs write) y security headers básicos.\par\vspace{0.4em}
+\vspace{0.8em}\noindent\textbf{\large Lo que urge corregir antes de cualquier despliegue real}\par\vspace{0.4em}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeCritica\  H-10: Cambiar chmod 644 por chmod 600 en keys-init.\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeAlta\  H-11: Forzar corrida de bcrypt en AuthService.login() para evitar user enumeration.\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeAlta\  H-12: Agregar Content-Security-Policy estricta en Nginx.\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeAlta\  H-28: Implementar PUT /api/auth/password e invalidación de sesiones con tokenVersion en Neo4j.\end{itemize}
+\vspace{0.8em}\noindent\textbf{\large Lo que urge corregir antes de mostrar a usuarios reales}\par\vspace{0.4em}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeAlta\  H-18: Devolver LoginResponse con Profile embebido en register.\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeAlta\  H-19: Persistencia de drafts en PostComposer.\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeAlta\  H-05: Refactor de PostService (PostCreator + colaboradores).\end{itemize}
+\vspace{0.8em}\noindent\textbf{\large Lo que se puede hacer en sprints siguientes}\par\vspace{0.4em}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeMedia\  H-06, H-07, H-08: Limpiar acoplamientos menores.\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeMedia\  H-14, H-15, H-16, H-17: Endurecimientos de seguridad.\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeMedia\  H-20, H-21, H-22, H-23, H-24: Fricciones de UX.\end{itemize}
+\begin{itemize}[leftmargin=1.5em,noitemsep,topsep=0pt]\item \badgeMedia\  H-25, H-26, H-27: Tests faltantes.\end{itemize}
+\vspace{0.8em}\noindent\textbf{\large Documentación recomendada}\par\vspace{0.4em}
+Una línea en el README: ''Code in English, user strings in Spanish'' (H-09).\par\vspace{0.4em}
+Procedimiento de rotación de claves JWT/VAPID (H-10).\par\vspace{0.4em}
+Política de CSP y qué orígenes push están permitidos (H-12).\par\vspace{0.4em}
+Procedimiento de recuperación ante caída de Redis: el usuario debe saber que el chat ''se retrasa'' hasta recargar historial (M6 \S\,6.2.2).\par\vspace{0.4em}
+Firmado: Auditoría cruzada sobre la auditoría del equipo  Fecha: 2026-11  Alcance: Estático + revisión de código + verificación de cumplimiento del README. No se ejecutaron pruebas de penetración activas (esos quedan para un Blue Team en un entorno autorizado).\par\vspace{0.4em}
+\end{document}

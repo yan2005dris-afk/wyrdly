@@ -1,0 +1,54 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {section}{Resumen Ejecutivo}{3}{Doc-Start}%
+\contentsline {section}{\numberline {1}Tabla Consolidada de Hallazgos}{4}{section.1}%
+\contentsline {section}{\numberline {2}Misión 1 --- FROM ZERO: Reproducibilidad}{6}{section.2}%
+\contentsline {subsection}{\numberline {2.1}1.1 Resumen ejecutivo}{6}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}1.2 Pasos realizados}{6}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}1.3 Hallazgos}{6}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}1.4 Conclusión de la misión}{7}{subsection.2.4}%
+\contentsline {section}{\numberline {3}Misión 2 --- REQUIREMENTS HUNT}{7}{section.3}%
+\contentsline {subsection}{\numberline {3.1}2.1 Resumen ejecutivo}{7}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}2.2 Tabla de cumplimiento}{7}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}2.3 Verificación automática del seed}{7}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}2.4 Hallazgos}{9}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}2.5 Conclusión de la misión}{9}{subsection.3.5}%
+\contentsline {section}{\numberline {4}Misión 3 --- CODE AUTOPSY}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}3.1 Resumen ejecutivo}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}3.2 Acoplamiento sano (lo que está bien)}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}3.3 Acoplamiento que va a doler}{10}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}3.4 Conclusión de la misión}{11}{subsection.4.4}%
+\contentsline {section}{\numberline {5}Misión 4 --- BREAK IT: Seguridad y pentesting controlado}{12}{section.5}%
+\contentsline {subsection}{\numberline {5.1}4.1 Resumen ejecutivo}{12}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}4.2 Hipótesis $\rightarrow $ Prueba $\rightarrow $ Evidencia $\rightarrow $ Impacto}{12}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}4.3 Lo que SÍ está bien}{15}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}4.4 Conclusión de la misión}{15}{subsection.5.4}%
+\contentsline {section}{\numberline {6}Misión 5 --- UX UNDER FIRE}{15}{section.6}%
+\contentsline {subsection}{\numberline {6.1}5.1 Resumen ejecutivo}{15}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}5.2 Flujos evaluados}{16}{subsection.6.2}%
+\contentsline {subsubsection}{\numberline {6.2.1}5.2.1 Registro}{16}{subsubsection.6.2.1}%
+\contentsline {subsubsection}{\numberline {6.2.2}5.2.2 Login}{16}{subsubsection.6.2.2}%
+\contentsline {subsubsection}{\numberline {6.2.3}5.2.3 Crear publicación}{16}{subsubsection.6.2.3}%
+\contentsline {subsubsection}{\numberline {6.2.4}5.2.4 Seguir a un usuario}{16}{subsubsection.6.2.4}%
+\contentsline {subsubsection}{\numberline {6.2.5}5.2.5 Comentar}{16}{subsubsection.6.2.5}%
+\contentsline {subsubsection}{\numberline {6.2.6}5.2.6 Chat}{17}{subsubsection.6.2.6}%
+\contentsline {subsubsection}{\numberline {6.2.7}5.2.7 Activar notificaciones}{17}{subsubsection.6.2.7}%
+\contentsline {subsection}{\numberline {6.3}5.3 Hallazgos específicos}{17}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}5.4 Lo que SÍ está bien}{18}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}5.5 Conclusión de la misión}{18}{subsection.6.5}%
+\contentsline {section}{\numberline {7}Misión 6 --- CHAOS MODE}{18}{section.7}%
+\contentsline {subsection}{\numberline {7.1}6.1 Resumen ejecutivo}{18}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}6.2 Modos de fallo analizados}{18}{subsection.7.2}%
+\contentsline {subsubsection}{\numberline {7.2.1}6.2.1 Neo4j se detiene temporalmente}{18}{subsubsection.7.2.1}%
+\contentsline {subsubsection}{\numberline {7.2.2}6.2.2 Redis se detiene}{19}{subsubsection.7.2.2}%
+\contentsline {subsubsection}{\numberline {7.2.3}6.2.3 Backend-1 se reinicia}{19}{subsubsection.7.2.3}%
+\contentsline {subsubsection}{\numberline {7.2.4}6.2.4 Neo4j se corrompe (constraint violation masiva)}{19}{subsubsection.7.2.4}%
+\contentsline {subsubsection}{\numberline {7.2.5}6.2.5 Token JWT expira}{19}{subsubsection.7.2.5}%
+\contentsline {subsubsection}{\numberline {7.2.6}6.2.6 Acciones concurrentes (reaccionar dos veces al mismo post rápido)}{19}{subsubsection.7.2.6}%
+\contentsline {subsubsection}{\numberline {7.2.7}6.2.7 Frontend con un servicio no disponible (Neo4j caído)}{20}{subsubsection.7.2.7}%
+\contentsline {subsection}{\numberline {7.3}6.3 Hallazgos}{20}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}6.4 Lo que SÍ está bien}{20}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}6.5 Conclusión de la misión}{20}{subsection.7.5}%
+\contentsline {section}{Anexo A --- Hallazgos del equipo original (mapeados a las misiones)}{21}{subsection.7.5}%
+\contentsline {section}{Anexo B --- Hallazgos propios que el equipo original no tenía}{22}{subsection.7.5}%
+\contentsline {section}{Anexo C --- Resumen de la auditoría manual del equipo}{23}{subsection.7.5}%
+\contentsline {section}{Conclusiones y Siguientes Pasos}{25}{table.4}%

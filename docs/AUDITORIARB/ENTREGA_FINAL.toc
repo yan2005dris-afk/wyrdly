@@ -1,0 +1,20 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {section}{\numberline {1}\textcolor {redteamcolor}{Parte A — Evidencia como Red Team}}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Identificación del equipo auditado}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Reproducibilidad}{2}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Hallazgos emitidos}{2}{subsection.1.3}%
+\contentsline {subsubsection}{\numberline {1.3.1}Resumen cuantitativo}{2}{subsubsection.1.3.1}%
+\contentsline {subsubsection}{\numberline {1.3.2}Tabla de GitHub Issues (Issues \#112–\#120)}{3}{subsubsection.1.3.2}%
+\contentsline {subsection}{\numberline {1.4}Resultado posterior a la réplica del Blue Team auditado}{4}{subsection.1.4}%
+\contentsline {subsection}{\numberline {1.5}Top 3 hallazgos más relevantes}{5}{subsection.1.5}%
+\contentsline {section}{\numberline {2}\textcolor {blueteamcolor}{Parte B — Evidencia como Blue Team}}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Identificación del repositorio propio}{6}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Issues recibidos y respuestas}{6}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Resumen cuantitativo}{6}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}Tabla de respuestas por hallazgo}{6}{subsubsection.2.2.2}%
+\contentsline {section}{\numberline {3}Reflexión Técnica}{7}{section.3}%
+\contentsline {section}{\numberline {4}Evidencias}{7}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Como Red Team}{7}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Como Blue Team}{8}{subsection.4.2}%
+\contentsline {section}{Anexo A — Detalle de Hallazgos Emitidos}{9}{Item.10}%
+\contentsline {section}{Anexo B — Síntesis de Réplicas como Blue Team}{11}{Item.10}%
